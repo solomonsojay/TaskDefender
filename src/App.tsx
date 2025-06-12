@@ -3,6 +3,11 @@ import { AppProvider, useApp } from './contexts/AppContext';
 import { useSarcasticPrompts } from './hooks/useSarcasticPrompts';
 import Header from './components/common/Header';
 import OnboardingFlow from './components/onboarding/OnboardingFlow';
+import Dashboard from './components/dashboard/Dashboard';
+import TaskList from './components/tasks/TaskList';
+import QuickTaskCapture from './components/tasks/QuickTaskCapture';
+import FocusMode from './components/focus/FocusMode';
+import SarcasticPromptDisplay from './components/sarcasm/SarcasticPromptDisplay';
 
 const AppContent: React.FC = () => {
   const { user, isOnboarding } = useApp();
@@ -71,16 +76,64 @@ const AppContent: React.FC = () => {
 
         {/* Main Content */}
         <main>
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              Welcome to TaskDefender!
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Your productivity dashboard is loading...
-            </p>
-          </div>
+          {currentView === 'dashboard' && (
+            <div className="space-y-8">
+              <QuickTaskCapture />
+              <Dashboard />
+            </div>
+          )}
+          {currentView === 'tasks' && <TaskList />}
+          {currentView === 'focus' && <FocusMode />}
+          {currentView === 'notifications' && (
+            <div className="text-center py-12">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                Notifications
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                Notification system coming soon...
+              </p>
+            </div>
+          )}
+          {currentView === 'voice' && (
+            <div className="text-center py-12">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                Voice Calls
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                Voice call system coming soon...
+              </p>
+            </div>
+          )}
+          {currentView === 'teams' && user.role === 'admin' && (
+            <div className="text-center py-12">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                Team Management
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                Team management coming soon...
+              </p>
+            </div>
+          )}
+          {currentView === 'settings' && (
+            <div className="text-center py-12">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                Settings
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                Settings panel coming soon...
+              </p>
+            </div>
+          )}
         </main>
       </div>
+
+      {/* Sarcastic Prompt Overlay */}
+      <SarcasticPromptDisplay
+        prompt={currentPrompt}
+        onDismiss={dismissPrompt}
+        onPersonaChange={changePersona}
+        currentPersona={userPersona}
+      />
     </div>
   );
 };
