@@ -39,7 +39,7 @@ TaskDefender is a comprehensive productivity application that combines task mana
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/your-username/taskdefender.git
+https://github.com/solomonsojay/TaskDefenderv2
 cd taskdefender
 ```
 
