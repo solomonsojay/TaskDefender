@@ -10,11 +10,13 @@ import FocusMode from './components/focus/FocusMode';
 import TeamManagement from './components/teams/TeamManagement';
 import VoiceCallSystem from './components/voice/VoiceCallSystem';
 import NotificationScheduler from './components/notifications/NotificationScheduler';
+import MonitoringDashboard from './components/monitoring/MonitoringDashboard';
+import SmartInterventionSystem from './components/ai/SmartInterventionSystem';
 import SarcasticPromptDisplay from './components/sarcasm/SarcasticPromptDisplay';
 
 const AppContent: React.FC = () => {
   const { user, isOnboarding } = useApp();
-  const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'focus' | 'teams' | 'notifications' | 'voice'>('dashboard');
+  const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'focus' | 'teams' | 'notifications' | 'voice' | 'monitoring' | 'ai-interventions'>('dashboard');
   
   const {
     currentPrompt,
@@ -57,6 +59,8 @@ const AppContent: React.FC = () => {
               { id: 'dashboard', label: 'Dashboard' },
               { id: 'tasks', label: 'Tasks' },
               { id: 'focus', label: 'Focus Mode' },
+              { id: 'monitoring', label: 'Advanced Monitoring' },
+              { id: 'ai-interventions', label: 'AI Interventions' },
               { id: 'notifications', label: 'Notifications' },
               { id: 'voice', label: 'Voice Calls' },
               ...(user.role === 'admin' ? [{ id: 'teams', label: 'Teams' }] : []),
@@ -86,6 +90,8 @@ const AppContent: React.FC = () => {
           )}
           {currentView === 'tasks' && <TaskList />}
           {currentView === 'focus' && <FocusMode />}
+          {currentView === 'monitoring' && <MonitoringDashboard />}
+          {currentView === 'ai-interventions' && <SmartInterventionSystem />}
           {currentView === 'teams' && user.role === 'admin' && <TeamManagement />}
           {currentView === 'voice' && <VoiceCallSystem />}
           {currentView === 'notifications' && <NotificationScheduler />}
