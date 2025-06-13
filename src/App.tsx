@@ -7,6 +7,7 @@ import Dashboard from './components/dashboard/Dashboard';
 import TaskList from './components/tasks/TaskList';
 import QuickTaskCapture from './components/tasks/QuickTaskCapture';
 import FocusMode from './components/focus/FocusMode';
+import Settings from './components/settings/Settings';
 import SarcasticPromptDisplay from './components/sarcasm/SarcasticPromptDisplay';
 
 const AppContent: React.FC = () => {
@@ -84,6 +85,7 @@ const AppContent: React.FC = () => {
           )}
           {currentView === 'tasks' && <TaskList />}
           {currentView === 'focus' && <FocusMode />}
+          {currentView === 'settings' && <Settings />}
           {currentView === 'notifications' && (
             <div className="text-center py-12">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
@@ -111,16 +113,6 @@ const AppContent: React.FC = () => {
               </h2>
               <p className="text-gray-600 dark:text-gray-400">
                 Team management coming soon...
-              </p>
-            </div>
-          )}
-          {currentView === 'settings' && (
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                Settings
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400">
-                Settings panel coming soon...
               </p>
             </div>
           )}
