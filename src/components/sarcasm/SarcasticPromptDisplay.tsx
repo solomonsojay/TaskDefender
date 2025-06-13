@@ -58,6 +58,7 @@ const SarcasticPromptDisplay: React.FC<SarcasticPromptDisplayProps> = ({
     const utterance = new SpeechSynthesisUtterance(prompt.message);
     
     // Adjust voice based on persona
+    const voices = window.speechSynthesis.getVoices();
     switch (prompt.persona) {
       case 'gordon':
         utterance.rate = 1.2;
