@@ -9,6 +9,7 @@ import QuickTaskCapture from './components/tasks/QuickTaskCapture';
 import FocusMode from './components/focus/FocusMode';
 import Settings from './components/settings/Settings';
 import TeamManagement from './components/teams/TeamManagement';
+import VoiceCallSystem from './components/voice/VoiceCallSystem';
 import SarcasticPromptDisplay from './components/sarcasm/SarcasticPromptDisplay';
 
 const AppContent: React.FC = () => {
@@ -88,6 +89,7 @@ const AppContent: React.FC = () => {
           {currentView === 'focus' && <FocusMode />}
           {currentView === 'settings' && <Settings />}
           {currentView === 'teams' && user.role === 'admin' && <TeamManagement />}
+          {currentView === 'voice' && <VoiceCallSystem />}
           {currentView === 'notifications' && (
             <div className="text-center py-12">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
@@ -95,16 +97,6 @@ const AppContent: React.FC = () => {
               </h2>
               <p className="text-gray-600 dark:text-gray-400">
                 Notification system coming soon...
-              </p>
-            </div>
-          )}
-          {currentView === 'voice' && (
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                Voice Calls
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400">
-                Voice call system coming soon...
               </p>
             </div>
           )}
