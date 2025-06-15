@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { AppState, Task, User, Team, Theme, FocusSession } from '../types';
+import { useSupabaseContext } from './SupabaseContext';
 
 interface AppContextType extends AppState {
   dispatch: React.Dispatch<AppAction>;
@@ -96,42 +97,15 @@ export const useApp = () => {
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Load persisted data on mount
+  // Load theme from localStorage
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as Theme;
     if (savedTheme) {
       dispatch({ type: 'SET_THEME', payload: savedTheme });
     }
-
-    const savedUser = localStorage.getItem('taskdefender_user');
-    if (savedUser) {
-      try {
-        const user = JSON.parse(savedUser);
-        dispatch({ type: 'SET_USER', payload: user });
-        dispatch({ type: 'COMPLETE_ONBOARDING' });
-      } catch (error) {
-        console.error('Failed to load user data:', error);
-      }
-    }
-
-    const savedTasks = localStorage.getItem('taskdefender_tasks');
-    if (savedTasks) {
-      try {
-        const tasks = JSON.parse(savedTasks).map((task: any) => ({
-          ...task,
-          createdAt: new Date(task.createdAt),
-          dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-          startDate: task.startDate ? new Date(task.startDate) : undefined,
-          completedAt: task.completedAt ? new Date(task.completedAt) : undefined,
-        }));
-        dispatch({ type: 'SET_TASKS', payload: tasks });
-      } catch (error) {
-        console.error('Failed to load tasks:', error);
-      }
-    }
   }, []);
 
-  // Persist data changes
+  // Persist theme changes
   useEffect(() => {
     localStorage.setItem('theme', state.theme);
     if (state.theme === 'dark') {
@@ -141,16 +115,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [state.theme]);
 
-  useEffect(() => {
-    if (state.user) {
-      localStorage.setItem('taskdefender_user', JSON.stringify(state.user));
-    }
-  }, [state.user]);
-
-  useEffect(() => {
-    localStorage.setItem('taskdefender_tasks', JSON.stringify(state.tasks));
-  }, [state.tasks]);
-
+  // These functions will be overridden by Supabase context when available
   const addTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'userId'>) => {
     const task: Task = {
       ...taskData,
