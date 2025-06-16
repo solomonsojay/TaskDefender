@@ -1,17 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Brain, 
-  Zap, 
-  Target, 
-  Clock, 
-  TrendingUp,
   AlertTriangle,
   CheckCircle,
   Settings,
   Play,
-  Pause,
-  Volume2,
-  Bell
+  Pause
 } from 'lucide-react';
 import { enhancedAIAnalyzer, ContextualState } from '../../services/EnhancedAIAnalyzer';
 import { useSarcasticPrompts } from '../../hooks/useSarcasticPrompts';
