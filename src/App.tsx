@@ -1,4 +1,3 @@
-import React from 'react';
 import { AppProvider } from './contexts/AppContext';
 import { SupabaseProvider } from './contexts/SupabaseContext';
 import AuthWrapper from './components/auth/AuthWrapper';
