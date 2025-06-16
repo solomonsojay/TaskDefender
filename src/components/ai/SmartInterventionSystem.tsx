@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Brain, 
-  AlertTriangle,
-  CheckCircle,
-  Settings,
   Play,
   Pause
 } from 'lucide-react';
@@ -23,7 +20,7 @@ interface InterventionSettings {
 
 const SmartInterventionSystem: React.FC = () => {
   const { tasks } = useApp();
-  const { generateNudge, celebrateCompletion, userPersona } = useSarcasticPrompts();
+  const { generateNudge, celebrateCompletion } = useSarcasticPrompts();
   const [isActive, setIsActive] = useState(false);
   const [currentContext, setCurrentContext] = useState<ContextualState | null>(null);
   const [settings, setSettings] = useState<InterventionSettings>({
