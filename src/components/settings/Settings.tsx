@@ -13,16 +13,40 @@ import {
   Plus,
   MessageCircle,
   Volume2,
-  Database
+  Database,
+  Edit3,
+  X,
+  Check,
+  Building
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
+import { useSupabase } from '../../hooks/useSupabase';
 import { useSarcasticPrompts } from '../../hooks/useSarcasticPrompts';
 import DataPrivacySettings from './DataPrivacySettings';
+import OrganizationDetailsForm from '../onboarding/OrganizationDetailsForm';
 
 const Settings: React.FC = () => {
   const { user, theme, setTheme } = useApp();
+  const { updateProfile } = useSupabase();
   const { userPersona, changePersona, availablePersonas, generateNudge, generateRoast } = useSarcasticPrompts();
-  const [activeTab, setActiveTab] = useState<'profile' | 'wallet' | 'notifications' | 'security' | 'sarcasm' | 'privacy'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'organization' | 'wallet' | 'notifications' | 'security' | 'sarcasm' | 'privacy'>('profile');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isEditingOrganization, setIsEditingOrganization] = useState(false);
+  const [profileData, setProfileData] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    username: user?.username || '',
+  });
+  const [organizationData, setOrganizationData] = useState({
+    organizationName: user?.organizationName || '',
+    organizationType: user?.organizationType || '',
+    organizationIndustry: user?.organizationIndustry || '',
+    organizationSize: user?.organizationSize || '',
+    userRoleInOrg: user?.userRoleInOrg || '',
+    organizationWebsite: user?.organizationWebsite || '',
+    organizationDescription: user?.organizationDescription || '',
+  });
+  const [saving, setSaving] = useState(false);
   const [walletData, setWalletData] = useState({
     hasWallet: !!user?.walletAddress,
     walletAddress: user?.walletAddress || '',
@@ -62,8 +86,55 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      await updateProfile(profileData);
+      setIsEditingProfile(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveOrganization = async () => {
+    setSaving(true);
+    try {
+      await updateProfile(organizationData);
+      setIsEditingOrganization(false);
+    } catch (error) {
+      console.error('Error updating organization:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancelProfileEdit = () => {
+    setProfileData({
+      name: user?.name || '',
+      email: user?.email || '',
+      username: user?.username || '',
+    });
+    setIsEditingProfile(false);
+  };
+
+  const handleCancelOrganizationEdit = () => {
+    setOrganizationData({
+      organizationName: user?.organizationName || '',
+      organizationType: user?.organizationType || '',
+      organizationIndustry: user?.organizationIndustry || '',
+      organizationSize: user?.organizationSize || '',
+      userRoleInOrg: user?.userRoleInOrg || '',
+      organizationWebsite: user?.organizationWebsite || '',
+      organizationDescription: user?.organizationDescription || '',
+    });
+    setIsEditingOrganization(false);
+  };
+
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
+    ...(user?.role === 'admin' ? [{ id: 'organization', label: 'Organization', icon: Building }] : []),
     { id: 'sarcasm', label: 'Sarcasm Engine', icon: MessageCircle },
     { id: 'privacy', label: 'Data & Privacy', icon: Database },
     { id: 'wallet', label: 'Wallet', icon: Wallet },
@@ -185,138 +256,318 @@ const Settings: React.FC = () => {
                   ))}
                 </div>
               </div>
-
-              {/* Prompt Frequency */}
-              <div className="space-y-4">
-                <h4 className="font-semibold text-gray-900 dark:text-white">Prompt Settings</h4>
-                
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h5 className="font-medium text-gray-900 dark:text-white">Sarcastic Prompts</h5>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Enable motivational nudges and roasts</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        checked={notifications.sarcasticPrompts}
-                        onChange={(e) => setNotifications(prev => ({ ...prev, sarcasticPrompts: e.target.checked }))}
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 dark:peer-focus:ring-orange-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
-                    </label>
-                  </div>
-                  
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <p>• Gentle nudges after 30 minutes of inactivity</p>
-                    <p>• Medium roasts after 1 hour of procrastination</p>
-                    <p>• Savage motivation after 2+ hours of avoidance</p>
-                    <p>• Celebration messages when you complete tasks</p>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
           {activeTab === 'profile' && (
             <div className="space-y-6">
-              <div className="flex items-center space-x-4">
-                <div className="w-20 h-20 bg-orange-500/20 rounded-full flex items-center justify-center">
-                  <span className="text-2xl font-bold text-orange-500">
-                    {user?.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">{user?.name}</h3>
-                  <p className="text-gray-600 dark:text-gray-400">{user?.email}</p>
-                  <div className="flex items-center space-x-2 mt-2">
-                    <span className="bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 px-3 py-1 rounded-full text-sm font-medium">
-                      {user?.role === 'admin' ? 'Team Admin' : 'User'}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-20 h-20 bg-orange-500/20 rounded-full flex items-center justify-center">
+                    <span className="text-2xl font-bold text-orange-500">
+                      {user?.name.charAt(0).toUpperCase()}
                     </span>
                   </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">{user?.name}</h3>
+                    <p className="text-gray-600 dark:text-gray-400">@{user?.username}</p>
+                    <p className="text-gray-600 dark:text-gray-400">{user?.email}</p>
+                    <div className="flex items-center space-x-2 mt-2">
+                      <span className="bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 px-3 py-1 rounded-full text-sm font-medium">
+                        {user?.role === 'admin' ? 'Team Admin' : 'User'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
+                
+                {!isEditingProfile && (
+                  <button
+                    onClick={() => setIsEditingProfile(true)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    <span>Edit Profile</span>
+                  </button>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-gray-900 dark:text-white">Personal Information</h4>
+              {isEditingProfile ? (
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Edit Profile Information</h4>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      defaultValue={user?.name}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                    />
-                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        value={profileData.name}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      defaultValue={user?.email}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                    />
-                  </div>
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Username
+                      </label>
+                      <input
+                        type="text"
+                        value={profileData.username}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, username: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                      />
+                    </div>
 
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-gray-900 dark:text-white">Preferences</h4>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Theme
-                    </label>
-                    <div className="flex space-x-3">
-                      <button
-                        onClick={() => setTheme('light')}
-                        className={`flex items-center space-x-2 px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
-                          theme === 'light'
-                            ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                            : 'border-gray-200 dark:border-gray-600 hover:border-orange-300 dark:hover:border-orange-600'
-                        }`}
-                      >
-                        <Sun className="h-4 w-4" />
-                        <span className="text-sm">Light</span>
-                      </button>
-                      <button
-                        onClick={() => setTheme('dark')}
-                        className={`flex items-center space-x-2 px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
-                          theme === 'dark'
-                            ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                            : 'border-gray-200 dark:border-gray-600 hover:border-orange-300 dark:hover:border-orange-600'
-                        }`}
-                      >
-                        <Moon className="h-4 w-4" />
-                        <span className="text-sm">Dark</span>
-                      </button>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        value={profileData.email}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                      />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Work Style
-                    </label>
-                    <select
-                      defaultValue={user?.workStyle}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      onClick={handleCancelProfileEdit}
+                      className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200"
                     >
-                      <option value="focused">Deep Focus</option>
-                      <option value="flexible">Flexible</option>
-                      <option value="collaborative">Collaborative</option>
-                    </select>
+                      <X className="h-4 w-4" />
+                      <span>Cancel</span>
+                    </button>
+                    <button
+                      onClick={handleSaveProfile}
+                      disabled={saving}
+                      className="flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 disabled:opacity-50"
+                    >
+                      {saving ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                      <span>Save Changes</span>
+                    </button>
                   </div>
                 </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-gray-900 dark:text-white">Preferences</h4>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Theme
+                      </label>
+                      <div className="flex space-x-3">
+                        <button
+                          onClick={() => setTheme('light')}
+                          className={`flex items-center space-x-2 px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
+                            theme === 'light'
+                              ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                              : 'border-gray-200 dark:border-gray-600 hover:border-orange-300 dark:hover:border-orange-600'
+                          }`}
+                        >
+                          <Sun className="h-4 w-4" />
+                          <span className="text-sm">Light</span>
+                        </button>
+                        <button
+                          onClick={() => setTheme('dark')}
+                          className={`flex items-center space-x-2 px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
+                            theme === 'dark'
+                              ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                              : 'border-gray-200 dark:border-gray-600 hover:border-orange-300 dark:hover:border-orange-600'
+                          }`}
+                        >
+                          <Moon className="h-4 w-4" />
+                          <span className="text-sm">Dark</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Work Style
+                      </label>
+                      <div className="bg-gray-100 dark:bg-gray-700 rounded-xl p-3">
+                        <span className="text-gray-900 dark:text-white capitalize">
+                          {user?.workStyle?.replace('-', ' ')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-gray-900 dark:text-white">Goals</h4>
+                    <div className="space-y-2">
+                      {user?.goals.map((goal, index) => (
+                        <div key={index} className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
+                          <span className="text-gray-900 dark:text-white">{goal}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'organization' && user?.role === 'admin' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Organization Details
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Manage your organization information and settings
+                  </p>
+                </div>
+                
+                {!isEditingOrganization && (
+                  <button
+                    onClick={() => setIsEditingOrganization(true)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    <span>Edit Organization</span>
+                  </button>
+                )}
               </div>
 
-              <button className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center space-x-2">
-                <Save className="h-4 w-4" />
-                <span>Save Changes</span>
-              </button>
+              {isEditingOrganization ? (
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Edit Organization Details</h4>
+                  
+                  <div className="mb-6">
+                    <OrganizationDetailsForm
+                      data={organizationData}
+                      onChange={(updates) => setOrganizationData(prev => ({ ...prev, ...updates }))}
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      onClick={handleCancelOrganizationEdit}
+                      className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200"
+                    >
+                      <X className="h-4 w-4" />
+                      <span>Cancel</span>
+                    </button>
+                    <button
+                      onClick={handleSaveOrganization}
+                      disabled={saving}
+                      className="flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 disabled:opacity-50"
+                    >
+                      {saving ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                      <span>Save Changes</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Organization Name
+                      </label>
+                      <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
+                        <span className="text-gray-900 dark:text-white">
+                          {user?.organizationName || 'Not specified'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Organization Type
+                      </label>
+                      <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
+                        <span className="text-gray-900 dark:text-white capitalize">
+                          {user?.organizationType?.replace('-', ' ') || 'Not specified'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Industry
+                      </label>
+                      <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
+                        <span className="text-gray-900 dark:text-white">
+                          {user?.organizationIndustry || 'Not specified'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Organization Size
+                      </label>
+                      <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
+                        <span className="text-gray-900 dark:text-white">
+                          {user?.organizationSize ? `${user.organizationSize} employees` : 'Not specified'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Your Role
+                      </label>
+                      <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
+                        <span className="text-gray-900 dark:text-white">
+                          {user?.userRoleInOrg || 'Not specified'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Website
+                      </label>
+                      <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
+                        {user?.organizationWebsite ? (
+                          <a 
+                            href={user.organizationWebsite} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            {user.organizationWebsite}
+                          </a>
+                        ) : (
+                          <span className="text-gray-900 dark:text-white">Not specified</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {user?.organizationDescription && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Description
+                      </label>
+                      <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
+                        <span className="text-gray-900 dark:text-white">
+                          {user.organizationDescription}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

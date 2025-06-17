@@ -18,7 +18,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 
 // Auth helpers
 export const auth = {
-  signUp: async (email: string, password: string, userData: { name: string }) => {
+  signUp: async (email: string, password: string, userData: { name: string; username?: string }) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -40,6 +40,54 @@ export const auth = {
   signOut: async () => {
     const { error } = await supabase.auth.signOut()
     return { error }
+  },
+
+  resetPassword: async (email: string) => {
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    })
+    return { data, error }
+  },
+
+  checkEmailExists: async (email: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', email)
+        .single()
+      
+      if (error && error.code === 'PGRST116') {
+        // No rows returned, email doesn't exist
+        return false
+      }
+      
+      if (error) {
+        throw error
+      }
+      
+      return !!data
+    } catch (error) {
+      console.error('Error checking email:', error)
+      return false
+    }
+  },
+
+  checkUsernameAvailability: async (username: string) => {
+    try {
+      const { data, error } = await supabase.rpc('check_username_availability', {
+        username_input: username
+      })
+      
+      if (error) {
+        throw error
+      }
+      
+      return data
+    } catch (error) {
+      console.error('Error checking username:', error)
+      return false
+    }
   },
 
   getCurrentUser: async () => {

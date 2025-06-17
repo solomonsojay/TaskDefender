@@ -2,6 +2,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  username: string;
   role: 'user' | 'admin';
   goals: string[];
   workStyle: 'focused' | 'flexible' | 'collaborative';
@@ -9,6 +10,14 @@ export interface User {
   streak: number;
   teamId?: string;
   walletAddress?: string;
+  // Organization details (for admin users)
+  organizationName?: string;
+  organizationType?: 'startup' | 'sme' | 'enterprise' | 'non-profit' | 'government' | 'other';
+  organizationIndustry?: string;
+  organizationSize?: '1-10' | '11-50' | '51-200' | '201-1000' | '1000+';
+  userRoleInOrg?: string;
+  organizationWebsite?: string;
+  organizationDescription?: string;
   createdAt: Date;
 }
 

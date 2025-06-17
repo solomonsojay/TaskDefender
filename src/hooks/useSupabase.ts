@@ -55,12 +55,21 @@ export const useSupabase = () => {
           id: profile.id,
           name: profile.name,
           email: profile.email,
+          username: profile.username || profile.email.split('@')[0],
           role: profile.role as 'user' | 'admin',
           goals: profile.goals || [],
           workStyle: profile.work_style as 'focused' | 'flexible' | 'collaborative',
           integrityScore: profile.integrity_score,
           streak: profile.streak,
           walletAddress: profile.wallet_address || undefined,
+          // Organization details
+          organizationName: profile.organization_name || undefined,
+          organizationType: profile.organization_type as any || undefined,
+          organizationIndustry: profile.organization_industry || undefined,
+          organizationSize: profile.organization_size as any || undefined,
+          userRoleInOrg: profile.user_role_in_org || undefined,
+          organizationWebsite: profile.organization_website || undefined,
+          organizationDescription: profile.organization_description || undefined,
           createdAt: new Date(profile.created_at)
         };
 
@@ -131,7 +140,7 @@ export const useSupabase = () => {
     }
   };
 
-  const signUp = async (email: string, password: string, userData: { name: string }) => {
+  const signUp = async (email: string, password: string, userData: { name: string; username?: string }) => {
     setLoading(true);
     const result = await auth.signUp(email, password, userData);
     setLoading(false);
@@ -150,6 +159,45 @@ export const useSupabase = () => {
     const result = await auth.signOut();
     setLoading(false);
     return result;
+  };
+
+  const resetPassword = async (email: string) => {
+    return await auth.resetPassword(email);
+  };
+
+  const checkEmailExists = async (email: string) => {
+    return await auth.checkEmailExists(email);
+  };
+
+  const checkUsernameAvailability = async (username: string) => {
+    return await auth.checkUsernameAvailability(username);
+  };
+
+  const updateProfile = async (updates: any) => {
+    if (!user) return { data: null, error: new Error('User not authenticated') };
+
+    const supabaseUpdates: any = {};
+    
+    // Map app fields to Supabase fields
+    if (updates.name !== undefined) supabaseUpdates.name = updates.name;
+    if (updates.email !== undefined) supabaseUpdates.email = updates.email;
+    if (updates.username !== undefined) supabaseUpdates.username = updates.username;
+    if (updates.organizationName !== undefined) supabaseUpdates.organization_name = updates.organizationName;
+    if (updates.organizationType !== undefined) supabaseUpdates.organization_type = updates.organizationType;
+    if (updates.organizationIndustry !== undefined) supabaseUpdates.organization_industry = updates.organizationIndustry;
+    if (updates.organizationSize !== undefined) supabaseUpdates.organization_size = updates.organizationSize;
+    if (updates.userRoleInOrg !== undefined) supabaseUpdates.user_role_in_org = updates.userRoleInOrg;
+    if (updates.organizationWebsite !== undefined) supabaseUpdates.organization_website = updates.organizationWebsite;
+    if (updates.organizationDescription !== undefined) supabaseUpdates.organization_description = updates.organizationDescription;
+
+    const { data, error } = await db.updateProfile(user.id, supabaseUpdates);
+    
+    if (!error) {
+      // Reload profile to get updated data
+      await loadUserProfile(user.id);
+    }
+    
+    return { data, error };
   };
 
   const createTask = async (taskData: any) => {
@@ -259,6 +307,10 @@ export const useSupabase = () => {
     signUp,
     signIn,
     signOut,
+    resetPassword,
+    checkEmailExists,
+    checkUsernameAvailability,
+    updateProfile,
     createTask,
     updateTask,
     deleteTask,

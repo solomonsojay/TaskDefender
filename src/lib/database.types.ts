@@ -14,6 +14,7 @@ export interface Database {
           id: string
           name: string
           email: string
+          username: string | null
           role: 'user' | 'admin'
           goals: string[]
           work_style: 'focused' | 'flexible' | 'collaborative'
@@ -21,6 +22,13 @@ export interface Database {
           streak: number
           wallet_address: string | null
           team_id: string | null
+          organization_name: string | null
+          organization_type: 'startup' | 'sme' | 'enterprise' | 'non-profit' | 'government' | 'other' | null
+          organization_industry: string | null
+          organization_size: '1-10' | '11-50' | '51-200' | '201-1000' | '1000+' | null
+          user_role_in_org: string | null
+          organization_website: string | null
+          organization_description: string | null
           created_at: string
           updated_at: string
         }
@@ -28,6 +36,7 @@ export interface Database {
           id: string
           name: string
           email: string
+          username?: string | null
           role?: 'user' | 'admin'
           goals?: string[]
           work_style?: 'focused' | 'flexible' | 'collaborative'
@@ -35,6 +44,13 @@ export interface Database {
           streak?: number
           wallet_address?: string | null
           team_id?: string | null
+          organization_name?: string | null
+          organization_type?: 'startup' | 'sme' | 'enterprise' | 'non-profit' | 'government' | 'other' | null
+          organization_industry?: string | null
+          organization_size?: '1-10' | '11-50' | '51-200' | '201-1000' | '1000+' | null
+          user_role_in_org?: string | null
+          organization_website?: string | null
+          organization_description?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -42,6 +58,7 @@ export interface Database {
           id?: string
           name?: string
           email?: string
+          username?: string | null
           role?: 'user' | 'admin'
           goals?: string[]
           work_style?: 'focused' | 'flexible' | 'collaborative'
@@ -49,6 +66,13 @@ export interface Database {
           streak?: number
           wallet_address?: string | null
           team_id?: string | null
+          organization_name?: string | null
+          organization_type?: 'startup' | 'sme' | 'enterprise' | 'non-profit' | 'government' | 'other' | null
+          organization_industry?: string | null
+          organization_size?: '1-10' | '11-50' | '51-200' | '201-1000' | '1000+' | null
+          user_role_in_org?: string | null
+          organization_website?: string | null
+          organization_description?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -370,6 +394,12 @@ export interface Database {
           user_uuid: string
         }
         Returns: number
+      }
+      check_username_availability: {
+        Args: {
+          username_input: string
+        }
+        Returns: boolean
       }
     }
     Enums: {

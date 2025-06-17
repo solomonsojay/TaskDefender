@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { 
   ArrowRight, 
+  ArrowLeft,
   Target, 
   Users, 
   Clock,
   CheckCircle,
   User,
-  Crown
+  Crown,
+  Building
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { User as UserType } from '../../types';
 import Logo from '../common/Logo';
+import OrganizationDetailsForm from './OrganizationDetailsForm';
 
 const OnboardingFlow: React.FC = () => {
   const { setUser, dispatch } = useApp();
@@ -21,13 +24,29 @@ const OnboardingFlow: React.FC = () => {
     role: 'user' as 'user' | 'admin',
     goals: [] as string[],
     workStyle: 'focused' as 'focused' | 'flexible' | 'collaborative',
+    // Organization details
+    organizationName: '',
+    organizationType: '',
+    organizationIndustry: '',
+    organizationSize: '',
+    userRoleInOrg: '',
+    organizationWebsite: '',
+    organizationDescription: '',
   });
 
+  const totalSteps = formData.role === 'admin' ? 5 : 4;
+
   const handleNext = () => {
-    if (step < 4) {
+    if (step < totalSteps) {
       setStep(step + 1);
     } else {
       completeOnboarding();
+    }
+  };
+
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(step - 1);
     }
   };
 
@@ -36,12 +55,23 @@ const OnboardingFlow: React.FC = () => {
       id: Date.now().toString(),
       name: formData.name,
       email: formData.email,
+      username: formData.email.split('@')[0], // Temporary username
       role: formData.role,
       goals: formData.goals,
       workStyle: formData.workStyle,
       integrityScore: 100,
       streak: 0,
       createdAt: new Date(),
+      // Organization details (only for admin users)
+      ...(formData.role === 'admin' && {
+        organizationName: formData.organizationName,
+        organizationType: formData.organizationType as any,
+        organizationIndustry: formData.organizationIndustry,
+        organizationSize: formData.organizationSize as any,
+        userRoleInOrg: formData.userRoleInOrg,
+        organizationWebsite: formData.organizationWebsite,
+        organizationDescription: formData.organizationDescription,
+      })
     };
     
     setUser(user);
@@ -89,19 +119,42 @@ const OnboardingFlow: React.FC = () => {
     },
   ];
 
+  const canProceed = () => {
+    switch (step) {
+      case 1:
+        return formData.role;
+      case 2:
+        return formData.name && formData.email;
+      case 3:
+        return formData.goals.length > 0;
+      case 4:
+        return formData.workStyle;
+      case 5:
+        return formData.role !== 'admin' || (
+          formData.organizationName &&
+          formData.organizationType &&
+          formData.organizationIndustry &&
+          formData.organizationSize &&
+          formData.userRoleInOrg
+        );
+      default:
+        return false;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4 transition-colors duration-200">
       <div className="max-w-md w-full">
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-2">
-            <span>Step {step} of 4</span>
-            <span>{Math.round((step / 4) * 100)}%</span>
+            <span>Step {step} of {totalSteps}</span>
+            <span>{Math.round((step / totalSteps) * 100)}%</span>
           </div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
             <div 
               className="bg-gradient-to-r from-orange-500 to-green-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(step / 4) * 100}%` }}
+              style={{ width: `${(step / totalSteps) * 100}%` }}
             />
           </div>
         </div>
@@ -154,21 +207,12 @@ const OnboardingFlow: React.FC = () => {
                       <Crown className="h-6 w-6 text-orange-500" />
                       <div className="text-left">
                         <h3 className="font-semibold text-gray-900 dark:text-white">Team Admin</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">Manage teams and members</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Manage teams and organization</p>
                       </div>
                     </div>
                   </button>
                 </div>
               </div>
-
-              <button
-                onClick={handleNext}
-                disabled={!formData.role}
-                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span>Continue</span>
-                <ArrowRight className="h-5 w-5" />
-              </button>
             </div>
           )}
 
@@ -205,15 +249,6 @@ const OnboardingFlow: React.FC = () => {
                   />
                 </div>
               </div>
-
-              <button
-                onClick={handleNext}
-                disabled={!formData.name || !formData.email}
-                className="w-full mt-8 bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span>Continue</span>
-                <ArrowRight className="h-5 w-5" />
-              </button>
             </div>
           )}
 
@@ -252,15 +287,6 @@ const OnboardingFlow: React.FC = () => {
                   </button>
                 ))}
               </div>
-
-              <button
-                onClick={handleNext}
-                disabled={formData.goals.length === 0}
-                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span>Continue</span>
-                <ArrowRight className="h-5 w-5" />
-              </button>
             </div>
           )}
 
@@ -300,16 +326,66 @@ const OnboardingFlow: React.FC = () => {
                   </button>
                 ))}
               </div>
-
-              <button
-                onClick={handleNext}
-                className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center justify-center space-x-2"
-              >
-                <span>Complete Setup</span>
-                <CheckCircle className="h-5 w-5" />
-              </button>
             </div>
           )}
+
+          {step === 5 && formData.role === 'admin' && (
+            <div>
+              <div className="text-center mb-6">
+                <div className="bg-blue-500/20 p-3 rounded-full w-16 h-16 mx-auto mb-4">
+                  <Building className="h-10 w-10 text-blue-500 mx-auto" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                  Organization Details
+                </h2>
+                <p className="text-gray-600 dark:text-gray-300">
+                  Tell us about your organization to customize your admin experience
+                </p>
+              </div>
+              
+              <OrganizationDetailsForm
+                data={{
+                  organizationName: formData.organizationName,
+                  organizationType: formData.organizationType,
+                  organizationIndustry: formData.organizationIndustry,
+                  organizationSize: formData.organizationSize,
+                  userRoleInOrg: formData.userRoleInOrg,
+                  organizationWebsite: formData.organizationWebsite,
+                  organizationDescription: formData.organizationDescription,
+                }}
+                onChange={(updates) => updateFormData(updates)}
+              />
+            </div>
+          )}
+
+          {/* Navigation Buttons */}
+          <div className="flex justify-between mt-8">
+            <button
+              onClick={handleBack}
+              disabled={step === 1}
+              className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
+                step === 1
+                  ? 'opacity-50 cursor-not-allowed text-gray-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span>Back</span>
+            </button>
+
+            <button
+              onClick={handleNext}
+              disabled={!canProceed()}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span>{step === totalSteps ? 'Complete Setup' : 'Continue'}</span>
+              {step === totalSteps ? (
+                <CheckCircle className="h-5 w-5" />
+              ) : (
+                <ArrowRight className="h-5 w-5" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
