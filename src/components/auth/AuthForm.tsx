@@ -101,12 +101,17 @@ const AuthForm: React.FC = () => {
     const cleanUsername = value.toLowerCase().replace(/[^a-z0-9_]/g, '');
     updateFormData('username', cleanUsername);
     
+    // Reset previous state
+    setUsernameAvailable(null);
+    
     // Debounce username check
-    const timeoutId = setTimeout(() => {
-      checkUsername(cleanUsername);
-    }, 500);
+    if (cleanUsername.length >= 3) {
+      const timeoutId = setTimeout(() => {
+        checkUsername(cleanUsername);
+      }, 500);
 
-    return () => clearTimeout(timeoutId);
+      return () => clearTimeout(timeoutId);
+    }
   };
 
   const getUsernameValidationMessage = () => {
@@ -293,7 +298,7 @@ const AuthForm: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={loading || (isSignUp && usernameAvailable === false)}
+                disabled={loading || (isSignUp && (usernameAvailable === false || checkingUsername))}
                 className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (

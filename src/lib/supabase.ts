@@ -75,15 +75,35 @@ export const auth = {
 
   checkUsernameAvailability: async (username: string) => {
     try {
-      const { data, error } = await supabase.rpc('check_username_availability', {
-        username_input: username
-      })
-      
-      if (error) {
-        throw error
+      // First check basic requirements
+      if (!username || username.length < 3 || username.length > 20) {
+        return false
       }
       
-      return data
+      // Check if username contains only alphanumeric characters and underscores
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        return false
+      }
+      
+      // Check if username exists in database
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username.toLowerCase())
+        .single()
+      
+      if (error && error.code === 'PGRST116') {
+        // No rows returned, username is available
+        return true
+      }
+      
+      if (error) {
+        console.error('Error checking username:', error)
+        return false
+      }
+      
+      // If we got data, username is taken
+      return false
     } catch (error) {
       console.error('Error checking username:', error)
       return false

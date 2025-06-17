@@ -142,9 +142,24 @@ export const useSupabase = () => {
 
   const signUp = async (email: string, password: string, userData: { name: string; username?: string }) => {
     setLoading(true);
-    const result = await auth.signUp(email, password, userData);
-    setLoading(false);
-    return result;
+    
+    try {
+      // If username is provided, check if it's available first
+      if (userData.username) {
+        const isAvailable = await checkUsernameAvailability(userData.username);
+        if (!isAvailable) {
+          setLoading(false);
+          return { data: null, error: new Error('Username is not available') };
+        }
+      }
+      
+      const result = await auth.signUp(email, password, userData);
+      setLoading(false);
+      return result;
+    } catch (error) {
+      setLoading(false);
+      return { data: null, error };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
@@ -181,7 +196,7 @@ export const useSupabase = () => {
     // Map app fields to Supabase fields
     if (updates.name !== undefined) supabaseUpdates.name = updates.name;
     if (updates.email !== undefined) supabaseUpdates.email = updates.email;
-    if (updates.username !== undefined) supabaseUpdates.username = updates.username;
+    if (updates.username !== undefined) supabaseUpdates.username = updates.username.toLowerCase();
     if (updates.organizationName !== undefined) supabaseUpdates.organization_name = updates.organizationName;
     if (updates.organizationType !== undefined) supabaseUpdates.organization_type = updates.organizationType;
     if (updates.organizationIndustry !== undefined) supabaseUpdates.organization_industry = updates.organizationIndustry;
