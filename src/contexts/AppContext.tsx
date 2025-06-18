@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { AppState, Task, User, Team, Theme, FocusSession } from '../types';
-import { useSupabaseContext } from './SupabaseContext';
+import { useSupabase } from '../hooks/useSupabase';
 
 interface AppContextType extends AppState {
   dispatch: React.Dispatch<AppAction>;
@@ -96,6 +96,7 @@ export const useApp = () => {
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const { createTask, updateTask: updateSupabaseTask, deleteTask: deleteSupabaseTask } = useSupabase();
 
   // Load theme from localStorage
   useEffect(() => {
@@ -115,23 +116,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [state.theme]);
 
-  // These functions will be overridden by Supabase context when available
-  const addTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'userId'>) => {
-    const task: Task = {
-      ...taskData,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-      userId: state.user?.id || '',
-    };
-    dispatch({ type: 'ADD_TASK', payload: task });
+  // Task management functions that use Supabase
+  const addTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'userId'>) => {
+    try {
+      const { data, error } = await createTask(taskData);
+      if (error) throw error;
+      
+      // The task will be added to state via the real-time subscription
+      // or we can manually add it here if needed
+    } catch (error) {
+      console.error('Error creating task:', error);
+      // Fallback to local state
+      const task: Task = {
+        ...taskData,
+        id: Date.now().toString(),
+        createdAt: new Date(),
+        userId: state.user?.id || '',
+      };
+      dispatch({ type: 'ADD_TASK', payload: task });
+    }
   };
 
-  const updateTask = (id: string, updates: Partial<Task>) => {
-    dispatch({ type: 'UPDATE_TASK', payload: { id, updates } });
+  const updateTask = async (id: string, updates: Partial<Task>) => {
+    try {
+      const { data, error } = await updateSupabaseTask(id, updates);
+      if (error) throw error;
+      
+      // Update local state
+      dispatch({ type: 'UPDATE_TASK', payload: { id, updates } });
+    } catch (error) {
+      console.error('Error updating task:', error);
+      // Fallback to local state only
+      dispatch({ type: 'UPDATE_TASK', payload: { id, updates } });
+    }
   };
 
-  const deleteTask = (id: string) => {
-    dispatch({ type: 'DELETE_TASK', payload: id });
+  const deleteTask = async (id: string) => {
+    try {
+      const { error } = await deleteSupabaseTask(id);
+      if (error) throw error;
+      
+      // Update local state
+      dispatch({ type: 'DELETE_TASK', payload: id });
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      // Fallback to local state only
+      dispatch({ type: 'DELETE_TASK', payload: id });
+    }
   };
 
   const setUser = (user: User) => {
