@@ -11,6 +11,7 @@ import UserAnalytics from './analytics/UserAnalytics';
 import VoiceCallSystem from './voice/VoiceCallSystem';
 import SarcasticPromptDisplay from './sarcasm/SarcasticPromptDisplay';
 import ChatBot from './chatbot/ChatBot';
+import BoltBadge from './common/BoltBadge';
 
 const AppContent: React.FC = () => {
   const { user } = useApp();
@@ -111,6 +112,9 @@ const AppContent: React.FC = () => {
         isOpen={isChatBotOpen} 
         onToggle={() => setIsChatBotOpen(!isChatBotOpen)} 
       />
+
+      {/* Bolt.new Badge */}
+      <BoltBadge />
     </div>
   );
 };
