@@ -14,7 +14,8 @@ import {
   Volume2,
   Database,
   Monitor,
-  Brain
+  Brain,
+  ArrowLeft
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useSarcasticPrompts } from '../../hooks/useSarcasticPrompts';
@@ -49,7 +50,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const handleCreateWallet = () => {
-    // Mock wallet creation
     const mockAddress = 'ABCD1234EFGH5678IJKL9012MNOP3456QRST7890UVWX1234YZAB5678';
     const mockPhrase = 'word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12';
     
@@ -93,12 +93,28 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     'passive-aggressive': 'Subtly judgmental with backhanded compliments'
   };
 
+  // FIXED: Handle back navigation properly for social media
+  const handleBackFromSocial = () => {
+    setActiveTab('profile');
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
+          <div className="flex items-center space-x-3">
+            {/* FIXED: Add back button for social media */}
+            {activeTab === 'social' && (
+              <button
+                onClick={handleBackFromSocial}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+              >
+                <ArrowLeft className="h-5 w-5 text-gray-500" />
+              </button>
+            )}
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
+          </div>
           <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
@@ -145,9 +161,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   </p>
                 </div>
 
+                {/* FIXED: Social Media Integration with proper back button handling */}
                 <SocialMediaIntegration
                   isOpen={true}
-                  onClose={() => {}}
+                  onClose={handleBackFromSocial}
                   shareText="🎯 Productivity Update! Making great progress with TaskDefender! #ProductivityJourney"
                   analyticsData={{}}
                   period="daily"

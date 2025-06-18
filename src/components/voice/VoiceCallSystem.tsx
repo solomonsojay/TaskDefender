@@ -57,7 +57,7 @@ const VoiceCallSystem: React.FC = () => {
     criticalTaskCalls: true,
     procrastinationCalls: true,
     celebrationCalls: true,
-    sarcasticPromptCalls: true, // New setting for sarcasm engine integration
+    sarcasticPromptCalls: true,
     callFrequency: 'normal' as 'low' | 'normal' | 'high',
     selectedVoiceId: ''
   });
@@ -221,7 +221,6 @@ const VoiceCallSystem: React.FC = () => {
       const voices = window.speechSynthesis.getVoices();
       setAvailableVoices(voices);
       
-      // Set default voice if none selected
       if (!selectedVoice && voices.length > 0) {
         const defaultVoice = voices.find(voice => voice.default) || voices[0];
         setSelectedVoice(defaultVoice.name);
@@ -261,10 +260,8 @@ const VoiceCallSystem: React.FC = () => {
   useEffect(() => {
     if (!callSettings.enableCalls || !callSettings.sarcasticPromptCalls || !currentPrompt) return;
 
-    // Convert sarcastic prompt to voice call with 30% chance
     const shouldMakeCall = Math.random() < 0.3;
     if (shouldMakeCall && !isCallActive) {
-      // Find character that matches the current persona
       const matchingCharacter = characters.find(char => char.id === userPersona) || 
                                characters.find(char => char.id === 'default');
       
@@ -272,12 +269,10 @@ const VoiceCallSystem: React.FC = () => {
         setCurrentCharacter(matchingCharacter);
         setIsCallActive(true);
         
-        // Speak the sarcastic prompt message
         setTimeout(() => {
           speakSarcasticPrompt(matchingCharacter, currentPrompt.message);
         }, 1000);
         
-        // Dismiss the text prompt since we're speaking it
         setTimeout(() => {
           dismissPrompt();
         }, 2000);
@@ -293,28 +288,25 @@ const VoiceCallSystem: React.FC = () => {
       const criticalTasks = getCriticalTasks();
       const procrastinatingTasks = getProcrastinatingTasks();
 
-      // Critical task calls
       if (callSettings.criticalTaskCalls && criticalTasks.length > 0) {
-        const shouldCall = Math.random() < 0.3; // 30% chance
+        const shouldCall = Math.random() < 0.3;
         if (shouldCall) {
           initiateCall('deadline');
         }
       }
 
-      // Procrastination calls
       if (callSettings.procrastinationCalls && procrastinatingTasks.length > 0) {
-        const shouldCall = Math.random() < 0.2; // 20% chance
+        const shouldCall = Math.random() < 0.2;
         if (shouldCall) {
           initiateCall('motivation');
         }
       }
     };
 
-    // Check based on frequency setting
     const intervals = {
-      low: 30 * 60 * 1000,    // 30 minutes
-      normal: 20 * 60 * 1000, // 20 minutes
-      high: 10 * 60 * 1000    // 10 minutes
+      low: 30 * 60 * 1000,
+      normal: 20 * 60 * 1000,
+      high: 10 * 60 * 1000
     };
 
     const interval = setInterval(checkForCalls, intervals[callSettings.callFrequency]);
@@ -324,14 +316,12 @@ const VoiceCallSystem: React.FC = () => {
   const initiateCall = (type: 'greeting' | 'motivation' | 'deadline' | 'completion') => {
     if (isCallActive || !('speechSynthesis' in window)) return;
 
-    // Select character based on user's sarcasm persona preference
     const preferredCharacter = characters.find(char => char.id === userPersona) || 
                               characters[Math.floor(Math.random() * characters.length)];
     
     setCurrentCharacter(preferredCharacter);
     setIsCallActive(true);
 
-    // Start speaking after a short delay
     setTimeout(() => {
       speakScript(preferredCharacter, type);
     }, 1000);
@@ -350,7 +340,6 @@ const VoiceCallSystem: React.FC = () => {
   const speakText = (character: VoiceCharacter, text: string) => {
     const utterance = new SpeechSynthesisUtterance(text);
     
-    // Find the best voice for this character
     const voice = findBestVoice(character);
     if (voice) {
       utterance.voice = voice;
@@ -363,7 +352,6 @@ const VoiceCallSystem: React.FC = () => {
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => {
       setIsSpeaking(false);
-      // End call after speaking
       setTimeout(() => {
         endCall();
       }, 2000);
@@ -379,16 +367,13 @@ const VoiceCallSystem: React.FC = () => {
   const findBestVoice = (character: VoiceCharacter): SpeechSynthesisVoice | null => {
     if (availableVoices.length === 0) return null;
 
-    // First try to use the user's selected voice
     if (selectedVoice) {
       const userVoice = availableVoices.find(voice => voice.name === selectedVoice);
       if (userVoice) return userVoice;
     }
 
-    // Fallback to character's preferred voice type
     const preferredGender = character.voiceSettings.preferredVoice;
     
-    // Try to find a voice that matches the character
     const matchingVoices = availableVoices.filter(voice => {
       const voiceName = voice.name.toLowerCase();
       if (preferredGender === 'female') {
@@ -402,14 +387,13 @@ const VoiceCallSystem: React.FC = () => {
                voiceName.includes('tom') || voiceName.includes('fred') ||
                voiceName.includes('david') || voiceName.includes('mark');
       }
-      return true; // neutral - any voice
+      return true;
     });
 
     if (matchingVoices.length > 0) {
       return matchingVoices[0];
     }
 
-    // Final fallback to any available voice
     return availableVoices[0];
   };
 
@@ -430,10 +414,8 @@ const VoiceCallSystem: React.FC = () => {
   };
 
   const testSarcasticPrompt = () => {
-    // Generate a sarcastic prompt and speak it
     generateNudge();
     
-    // If there's a current prompt, speak it immediately
     if (currentPrompt) {
       const character = characters.find(char => char.id === userPersona) || 
                        characters.find(char => char.id === 'default');
@@ -464,7 +446,6 @@ const VoiceCallSystem: React.FC = () => {
     const name = voice.name;
     const lang = voice.lang;
     
-    // Try to determine gender and accent from voice name and language
     let gender = 'Unknown';
     let accent = lang;
     
@@ -481,7 +462,6 @@ const VoiceCallSystem: React.FC = () => {
       gender = 'Male';
     }
     
-    // Simplify language codes to readable accents
     if (lang.startsWith('en-US')) accent = 'American';
     else if (lang.startsWith('en-GB')) accent = 'British';
     else if (lang.startsWith('en-AU')) accent = 'Australian';
@@ -501,14 +481,12 @@ const VoiceCallSystem: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
             <div className="text-center">
-              {/* Character Avatar */}
               <div className={`bg-gray-100 dark:bg-gray-700 p-6 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center ${
                 isSpeaking ? 'animate-pulse' : ''
               }`}>
                 <currentCharacter.icon className={`h-12 w-12 ${currentCharacter.color}`} />
               </div>
 
-              {/* Call Info */}
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                 Incoming Call
               </h3>
@@ -519,7 +497,6 @@ const VoiceCallSystem: React.FC = () => {
                 {currentCharacter.description}
               </p>
 
-              {/* Call Status */}
               <div className="flex items-center justify-center space-x-2 mb-6">
                 {isSpeaking ? (
                   <>
@@ -534,7 +511,6 @@ const VoiceCallSystem: React.FC = () => {
                 )}
               </div>
 
-              {/* End Call Button */}
               <button
                 onClick={endCall}
                 className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full transition-colors duration-200"
@@ -709,47 +685,48 @@ const VoiceCallSystem: React.FC = () => {
         </div>
       </div>
 
-      {/* Character Previews */}
+      {/* Character Previews - FIXED GRID */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           Available Characters
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* FIXED: Smaller grid with better spacing */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
           {characters.map(character => (
-            <div key={character.id} className={`bg-gray-50 dark:bg-gray-700 rounded-xl p-4 ${
+            <div key={character.id} className={`bg-gray-50 dark:bg-gray-700 rounded-xl p-3 ${
               character.id === userPersona ? 'ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-900/20' : ''
             }`}>
-              <div className="flex items-center space-x-3 mb-3">
+              <div className="flex flex-col items-center text-center space-y-2">
                 <div className="p-2 bg-white dark:bg-gray-800 rounded-lg">
                   <character.icon className={`h-5 w-5 ${character.color}`} />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">
+                  <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
                     {character.name}
                     {character.id === userPersona && (
-                      <span className="ml-2 text-xs bg-orange-500 text-white px-2 py-1 rounded-full">
-                        Current Persona
+                      <span className="block text-xs bg-orange-500 text-white px-2 py-1 rounded-full mt-1">
+                        Current
                       </span>
                     )}
                   </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{character.description}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{character.description}</p>
                 </div>
-              </div>
-              
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => testCall(character.id, 'greeting')}
-                  className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg text-sm hover:bg-blue-600 transition-colors duration-200"
-                >
-                  Test Call
-                </button>
-                <button
-                  onClick={() => testCall(character.id, 'motivation')}
-                  className="flex-1 bg-orange-500 text-white py-2 px-3 rounded-lg text-sm hover:bg-orange-600 transition-colors duration-200"
-                >
-                  Motivation
-                </button>
+                
+                <div className="flex flex-col space-y-1 w-full">
+                  <button
+                    onClick={() => testCall(character.id, 'greeting')}
+                    className="w-full bg-blue-500 text-white py-1 px-2 rounded-lg text-xs hover:bg-blue-600 transition-colors duration-200"
+                  >
+                    Test Call
+                  </button>
+                  <button
+                    onClick={() => testCall(character.id, 'motivation')}
+                    className="w-full bg-orange-500 text-white py-1 px-2 rounded-lg text-xs hover:bg-orange-600 transition-colors duration-200"
+                  >
+                    Motivation
+                  </button>
+                </div>
               </div>
             </div>
           ))}
