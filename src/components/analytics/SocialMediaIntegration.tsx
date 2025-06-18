@@ -116,11 +116,16 @@ const SocialMediaIntegration: React.FC<SocialMediaIntegrationProps> = ({
     window.open(urls[platform], '_blank', 'width=600,height=400');
   };
 
+  const handleClose = () => {
+    setActiveTab('share'); // Reset to share tab
+    onClose();
+  };
+
   const handleBack = () => {
     if (activeTab === 'connect') {
       setActiveTab('share');
     } else {
-      onClose();
+      handleClose();
     }
   };
 
@@ -180,7 +185,7 @@ const SocialMediaIntegration: React.FC<SocialMediaIntegrationProps> = ({
             </h2>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
           >
             <X className="h-5 w-5 text-gray-500" />

@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
   Send,
   Target,
-  AlertCircle
+  AlertCircle,
+  Lightbulb,
+  Clock,
+  Zap
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 
@@ -16,6 +19,42 @@ const QuickTaskCapture: React.FC = () => {
     estimatedTime: 60,
     tags: [] as string[],
   });
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Smart suggestions based on input
+  const taskSuggestions = [
+    'Review project documentation',
+    'Update team on progress',
+    'Schedule client meeting',
+    'Complete code review',
+    'Write unit tests',
+    'Update project timeline',
+    'Research new technologies',
+    'Prepare presentation slides',
+    'Send follow-up emails',
+    'Organize project files',
+    'Plan next sprint',
+    'Update user documentation',
+    'Test new features',
+    'Backup important data',
+    'Review and respond to feedback'
+  ];
+
+  useEffect(() => {
+    if (taskData.title.length > 2) {
+      const filtered = taskSuggestions.filter(suggestion =>
+        suggestion.toLowerCase().includes(taskData.title.toLowerCase()) ||
+        taskData.title.toLowerCase().split(' ').some(word => 
+          suggestion.toLowerCase().includes(word) && word.length > 2
+        )
+      );
+      setSuggestions(filtered.slice(0, 3));
+      setShowSuggestions(filtered.length > 0);
+    } else {
+      setShowSuggestions(false);
+    }
+  }, [taskData.title]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +77,12 @@ const QuickTaskCapture: React.FC = () => {
       estimatedTime: 60,
       tags: [],
     });
+    setShowSuggestions(false);
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setTaskData(prev => ({ ...prev, title: suggestion }));
+    setShowSuggestions(false);
   };
 
   const priorityColors = {
@@ -46,6 +91,15 @@ const QuickTaskCapture: React.FC = () => {
     high: 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400',
     urgent: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400',
   };
+
+  const priorityIcons = {
+    low: Clock,
+    medium: Target,
+    high: AlertCircle,
+    urgent: Zap,
+  };
+
+  const PriorityIcon = priorityIcons[taskData.priority];
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 transition-all duration-300">
@@ -57,7 +111,7 @@ const QuickTaskCapture: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Task Title */}
+        {/* Task Title with Suggestions */}
         <div className="relative">
           <input
             type="text"
@@ -66,6 +120,28 @@ const QuickTaskCapture: React.FC = () => {
             onChange={(e) => setTaskData(prev => ({ ...prev, title: e.target.value }))}
             className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
           />
+          
+          {/* Smart Suggestions */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg z-10">
+              <div className="p-2">
+                <div className="flex items-center space-x-2 px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+                  <Lightbulb className="h-3 w-3" />
+                  <span>Smart Suggestions</span>
+                </div>
+                {suggestions.map((suggestion, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Priority and Estimated Time */}
@@ -103,12 +179,14 @@ const QuickTaskCapture: React.FC = () => {
 
         <div className="flex items-center justify-between pt-4">
           <div className="flex items-center space-x-2">
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${priorityColors[taskData.priority]}`}>
-              {taskData.priority.charAt(0).toUpperCase() + taskData.priority.slice(1)}
+            <span className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium ${priorityColors[taskData.priority]}`}>
+              <PriorityIcon className="h-3 w-3" />
+              <span>{taskData.priority.charAt(0).toUpperCase() + taskData.priority.slice(1)}</span>
             </span>
             {taskData.estimatedTime > 0 && (
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                ~{taskData.estimatedTime}min
+              <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
+                <Clock className="h-3 w-3" />
+                <span>~{taskData.estimatedTime}min</span>
               </span>
             )}
           </div>

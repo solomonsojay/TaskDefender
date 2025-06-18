@@ -5,6 +5,7 @@ import Header from './common/Header';
 import Dashboard from './dashboard/Dashboard';
 import TaskList from './tasks/TaskList';
 import QuickTaskCapture from './tasks/QuickTaskCapture';
+import AchievementSystem from './dashboard/AchievementSystem';
 import FocusMode from './focus/FocusMode';
 import TeamManagement from './teams/TeamManagement';
 import UserAnalytics from './analytics/UserAnalytics';
@@ -13,8 +14,9 @@ import ChatBot from './chatbot/ChatBot';
 
 const AppContent: React.FC = () => {
   const { user } = useApp();
-  const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics'>('dashboard');
+  const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'quick-capture' | 'achievements' | 'focus' | 'teams' | 'analytics'>('dashboard');
   const [isChatBotOpen, setIsChatBotOpen] = React.useState(false);
+  const [hasShownIntro, setHasShownIntro] = React.useState(false);
   
   const {
     currentPrompt,
@@ -23,6 +25,18 @@ const AppContent: React.FC = () => {
     dismissPrompt,
     changePersona
   } = useSarcasticPrompts();
+
+  // Show Ninja introduction once
+  React.useEffect(() => {
+    const hasSeenIntro = localStorage.getItem('taskdefender_ninja_intro');
+    if (!hasSeenIntro && !hasShownIntro) {
+      setTimeout(() => {
+        setIsChatBotOpen(true);
+        setHasShownIntro(true);
+        localStorage.setItem('taskdefender_ninja_intro', 'true');
+      }, 2000); // Show after 2 seconds
+    }
+  }, [hasShownIntro]);
 
   // Track user activity for sarcastic prompts
   React.useEffect(() => {
@@ -52,6 +66,8 @@ const AppContent: React.FC = () => {
             {[
               { id: 'dashboard', label: 'Dashboard' },
               { id: 'tasks', label: 'Tasks' },
+              { id: 'quick-capture', label: 'Quick Capture' },
+              { id: 'achievements', label: 'Achievements' },
               { id: 'focus', label: 'Focus Mode' },
               { id: 'analytics', label: 'Analytics' },
             ].map(item => (
@@ -72,13 +88,25 @@ const AppContent: React.FC = () => {
 
         {/* Main Content */}
         <main>
-          {currentView === 'dashboard' && (
+          {currentView === 'dashboard' && <Dashboard />}
+          {currentView === 'tasks' && <TaskList />}
+          {currentView === 'quick-capture' && (
             <div className="space-y-8">
               <QuickTaskCapture />
-              <Dashboard />
+              <div className="text-center">
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  Need to see all your tasks?
+                </p>
+                <button
+                  onClick={() => setCurrentView('tasks')}
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200"
+                >
+                  View All Tasks
+                </button>
+              </div>
             </div>
           )}
-          {currentView === 'tasks' && <TaskList />}
+          {currentView === 'achievements' && <AchievementSystem />}
           {currentView === 'focus' && <FocusMode />}
           {currentView === 'teams' && <TeamManagement />}
           {currentView === 'analytics' && <UserAnalytics />}

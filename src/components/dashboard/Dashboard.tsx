@@ -7,11 +7,12 @@ import {
   Zap,
   Users,
   Award,
-  Trophy
+  Trophy,
+  PhoneCall
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useSarcasticPrompts } from '../../hooks/useSarcasticPrompts';
-import BadgeSystem from '../gamification/BadgeSystem';
+import VoiceCallSystem from '../voice/VoiceCallSystem';
 
 const Dashboard: React.FC = () => {
   const { user, tasks, focusSession } = useApp();
@@ -261,23 +262,23 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Badge System */}
+      {/* Voice Call System */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-200">
         <div className="flex items-center space-x-3 mb-6">
-          <div className="bg-yellow-500/20 p-3 rounded-xl">
-            <Trophy className="h-6 w-6 text-yellow-500" />
+          <div className="bg-green-500/20 p-3 rounded-xl">
+            <PhoneCall className="h-6 w-6 text-green-500" />
           </div>
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Achievement System
+              Voice Call Interventions
             </h2>
             <p className="text-gray-600 dark:text-gray-400">
-              Earn badges for your productivity milestones
+              Get motivational calls from different characters
             </p>
           </div>
         </div>
         
-        <BadgeSystem />
+        <VoiceCallSystem />
       </div>
     </div>
   );
