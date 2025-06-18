@@ -160,8 +160,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   isOpen={true}
                   onClose={handleBackFromSocial}
                   shareText="🎯 Productivity Update! Making great progress with TaskDefender! #ProductivityJourney"
-                  analyticsData={{}}
-                  period="daily"
                 />
               </div>
             )}
