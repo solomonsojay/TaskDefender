@@ -9,10 +9,12 @@ import FocusMode from './focus/FocusMode';
 import TeamManagement from './teams/TeamManagement';
 import UserAnalytics from './analytics/UserAnalytics';
 import SarcasticPromptDisplay from './sarcasm/SarcasticPromptDisplay';
+import ChatBot from './chatbot/ChatBot';
 
 const AppContent: React.FC = () => {
   const { user } = useApp();
   const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics'>('dashboard');
+  const [isChatBotOpen, setIsChatBotOpen] = React.useState(false);
   
   const {
     currentPrompt,
@@ -89,6 +91,12 @@ const AppContent: React.FC = () => {
         onDismiss={dismissPrompt}
         onPersonaChange={changePersona}
         currentPersona={userPersona}
+      />
+
+      {/* ChatBot */}
+      <ChatBot 
+        isOpen={isChatBotOpen} 
+        onToggle={() => setIsChatBotOpen(!isChatBotOpen)} 
       />
     </div>
   );
