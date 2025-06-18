@@ -10,12 +10,12 @@ import {
   AlertCircle,
   AtSign
 } from 'lucide-react';
-import { useSupabase } from '../../hooks/useSupabase';
+import { useApp } from '../../contexts/AppContext';
 import Logo from '../common/Logo';
 import ForgotPasswordModal from './ForgotPasswordModal';
 
 const AuthForm: React.FC = () => {
-  const { signUp, signIn, checkUsernameAvailability } = useSupabase();
+  const { signUp, signIn, checkUsernameAvailability } = useApp();
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -60,9 +60,6 @@ const AuthForm: React.FC = () => {
         });
 
         if (error) throw error;
-
-        // Show success message for sign up
-        setError('Check your email for the confirmation link!');
       } else {
         const { error } = await signIn(formData.email, formData.password);
         if (error) throw error;

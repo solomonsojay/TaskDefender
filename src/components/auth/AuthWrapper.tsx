@@ -1,5 +1,5 @@
 import React from 'react';
-import { useSupabase } from '../../hooks/useSupabase';
+import { useApp } from '../../contexts/AppContext';
 import AuthForm from './AuthForm';
 import LoadingSpinner from '../common/LoadingSpinner';
 
@@ -8,11 +8,7 @@ interface AuthWrapperProps {
 }
 
 const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
-  const { user, loading } = useSupabase();
-
-  if (loading) {
-    return <LoadingSpinner />;
-  }
+  const { user } = useApp();
 
   if (!user) {
     return <AuthForm />;
@@ -20,5 +16,3 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
 
   return <>{children}</>;
 };
-
-export default AuthWrapper;

@@ -6,7 +6,7 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
-import { useSupabase } from '../../hooks/useSupabase';
+import { useApp } from '../../contexts/AppContext';
 
 interface ForgotPasswordModalProps {
   isOpen: boolean;
@@ -14,7 +14,7 @@ interface ForgotPasswordModalProps {
 }
 
 const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClose }) => {
-  const { resetPassword, checkEmailExists } = useSupabase();
+  const { resetPassword, checkEmailExists } = useApp();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'input' | 'success' | 'error'>('input');
