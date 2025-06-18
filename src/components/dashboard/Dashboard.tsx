@@ -6,13 +6,10 @@ import {
   TrendingUp,
   Zap,
   Users,
-  Award,
-  Trophy,
-  PhoneCall
+  Award
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useSarcasticPrompts } from '../../hooks/useSarcasticPrompts';
-import VoiceCallSystem from '../voice/VoiceCallSystem';
 
 const Dashboard: React.FC = () => {
   const { user, tasks, focusSession } = useApp();
@@ -260,25 +257,6 @@ const Dashboard: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
-
-      {/* Voice Call System */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-200">
-        <div className="flex items-center space-x-3 mb-6">
-          <div className="bg-green-500/20 p-3 rounded-xl">
-            <PhoneCall className="h-6 w-6 text-green-500" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Voice Call Interventions
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Get motivational calls from different characters
-            </p>
-          </div>
-        </div>
-        
-        <VoiceCallSystem />
       </div>
     </div>
   );

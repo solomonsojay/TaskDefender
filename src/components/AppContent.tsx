@@ -9,12 +9,13 @@ import AchievementSystem from './dashboard/AchievementSystem';
 import FocusMode from './focus/FocusMode';
 import TeamManagement from './teams/TeamManagement';
 import UserAnalytics from './analytics/UserAnalytics';
+import VoiceCallSystem from './voice/VoiceCallSystem';
 import SarcasticPromptDisplay from './sarcasm/SarcasticPromptDisplay';
 import ChatBot from './chatbot/ChatBot';
 
 const AppContent: React.FC = () => {
   const { user } = useApp();
-  const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'quick-capture' | 'achievements' | 'focus' | 'teams' | 'analytics'>('dashboard');
+  const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'quick-capture' | 'achievements' | 'focus' | 'teams' | 'analytics' | 'voice-calls'>('dashboard');
   const [isChatBotOpen, setIsChatBotOpen] = React.useState(false);
   const [hasShownIntro, setHasShownIntro] = React.useState(false);
   
@@ -69,6 +70,7 @@ const AppContent: React.FC = () => {
               { id: 'quick-capture', label: 'Quick Capture' },
               { id: 'achievements', label: 'Achievements' },
               { id: 'focus', label: 'Focus Mode' },
+              { id: 'voice-calls', label: 'Voice Calls' },
               { id: 'analytics', label: 'Analytics' },
             ].map(item => (
               <button
@@ -108,6 +110,7 @@ const AppContent: React.FC = () => {
           )}
           {currentView === 'achievements' && <AchievementSystem />}
           {currentView === 'focus' && <FocusMode />}
+          {currentView === 'voice-calls' && <VoiceCallSystem />}
           {currentView === 'teams' && <TeamManagement />}
           {currentView === 'analytics' && <UserAnalytics />}
         </main>

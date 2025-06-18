@@ -15,7 +15,7 @@ import SettingsModal from '../settings/SettingsModal';
 
 interface HeaderProps {
   currentView: string;
-  setCurrentView: (view: 'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics') => void;
+  setCurrentView: (view: 'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics' | 'voice-calls') => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
