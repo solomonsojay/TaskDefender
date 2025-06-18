@@ -14,15 +14,13 @@ import {
   Volume2,
   Database,
   Monitor,
-  Brain,
-  PhoneCall
+  Brain
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useSarcasticPrompts } from '../../hooks/useSarcasticPrompts';
 import DataPrivacySettings from './DataPrivacySettings';
 import MonitoringDashboard from '../monitoring/MonitoringDashboard';
 import SmartInterventionSystem from '../ai/SmartInterventionSystem';
-import VoiceCallSystem from '../voice/VoiceCallSystem';
 import SocialMediaIntegration from '../analytics/SocialMediaIntegration';
 
 interface SettingsModalProps {
@@ -33,7 +31,7 @@ interface SettingsModalProps {
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const { user, theme, setTheme } = useApp();
   const { userPersona, changePersona, availablePersonas, generateNudge, generateRoast } = useSarcasticPrompts();
-  const [activeTab, setActiveTab] = useState<'profile' | 'social' | 'wallet' | 'notifications' | 'security' | 'sarcasm' | 'privacy' | 'monitoring' | 'ai-interventions' | 'voice-calls'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'social' | 'wallet' | 'notifications' | 'security' | 'sarcasm' | 'privacy' | 'monitoring' | 'ai-interventions'>('profile');
   const [walletData, setWalletData] = useState({
     hasWallet: !!user?.walletAddress,
     walletAddress: user?.walletAddress || '',
@@ -81,7 +79,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     { id: 'sarcasm', label: 'Sarcasm Engine', icon: MessageCircle },
     { id: 'monitoring', label: 'Advanced Monitoring', icon: Monitor },
     { id: 'ai-interventions', label: 'AI Interventions', icon: Brain },
-    { id: 'voice-calls', label: 'Voice Calls', icon: PhoneCall },
     { id: 'privacy', label: 'Data & Privacy', icon: Database },
     { id: 'wallet', label: 'Wallet', icon: Wallet },
     { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -136,7 +133,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             {activeTab === 'privacy' && <DataPrivacySettings />}
             {activeTab === 'monitoring' && <MonitoringDashboard />}
             {activeTab === 'ai-interventions' && <SmartInterventionSystem />}
-            {activeTab === 'voice-calls' && <VoiceCallSystem />}
             
             {activeTab === 'social' && (
               <div className="space-y-6">

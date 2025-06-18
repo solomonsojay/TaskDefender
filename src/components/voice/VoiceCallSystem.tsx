@@ -9,10 +9,20 @@ import {
   Heart,
   Briefcase,
   Coffee,
-  Settings
+  Settings,
+  User,
+  Mic
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useSarcasticPrompts } from '../../hooks/useSarcasticPrompts';
+
+interface VoiceOption {
+  id: string;
+  name: string;
+  gender: 'male' | 'female';
+  accent: string;
+  description: string;
+}
 
 interface VoiceCharacter {
   id: string;
@@ -30,6 +40,7 @@ interface VoiceCharacter {
     rate: number;
     pitch: number;
     volume: number;
+    preferredVoice?: string;
   };
 }
 
@@ -39,13 +50,47 @@ const VoiceCallSystem: React.FC = () => {
   const [isCallActive, setIsCallActive] = useState(false);
   const [currentCharacter, setCurrentCharacter] = useState<VoiceCharacter | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<string>('');
   const [callSettings, setCallSettings] = useState({
     enableCalls: true,
     criticalTaskCalls: true,
     procrastinationCalls: true,
     celebrationCalls: true,
-    callFrequency: 'normal' as 'low' | 'normal' | 'high'
+    callFrequency: 'normal' as 'low' | 'normal' | 'high',
+    selectedVoiceId: ''
   });
+
+  const voiceOptions: VoiceOption[] = [
+    {
+      id: 'voice1',
+      name: 'Professional',
+      gender: 'female',
+      accent: 'American',
+      description: 'Clear, professional female voice'
+    },
+    {
+      id: 'voice2',
+      name: 'Friendly',
+      gender: 'male',
+      accent: 'British',
+      description: 'Warm, friendly male voice'
+    },
+    {
+      id: 'voice3',
+      name: 'Energetic',
+      gender: 'female',
+      accent: 'Australian',
+      description: 'Upbeat, energetic female voice'
+    },
+    {
+      id: 'voice4',
+      name: 'Calm',
+      gender: 'male',
+      accent: 'Canadian',
+      description: 'Soothing, calm male voice'
+    }
+  ];
 
   const characters: VoiceCharacter[] = [
     {
@@ -76,7 +121,7 @@ const VoiceCallSystem: React.FC = () => {
           "See? I told you that you were capable of great things!"
         ]
       },
-      voiceSettings: { rate: 0.9, pitch: 1.2, volume: 0.8 }
+      voiceSettings: { rate: 0.9, pitch: 1.3, volume: 0.8, preferredVoice: 'female' }
     },
     {
       id: 'gordon',
@@ -106,7 +151,7 @@ const VoiceCallSystem: React.FC = () => {
           "BRILLIANT! Now that's how you get things done properly!"
         ]
       },
-      voiceSettings: { rate: 1.2, pitch: 0.8, volume: 0.9 }
+      voiceSettings: { rate: 1.3, pitch: 0.7, volume: 0.9, preferredVoice: 'male' }
     },
     {
       id: 'hr',
@@ -136,7 +181,7 @@ const VoiceCallSystem: React.FC = () => {
           "Great job! This aligns perfectly with our strategic objectives."
         ]
       },
-      voiceSettings: { rate: 1.0, pitch: 1.0, volume: 0.7 }
+      voiceSettings: { rate: 1.0, pitch: 1.0, volume: 0.7, preferredVoice: 'female' }
     },
     {
       id: 'passive-aggressive',
@@ -166,16 +211,37 @@ const VoiceCallSystem: React.FC = () => {
           "Congratulations! You did the thing you were supposed to do. Amazing!"
         ]
       },
-      voiceSettings: { rate: 0.95, pitch: 1.1, volume: 0.8 }
+      voiceSettings: { rate: 0.95, pitch: 1.1, volume: 0.8, preferredVoice: 'female' }
     }
   ];
+
+  // Load available voices
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      setAvailableVoices(voices);
+      
+      // Set default voice if none selected
+      if (!selectedVoice && voices.length > 0) {
+        const defaultVoice = voices.find(voice => voice.default) || voices[0];
+        setSelectedVoice(defaultVoice.name);
+      }
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }, []);
 
   // Load settings from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('taskdefender_voice_settings');
     if (saved) {
       try {
-        setCallSettings(JSON.parse(saved));
+        const savedSettings = JSON.parse(saved);
+        setCallSettings(savedSettings);
+        if (savedSettings.selectedVoiceId) {
+          setSelectedVoice(savedSettings.selectedVoiceId);
+        }
       } catch (error) {
         console.error('Failed to load voice settings:', error);
       }
@@ -184,8 +250,12 @@ const VoiceCallSystem: React.FC = () => {
 
   // Save settings to localStorage
   useEffect(() => {
-    localStorage.setItem('taskdefender_voice_settings', JSON.stringify(callSettings));
-  }, [callSettings]);
+    const settingsToSave = {
+      ...callSettings,
+      selectedVoiceId: selectedVoice
+    };
+    localStorage.setItem('taskdefender_voice_settings', JSON.stringify(settingsToSave));
+  }, [callSettings, selectedVoice]);
 
   // Check for call triggers
   useEffect(() => {
@@ -242,6 +312,13 @@ const VoiceCallSystem: React.FC = () => {
     const script = scripts[Math.floor(Math.random() * scripts.length)];
 
     const utterance = new SpeechSynthesisUtterance(script);
+    
+    // Find the best voice for this character
+    const voice = findBestVoice(character);
+    if (voice) {
+      utterance.voice = voice;
+    }
+    
     utterance.rate = character.voiceSettings.rate;
     utterance.pitch = character.voiceSettings.pitch;
     utterance.volume = character.voiceSettings.volume;
@@ -262,6 +339,40 @@ const VoiceCallSystem: React.FC = () => {
     window.speechSynthesis.speak(utterance);
   };
 
+  const findBestVoice = (character: VoiceCharacter): SpeechSynthesisVoice | null => {
+    if (availableVoices.length === 0) return null;
+
+    // First try to use the user's selected voice
+    if (selectedVoice) {
+      const userVoice = availableVoices.find(voice => voice.name === selectedVoice);
+      if (userVoice) return userVoice;
+    }
+
+    // Fallback to character's preferred voice type
+    const preferredGender = character.voiceSettings.preferredVoice;
+    
+    // Try to find a voice that matches the character
+    const matchingVoices = availableVoices.filter(voice => {
+      const voiceName = voice.name.toLowerCase();
+      if (preferredGender === 'female') {
+        return voiceName.includes('female') || voiceName.includes('woman') || 
+               voiceName.includes('samantha') || voiceName.includes('victoria') ||
+               voiceName.includes('karen') || voiceName.includes('susan');
+      } else {
+        return voiceName.includes('male') || voiceName.includes('man') || 
+               voiceName.includes('daniel') || voiceName.includes('alex') ||
+               voiceName.includes('tom') || voiceName.includes('fred');
+      }
+    });
+
+    if (matchingVoices.length > 0) {
+      return matchingVoices[0];
+    }
+
+    // Final fallback to any available voice
+    return availableVoices[0];
+  };
+
   const endCall = () => {
     window.speechSynthesis.cancel();
     setIsCallActive(false);
@@ -276,6 +387,21 @@ const VoiceCallSystem: React.FC = () => {
       setIsCallActive(true);
       setTimeout(() => speakScript(character, type), 500);
     }
+  };
+
+  const testVoice = () => {
+    if (!selectedVoice) return;
+    
+    const utterance = new SpeechSynthesisUtterance("Hello! This is a test of the selected voice. How do I sound?");
+    const voice = availableVoices.find(v => v.name === selectedVoice);
+    if (voice) {
+      utterance.voice = voice;
+    }
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 0.8;
+    
+    window.speechSynthesis.speak(utterance);
   };
 
   return (
@@ -330,23 +456,78 @@ const VoiceCallSystem: React.FC = () => {
         </div>
       )}
 
-      {/* Settings Panel */}
+      {/* Header */}
+      <div className="flex items-center space-x-3 mb-6">
+        <div className="bg-green-500/20 p-3 rounded-xl">
+          <PhoneCall className="h-6 w-6 text-green-500" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Voice Call Interventions
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Configure motivational calls from different characters
+          </p>
+        </div>
+      </div>
+
+      {/* Voice Selection */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center space-x-3 mb-6">
-          <div className="bg-green-500/20 p-3 rounded-xl">
-            <PhoneCall className="h-6 w-6 text-green-500" />
-          </div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
+          <Mic className="h-5 w-5 text-blue-500" />
+          <span>Voice Selection</span>
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Voice Call Interventions
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Configure motivational calls from different characters
-            </p>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Select Voice
+            </label>
+            <select
+              value={selectedVoice}
+              onChange={(e) => setSelectedVoice(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+            >
+              <option value="">Default System Voice</option>
+              {availableVoices.map(voice => (
+                <option key={voice.name} value={voice.name}>
+                  {voice.name} ({voice.lang})
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="flex items-end">
+            <button
+              onClick={testVoice}
+              disabled={!selectedVoice}
+              className="w-full bg-blue-500 text-white py-3 px-4 rounded-xl font-medium hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Test Voice
+            </button>
           </div>
         </div>
 
-        {/* Call Settings */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {voiceOptions.map(voice => (
+            <div key={voice.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+              <div className="flex items-center justify-center mb-2">
+                <User className="h-5 w-5 text-gray-500" />
+              </div>
+              <h4 className="font-medium text-gray-900 dark:text-white text-sm">{voice.name}</h4>
+              <p className="text-xs text-gray-600 dark:text-gray-400">{voice.gender} • {voice.accent}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{voice.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Call Settings */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Call Settings
+        </h3>
+        
         <div className="space-y-4 mb-6">
           <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
             <div>
@@ -411,43 +592,43 @@ const VoiceCallSystem: React.FC = () => {
             </select>
           </div>
         </div>
+      </div>
 
-        {/* Character Previews */}
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Available Characters
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {characters.map(character => (
-              <div key={character.id} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="p-2 bg-white dark:bg-gray-800 rounded-lg">
-                    <character.icon className={`h-5 w-5 ${character.color}`} />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white">{character.name}</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{character.description}</p>
-                  </div>
+      {/* Character Previews */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Available Characters
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {characters.map(character => (
+            <div key={character.id} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="p-2 bg-white dark:bg-gray-800 rounded-lg">
+                  <character.icon className={`h-5 w-5 ${character.color}`} />
                 </div>
-                
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => testCall(character.id, 'greeting')}
-                    className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg text-sm hover:bg-blue-600 transition-colors duration-200"
-                  >
-                    Test Call
-                  </button>
-                  <button
-                    onClick={() => testCall(character.id, 'motivation')}
-                    className="flex-1 bg-orange-500 text-white py-2 px-3 rounded-lg text-sm hover:bg-orange-600 transition-colors duration-200"
-                  >
-                    Motivation
-                  </button>
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white">{character.name}</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{character.description}</p>
                 </div>
               </div>
-            ))}
-          </div>
+              
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => testCall(character.id, 'greeting')}
+                  className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg text-sm hover:bg-blue-600 transition-colors duration-200"
+                >
+                  Test Call
+                </button>
+                <button
+                  onClick={() => testCall(character.id, 'motivation')}
+                  className="flex-1 bg-orange-500 text-white py-2 px-3 rounded-lg text-sm hover:bg-orange-600 transition-colors duration-200"
+                >
+                  Motivation
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

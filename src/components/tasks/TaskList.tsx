@@ -43,11 +43,20 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onStartFocus })
   };
 
   const handleComplete = (honestlyCompleted: boolean) => {
-    onUpdateTask(task.id, {
-      status: 'done',
-      completedAt: new Date(),
-      honestlyCompleted,
-    });
+    if (honestlyCompleted) {
+      // If honestly completed, mark as done
+      onUpdateTask(task.id, {
+        status: 'done',
+        completedAt: new Date(),
+        honestlyCompleted: true,
+      });
+    } else {
+      // If not honestly completed, move to in-progress
+      onUpdateTask(task.id, {
+        status: 'in-progress',
+        honestlyCompleted: false,
+      });
+    }
     setShowHonestyCheck(false);
   };
 
@@ -181,7 +190,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onStartFocus })
                 onClick={() => handleComplete(false)}
                 className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
               >
-                I need to be more honest
+                I need to be more honest - Continue Working
               </button>
               
               <button
