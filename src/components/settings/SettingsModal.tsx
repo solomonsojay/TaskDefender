@@ -23,6 +23,7 @@ import DataPrivacySettings from './DataPrivacySettings';
 import MonitoringDashboard from '../monitoring/MonitoringDashboard';
 import SmartInterventionSystem from '../ai/SmartInterventionSystem';
 import SocialMediaIntegration from '../analytics/SocialMediaIntegration';
+import NotificationScheduler from '../notifications/NotificationScheduler';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -79,9 +80,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     { id: 'sarcasm', label: 'Sarcasm Engine', icon: MessageCircle },
     { id: 'monitoring', label: 'Advanced Monitoring', icon: Monitor },
     { id: 'ai-interventions', label: 'AI Interventions', icon: Brain },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'privacy', label: 'Data & Privacy', icon: Database },
     { id: 'wallet', label: 'Wallet', icon: Wallet },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'security', label: 'Security', icon: Shield },
   ];
 
@@ -149,6 +150,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             {activeTab === 'privacy' && <DataPrivacySettings />}
             {activeTab === 'monitoring' && <MonitoringDashboard />}
             {activeTab === 'ai-interventions' && <SmartInterventionSystem />}
+            {activeTab === 'notifications' && <NotificationScheduler />}
             
             {activeTab === 'social' && (
               <div className="space-y-6">
@@ -434,52 +436,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     </div>
                   </div>
                 )}
-              </div>
-            )}
-
-            {activeTab === 'notifications' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                    Notification Preferences
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-6">
-                    Choose what notifications you'd like to receive
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  {Object.entries(notifications).map(([key, value]) => (
-                    <div key={key} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
-                      <div>
-                        <h4 className="font-medium text-gray-900 dark:text-white">
-                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                        </h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {key === 'taskReminders' && 'Get reminded about upcoming task deadlines'}
-                          {key === 'focusMode' && 'Notifications during focus sessions'}
-                          {key === 'dailySummary' && 'Daily productivity summary at end of day'}
-                          {key === 'teamUpdates' && 'Updates from your team members'}
-                          {key === 'sarcasticPrompts' && 'Motivational nudges and sarcastic roasts'}
-                        </p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={value}
-                          onChange={(e) => setNotifications(prev => ({ ...prev, [key]: e.target.checked }))}
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 dark:peer-focus:ring-orange-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-
-                <button className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center space-x-2">
-                  <Save className="h-4 w-4" />
-                  <span>Save Preferences</span>
-                </button>
               </div>
             )}
 
