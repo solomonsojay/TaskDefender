@@ -7,15 +7,12 @@ import TaskList from './tasks/TaskList';
 import QuickTaskCapture from './tasks/QuickTaskCapture';
 import FocusMode from './focus/FocusMode';
 import TeamManagement from './teams/TeamManagement';
-import VoiceCallSystem from './voice/VoiceCallSystem';
-import NotificationScheduler from './notifications/NotificationScheduler';
-import MonitoringDashboard from './monitoring/MonitoringDashboard';
-import SmartInterventionSystem from './ai/SmartInterventionSystem';
+import UserAnalytics from './analytics/UserAnalytics';
 import SarcasticPromptDisplay from './sarcasm/SarcasticPromptDisplay';
 
 const AppContent: React.FC = () => {
   const { user } = useApp();
-  const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'focus' | 'teams' | 'notifications' | 'voice' | 'monitoring' | 'ai-interventions'>('dashboard');
+  const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics'>('dashboard');
   
   const {
     currentPrompt,
@@ -44,7 +41,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-      <Header />
+      <Header currentView={currentView} setCurrentView={setCurrentView} />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Navigation */}
@@ -54,11 +51,7 @@ const AppContent: React.FC = () => {
               { id: 'dashboard', label: 'Dashboard' },
               { id: 'tasks', label: 'Tasks' },
               { id: 'focus', label: 'Focus Mode' },
-              { id: 'monitoring', label: 'Advanced Monitoring' },
-              { id: 'ai-interventions', label: 'AI Interventions' },
-              { id: 'notifications', label: 'Notifications' },
-              { id: 'voice', label: 'Voice Calls' },
-              ...(user?.role === 'admin' ? [{ id: 'teams', label: 'Teams' }] : []),
+              { id: 'analytics', label: 'Analytics' },
             ].map(item => (
               <button
                 key={item.id}
@@ -85,11 +78,8 @@ const AppContent: React.FC = () => {
           )}
           {currentView === 'tasks' && <TaskList />}
           {currentView === 'focus' && <FocusMode />}
-          {currentView === 'monitoring' && <MonitoringDashboard />}
-          {currentView === 'ai-interventions' && <SmartInterventionSystem />}
-          {currentView === 'teams' && user?.role === 'admin' && <TeamManagement />}
-          {currentView === 'voice' && <VoiceCallSystem />}
-          {currentView === 'notifications' && <NotificationScheduler />}
+          {currentView === 'teams' && <TeamManagement />}
+          {currentView === 'analytics' && <UserAnalytics />}
         </main>
       </div>
 

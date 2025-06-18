@@ -6,19 +6,35 @@ import {
   User, 
   Users,
   Menu,
-  X
+  X,
+  TrendingUp
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import Logo from './Logo';
 import SettingsModal from '../settings/SettingsModal';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  currentView: string;
+  setCurrentView: (view: 'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics') => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
   const { user, theme, setTheme } = useApp();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
+  };
+
+  const handleTeamsClick = () => {
+    setCurrentView('teams');
+    setIsMenuOpen(false);
+  };
+
+  const handleAnalyticsClick = () => {
+    setCurrentView('analytics');
+    setIsMenuOpen(false);
   };
 
   return (
@@ -52,11 +68,16 @@ const Header: React.FC = () => {
                     </span>
                   </div>
                   
-                  <div className="flex items-center space-x-2 bg-orange-50 dark:bg-orange-900/20 px-3 py-1 rounded-full">
+                  <button
+                    onClick={handleAnalyticsClick}
+                    className="flex items-center space-x-2 bg-orange-50 dark:bg-orange-900/20 px-3 py-1 rounded-full hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors duration-200"
+                    title="View Analytics"
+                  >
+                    <TrendingUp className="h-4 w-4 text-orange-500" />
                     <span className="text-sm font-medium text-orange-700 dark:text-orange-400">
                       🔥 {user.streak} day streak
                     </span>
-                  </div>
+                  </button>
                 </>
               )}
 
@@ -75,8 +96,16 @@ const Header: React.FC = () => {
               {user && (
                 <div className="flex items-center space-x-2">
                   {user.role === 'admin' && (
-                    <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200">
-                      <Users className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                    <button 
+                      onClick={handleTeamsClick}
+                      className={`p-2 rounded-lg transition-colors duration-200 ${
+                        currentView === 'teams'
+                          ? 'bg-orange-500 text-white'
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                      title="Team Management"
+                    >
+                      <Users className="h-5 w-5" />
                     </button>
                   )}
                   <button 
@@ -117,18 +146,33 @@ const Header: React.FC = () => {
               <div className="space-y-3">
                 {user && (
                   <>
+                    <button
+                      onClick={handleAnalyticsClick}
+                      className="flex items-center justify-between w-full py-2"
+                    >
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Analytics & Streak</span>
+                      <div className="flex items-center space-x-2">
+                        <TrendingUp className="h-4 w-4 text-orange-500" />
+                        <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                          🔥 {user.streak} days
+                        </span>
+                      </div>
+                    </button>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600 dark:text-gray-400">Integrity Score</span>
                       <span className="text-sm font-medium text-green-600 dark:text-green-400">
                         {user.integrityScore}%
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Streak</span>
-                      <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                        🔥 {user.streak} days
-                      </span>
-                    </div>
+                    {user.role === 'admin' && (
+                      <button
+                        onClick={handleTeamsClick}
+                        className="flex items-center justify-between w-full py-2"
+                      >
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Team Management</span>
+                        <Users className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                      </button>
+                    )}
                   </>
                 )}
                 <button
