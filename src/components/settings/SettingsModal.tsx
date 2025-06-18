@@ -12,11 +12,18 @@ import {
   Plus,
   MessageCircle,
   Volume2,
-  Database
+  Database,
+  Monitor,
+  Brain,
+  PhoneCall
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useSarcasticPrompts } from '../../hooks/useSarcasticPrompts';
 import DataPrivacySettings from './DataPrivacySettings';
+import MonitoringDashboard from '../monitoring/MonitoringDashboard';
+import SmartInterventionSystem from '../ai/SmartInterventionSystem';
+import VoiceCallSystem from '../voice/VoiceCallSystem';
+import SocialMediaIntegration from '../analytics/SocialMediaIntegration';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -26,7 +33,7 @@ interface SettingsModalProps {
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const { user, theme, setTheme } = useApp();
   const { userPersona, changePersona, availablePersonas, generateNudge, generateRoast } = useSarcasticPrompts();
-  const [activeTab, setActiveTab] = useState<'profile' | 'wallet' | 'notifications' | 'security' | 'sarcasm' | 'privacy'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'social' | 'wallet' | 'notifications' | 'security' | 'sarcasm' | 'privacy' | 'monitoring' | 'ai-interventions' | 'voice-calls'>('profile');
   const [walletData, setWalletData] = useState({
     hasWallet: !!user?.walletAddress,
     walletAddress: user?.walletAddress || '',
@@ -70,7 +77,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
+    { id: 'social', label: 'Social Media', icon: MessageCircle },
     { id: 'sarcasm', label: 'Sarcasm Engine', icon: MessageCircle },
+    { id: 'monitoring', label: 'Advanced Monitoring', icon: Monitor },
+    { id: 'ai-interventions', label: 'AI Interventions', icon: Brain },
+    { id: 'voice-calls', label: 'Voice Calls', icon: PhoneCall },
     { id: 'privacy', label: 'Data & Privacy', icon: Database },
     { id: 'wallet', label: 'Wallet', icon: Wallet },
     { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -87,7 +98,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
@@ -123,6 +134,30 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
             {activeTab === 'privacy' && <DataPrivacySettings />}
+            {activeTab === 'monitoring' && <MonitoringDashboard />}
+            {activeTab === 'ai-interventions' && <SmartInterventionSystem />}
+            {activeTab === 'voice-calls' && <VoiceCallSystem />}
+            
+            {activeTab === 'social' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Social Media Integration
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">
+                    Connect your social media accounts to easily share your productivity achievements.
+                  </p>
+                </div>
+
+                <SocialMediaIntegration
+                  isOpen={true}
+                  onClose={() => {}}
+                  shareText="🎯 Productivity Update! Making great progress with TaskDefender! #ProductivityJourney"
+                  analyticsData={{}}
+                  period="daily"
+                />
+              </div>
+            )}
             
             {activeTab === 'sarcasm' && (
               <div className="space-y-6">
