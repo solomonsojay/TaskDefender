@@ -16,14 +16,6 @@ import {
 import { useApp } from '../../contexts/AppContext';
 import { useSarcasticPrompts } from '../../hooks/useSarcasticPrompts';
 
-interface VoiceOption {
-  id: string;
-  name: string;
-  gender: 'male' | 'female';
-  accent: string;
-  description: string;
-}
-
 interface VoiceCharacter {
   id: string;
   name: string;
@@ -60,37 +52,6 @@ const VoiceCallSystem: React.FC = () => {
     callFrequency: 'normal' as 'low' | 'normal' | 'high',
     selectedVoiceId: ''
   });
-
-  const voiceOptions: VoiceOption[] = [
-    {
-      id: 'voice1',
-      name: 'Professional',
-      gender: 'female',
-      accent: 'American',
-      description: 'Clear, professional female voice'
-    },
-    {
-      id: 'voice2',
-      name: 'Friendly',
-      gender: 'male',
-      accent: 'British',
-      description: 'Warm, friendly male voice'
-    },
-    {
-      id: 'voice3',
-      name: 'Energetic',
-      gender: 'female',
-      accent: 'African English',
-      description: 'Upbeat, energetic female voice'
-    },
-    {
-      id: 'voice4',
-      name: 'Calm',
-      gender: 'male',
-      accent: 'Canadian',
-      description: 'Soothing, calm male voice'
-    }
-  ];
 
   const characters: VoiceCharacter[] = [
     {
@@ -357,11 +318,13 @@ const VoiceCallSystem: React.FC = () => {
       if (preferredGender === 'female') {
         return voiceName.includes('female') || voiceName.includes('woman') || 
                voiceName.includes('samantha') || voiceName.includes('victoria') ||
-               voiceName.includes('karen') || voiceName.includes('susan');
+               voiceName.includes('karen') || voiceName.includes('susan') ||
+               voiceName.includes('zira') || voiceName.includes('hazel');
       } else {
         return voiceName.includes('male') || voiceName.includes('man') || 
                voiceName.includes('daniel') || voiceName.includes('alex') ||
-               voiceName.includes('tom') || voiceName.includes('fred');
+               voiceName.includes('tom') || voiceName.includes('fred') ||
+               voiceName.includes('david') || voiceName.includes('mark');
       }
     });
 
@@ -402,6 +365,40 @@ const VoiceCallSystem: React.FC = () => {
     utterance.volume = 0.8;
     
     window.speechSynthesis.speak(utterance);
+  };
+
+  const getVoiceInfo = (voice: SpeechSynthesisVoice) => {
+    const name = voice.name;
+    const lang = voice.lang;
+    
+    // Try to determine gender and accent from voice name and language
+    let gender = 'Unknown';
+    let accent = lang;
+    
+    const nameLower = name.toLowerCase();
+    if (nameLower.includes('female') || nameLower.includes('woman') || 
+        nameLower.includes('samantha') || nameLower.includes('victoria') ||
+        nameLower.includes('karen') || nameLower.includes('susan') ||
+        nameLower.includes('zira') || nameLower.includes('hazel')) {
+      gender = 'Female';
+    } else if (nameLower.includes('male') || nameLower.includes('man') || 
+               nameLower.includes('daniel') || nameLower.includes('alex') ||
+               nameLower.includes('tom') || nameLower.includes('fred') ||
+               nameLower.includes('david') || nameLower.includes('mark')) {
+      gender = 'Male';
+    }
+    
+    // Simplify language codes to readable accents
+    if (lang.startsWith('en-US')) accent = 'American';
+    else if (lang.startsWith('en-GB')) accent = 'British';
+    else if (lang.startsWith('en-AU')) accent = 'Australian';
+    else if (lang.startsWith('en-CA')) accent = 'Canadian';
+    else if (lang.startsWith('en-IN')) accent = 'Indian';
+    else if (lang.startsWith('en-ZA')) accent = 'South African';
+    else if (lang.startsWith('en-IE')) accent = 'Irish';
+    else if (lang.startsWith('en')) accent = 'English';
+    
+    return { gender, accent };
   };
 
   return (
@@ -478,10 +475,10 @@ const VoiceCallSystem: React.FC = () => {
           <span>Voice Selection</span>
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Select Voice
+              Select Voice ({availableVoices.length} available)
             </label>
             <select
               value={selectedVoice}
@@ -489,11 +486,14 @@ const VoiceCallSystem: React.FC = () => {
               className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
             >
               <option value="">Default System Voice</option>
-              {availableVoices.map(voice => (
-                <option key={voice.name} value={voice.name}>
-                  {voice.name} ({voice.lang})
-                </option>
-              ))}
+              {availableVoices.map(voice => {
+                const { gender, accent } = getVoiceInfo(voice);
+                return (
+                  <option key={voice.name} value={voice.name}>
+                    {voice.name} ({gender} • {accent})
+                  </option>
+                );
+              })}
             </select>
           </div>
           
@@ -508,18 +508,31 @@ const VoiceCallSystem: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {voiceOptions.map(voice => (
-            <div key={voice.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
-              <div className="flex items-center justify-center mb-2">
-                <User className="h-5 w-5 text-gray-500" />
-              </div>
-              <h4 className="font-medium text-gray-900 dark:text-white text-sm">{voice.name}</h4>
-              <p className="text-xs text-gray-600 dark:text-gray-400">{voice.gender} • {voice.accent}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{voice.description}</p>
+        {availableVoices.length === 0 && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl p-4">
+            <p className="text-yellow-700 dark:text-yellow-400 text-sm">
+              ⚠️ No voices detected. Speech synthesis may not be available in your browser or system.
+            </p>
+          </div>
+        )}
+
+        {availableVoices.length > 0 && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
+            <h4 className="font-medium text-blue-700 dark:text-blue-400 mb-2">
+              Available Voice Types:
+            </h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+              {Array.from(new Set(availableVoices.map(voice => {
+                const { gender, accent } = getVoiceInfo(voice);
+                return `${gender} ${accent}`;
+              }))).map(type => (
+                <div key={type} className="bg-white dark:bg-gray-800 rounded-lg p-2 text-center">
+                  <span className="text-blue-600 dark:text-blue-400">{type}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Call Settings */}
