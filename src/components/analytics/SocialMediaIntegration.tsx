@@ -22,16 +22,12 @@ interface SocialMediaIntegrationProps {
   isOpen: boolean;
   onClose: () => void;
   shareText: string;
-  analyticsData: any;
-  period: string;
 }
 
 const SocialMediaIntegration: React.FC<SocialMediaIntegrationProps> = ({
   isOpen,
   onClose,
-  shareText,
-  analyticsData,
-  period
+  shareText
 }) => {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'share' | 'connect'>('share');

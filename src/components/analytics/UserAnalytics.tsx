@@ -8,7 +8,6 @@ import {
   Share2,
   Download,
   BarChart3,
-  PieChart,
   Activity,
   Zap,
   CheckCircle,
@@ -104,7 +103,6 @@ const UserAnalytics: React.FC = () => {
 
   const generateShareText = () => {
     const data = analyticsData[activeTab];
-    const period = activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
     
     switch (activeTab) {
       case 'daily':
@@ -392,8 +390,6 @@ const UserAnalytics: React.FC = () => {
           isOpen={showShareModal}
           onClose={() => setShowShareModal(false)}
           shareText={generateShareText()}
-          analyticsData={currentData}
-          period={activeTab}
         />
       )}
     </div>

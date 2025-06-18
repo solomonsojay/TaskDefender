@@ -14,7 +14,6 @@ import ChatBot from './chatbot/ChatBot';
 import BoltBadge from './common/BoltBadge';
 
 const AppContent: React.FC = () => {
-  const { user } = useApp();
   const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'achievements' | 'focus' | 'teams' | 'analytics' | 'voice-calls'>('dashboard');
   const [isChatBotOpen, setIsChatBotOpen] = React.useState(false);
   const [hasShownIntro, setHasShownIntro] = React.useState(false);
