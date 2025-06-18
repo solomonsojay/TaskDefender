@@ -11,7 +11,6 @@ import {
   Key,
   Plus,
   MessageCircle,
-  Volume2,
   Database,
   Monitor,
   Brain,
@@ -39,13 +38,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     walletAddress: user?.walletAddress || '',
     backupPhrase: '',
     isCreatingNew: false,
-  });
-  const [notifications, setNotifications] = useState({
-    taskReminders: true,
-    focusMode: true,
-    dailySummary: true,
-    teamUpdates: true,
-    sarcasticPrompts: true,
   });
 
   if (!isOpen) return null;
@@ -94,7 +86,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     'passive-aggressive': 'Subtly judgmental with backhanded compliments'
   };
 
-  // FIXED: Handle back navigation properly for social media
+  // Handle back navigation properly for social media
   const handleBackFromSocial = () => {
     setActiveTab('profile');
   };
@@ -105,7 +97,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3">
-            {/* FIXED: Add back button for social media */}
+            {/* Add back button for social media */}
             {activeTab === 'social' && (
               <button
                 onClick={handleBackFromSocial}
@@ -163,7 +155,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   </p>
                 </div>
 
-                {/* FIXED: Social Media Integration with proper back button handling */}
+                {/* Social Media Integration with proper back button handling */}
                 <SocialMediaIntegration
                   isOpen={true}
                   onClose={handleBackFromSocial}
@@ -205,9 +197,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     
                     <button
                       onClick={generateRoast}
-                      className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors duration-200 flex items-center space-x-2"
+                      className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors duration-200"
                     >
-                      <Volume2 className="h-4 w-4" />
                       <span>Test Roast</span>
                     </button>
                   </div>

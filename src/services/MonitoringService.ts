@@ -50,8 +50,6 @@ export class MonitoringService {
 
   // Permission Management with immediate feedback
   public updatePermissions(newPermissions: Partial<MonitoringPermissions>): void {
-    const oldPermissions = { ...this.permissions };
-    
     this.permissions = {
       ...this.permissions,
       ...newPermissions,
@@ -78,7 +76,6 @@ export class MonitoringService {
     }
     
     console.log('Permissions updated:', {
-      old: oldPermissions,
       new: this.permissions,
       monitoring: this.isMonitoring
     });
@@ -152,8 +149,7 @@ export class MonitoringService {
   private async requestNotificationPermission(): Promise<void> {
     if ('Notification' in window && Notification.permission === 'default') {
       try {
-        const permission = await Notification.requestPermission();
-        console.log('Notification permission:', permission);
+        await Notification.requestPermission();
       } catch (error) {
         console.error('Failed to request notification permission:', error);
       }
@@ -164,7 +160,6 @@ export class MonitoringService {
   private async collectActivityData(): Promise<void> {
     if (!this.isMonitoring) return;
     
-    const now = new Date();
     const activities: ExternalActivity[] = [];
 
     try {

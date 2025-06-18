@@ -14,7 +14,6 @@ import {
   Brain,
   PhoneCall,
   Award,
-  Calendar,
   CheckCircle,
   AlertCircle,
   Lightbulb

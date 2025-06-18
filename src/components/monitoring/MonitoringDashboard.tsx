@@ -8,13 +8,7 @@ import {
   CheckCircle,
   XCircle,
   Settings,
-  Eye,
-  EyeOff,
-  BarChart3,
-  PieChart,
-  Calendar,
-  Globe,
-  Smartphone
+  BarChart3
 } from 'lucide-react';
 import { monitoringService, ExternalActivity, ProductivityMetrics } from '../../services/MonitoringService';
 
@@ -125,7 +119,7 @@ const MonitoringDashboard: React.FC = () => {
     return `${minutes}m`;
   };
 
-  const getPermissionIcon = (permission: string, enabled: boolean) => {
+  const getPermissionIcon = (enabled: boolean) => {
     if (enabled) {
       return <CheckCircle className="h-4 w-4 text-green-500" />;
     }
@@ -225,7 +219,7 @@ const MonitoringDashboard: React.FC = () => {
                 <div key={key} className="flex items-start justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      {getPermissionIcon(key, value as boolean)}
+                      {getPermissionIcon(value as boolean)}
                       <h4 className="font-medium text-gray-900 dark:text-white capitalize">
                         {key.replace(/([A-Z])/g, ' $1').trim()}
                       </h4>
@@ -427,7 +421,7 @@ const MonitoringDashboard: React.FC = () => {
           </h3>
           
           <div className="space-y-3">
-            {summary.topApplications.slice(0, 5).map((app, index) => (
+            {summary.topApplications.slice(0, 5).map((app) => (
               <div key={app.name} className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className={`w-3 h-3 rounded-full ${
