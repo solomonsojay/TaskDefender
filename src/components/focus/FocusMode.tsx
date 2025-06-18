@@ -6,10 +6,8 @@ import {
   RotateCcw,
   Target,
   Timer,
-  Zap,
   AlertCircle,
   Settings,
-  Clock,
   TrendingUp,
   Award
 } from 'lucide-react';

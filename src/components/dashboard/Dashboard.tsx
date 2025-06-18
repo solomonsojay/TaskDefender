@@ -4,12 +4,10 @@ import {
   Clock, 
   CheckCircle2, 
   TrendingUp,
-  Calendar,
   Zap,
   Users,
   Award,
-  Trophy,
-  Phone
+  Trophy
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useSarcasticPrompts } from '../../hooks/useSarcasticPrompts';
@@ -27,10 +25,6 @@ const Dashboard: React.FC = () => {
 
   const completedTasks = tasks.filter(task => task.status === 'done');
   const inProgressTasks = tasks.filter(task => task.status === 'in-progress');
-  const overdueTasks = tasks.filter(task => {
-    if (!task.dueDate || task.status === 'done') return false;
-    return new Date(task.dueDate) < new Date();
-  });
 
   const criticalTasks = getCriticalTasks();
   const procrastinatingTasks = getProcrastinatingTasks();
