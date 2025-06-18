@@ -21,6 +21,7 @@ const OnboardingFlow: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    username: '',
     role: 'user' as 'user' | 'admin',
     goals: [] as string[],
     workStyle: 'focused' as 'focused' | 'flexible' | 'collaborative',
@@ -34,7 +35,7 @@ const OnboardingFlow: React.FC = () => {
     organizationDescription: '',
   });
 
-  const totalSteps = formData.role === 'admin' ? 5 : 4;
+  const totalSteps = formData.role === 'admin' ? 6 : 5;
 
   const handleNext = () => {
     if (step < totalSteps) {
@@ -55,7 +56,7 @@ const OnboardingFlow: React.FC = () => {
       id: Date.now().toString(),
       name: formData.name,
       email: formData.email,
-      username: formData.email.split('@')[0], // Temporary username
+      username: formData.username,
       role: formData.role,
       goals: formData.goals,
       workStyle: formData.workStyle,
@@ -124,7 +125,7 @@ const OnboardingFlow: React.FC = () => {
       case 1:
         return formData.role;
       case 2:
-        return formData.name && formData.email;
+        return formData.name && formData.email && formData.username;
       case 3:
         return formData.goals.length > 0;
       case 4:
@@ -189,7 +190,7 @@ const OnboardingFlow: React.FC = () => {
                     <div className="flex items-center space-x-3">
                       <User className="h-6 w-6 text-orange-500" />
                       <div className="text-left">
-                        <h3 className="font-semibold text-gray-900 dark:text-white">Regular User</h3>
+                        <h3 className="font-semibold text-gray-900 dark:text-white">Single User</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-300">Personal productivity focus</p>
                       </div>
                     </div>
@@ -229,10 +230,11 @@ const OnboardingFlow: React.FC = () => {
                   </label>
                   <input
                     type="text"
+                    required
                     value={formData.name}
                     onChange={(e) => updateFormData({ name: e.target.value })}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                    placeholder="Enter your name"
+                    placeholder="Enter your full name"
                   />
                 </div>
                 
@@ -242,11 +244,30 @@ const OnboardingFlow: React.FC = () => {
                   </label>
                   <input
                     type="email"
+                    required
                     value={formData.email}
                     onChange={(e) => updateFormData({ email: e.target.value })}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
                     placeholder="Enter your email"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.username}
+                    onChange={(e) => updateFormData({ username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    placeholder="Choose a username"
+                    maxLength={20}
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Only lowercase letters, numbers, and underscores allowed
+                  </p>
                 </div>
               </div>
             </div>

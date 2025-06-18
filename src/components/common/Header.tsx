@@ -118,7 +118,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
                   <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
                     <User className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {user.name}
+                      @{user.username}
                     </span>
                   </div>
                 </div>

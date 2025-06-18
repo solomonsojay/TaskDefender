@@ -7,7 +7,8 @@ import {
   CheckCircle,
   Settings,
   Link as LinkIcon,
-  Unlink
+  Unlink,
+  ArrowLeft
 } from 'lucide-react';
 
 interface SocialAccount {
@@ -115,6 +116,14 @@ const SocialMediaIntegration: React.FC<SocialMediaIntegrationProps> = ({
     window.open(urls[platform], '_blank', 'width=600,height=400');
   };
 
+  const handleBack = () => {
+    if (activeTab === 'connect') {
+      setActiveTab('share');
+    } else {
+      onClose();
+    }
+  };
+
   const getPlatformIcon = (platform: string) => {
     switch (platform) {
       case 'twitter':
@@ -156,7 +165,20 @@ const SocialMediaIntegration: React.FC<SocialMediaIntegrationProps> = ({
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Share Your Progress</h2>
+          <div className="flex items-center space-x-3">
+            {activeTab === 'connect' && (
+              <button
+                onClick={handleBack}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                title="Back to sharing"
+              >
+                <ArrowLeft className="h-5 w-5 text-gray-500" />
+              </button>
+            )}
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {activeTab === 'share' ? 'Share Your Progress' : 'Connect Accounts'}
+            </h2>
+          </div>
           <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"

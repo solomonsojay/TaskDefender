@@ -27,37 +27,17 @@ type AppAction =
   | { type: 'CREATE_TEAM'; payload: Team }
   | { type: 'JOIN_TEAM'; payload: Team }
   | { type: 'SET_CURRENT_TEAM'; payload: Team | null }
-  | { type: 'COMPLETE_ONBOARDING' };
-
-// Create a default user
-const createDefaultUser = (): User => ({
-  id: 'default-user',
-  name: 'TaskDefender User',
-  email: 'user@taskdefender.app',
-  username: 'taskdefender_user',
-  role: 'admin', // Make default user admin to access all features
-  goals: ['Improve Focus', 'Better Time Management', 'Increase Productivity'],
-  workStyle: 'focused',
-  integrityScore: 100,
-  streak: 0,
-  organizationName: 'My Organization',
-  organizationType: 'startup',
-  organizationIndustry: 'Technology',
-  organizationSize: '1-10',
-  userRoleInOrg: 'Founder',
-  organizationWebsite: '',
-  organizationDescription: 'Building amazing products',
-  createdAt: new Date(),
-});
+  | { type: 'COMPLETE_ONBOARDING' }
+  | { type: 'START_ONBOARDING' };
 
 const initialState: AppState = {
-  user: createDefaultUser(),
+  user: null,
   tasks: [],
   teams: [],
   currentTeam: null,
   focusSession: null,
   theme: 'light',
-  isOnboarding: false, // Skip onboarding
+  isOnboarding: true, // Start with onboarding
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
@@ -100,6 +80,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       return { ...state, currentTeam: action.payload };
     case 'COMPLETE_ONBOARDING':
       return { ...state, isOnboarding: false };
+    case 'START_ONBOARDING':
+      return { ...state, isOnboarding: true };
     default:
       return state;
   }
@@ -124,15 +106,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const savedTeams = localStorage.getItem('taskdefender_teams');
     const savedTheme = localStorage.getItem('theme') as Theme;
     const savedUser = localStorage.getItem('taskdefender_user');
+    const hasCompletedOnboarding = localStorage.getItem('taskdefender_onboarding_completed');
 
-    // Load user or create default
+    // Check if user has completed onboarding
+    if (hasCompletedOnboarding === 'true') {
+      dispatch({ type: 'COMPLETE_ONBOARDING' });
+    }
+
+    // Load user
     if (savedUser) {
       try {
         const user = JSON.parse(savedUser);
         dispatch({ type: 'SET_USER', payload: user });
       } catch (error) {
         console.error('Failed to load user:', error);
-        // Keep default user
       }
     }
 
@@ -195,6 +182,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       document.documentElement.classList.remove('dark');
     }
   }, [state.theme]);
+
+  useEffect(() => {
+    localStorage.setItem('taskdefender_onboarding_completed', state.isOnboarding ? 'false' : 'true');
+  }, [state.isOnboarding]);
 
   const updateProfile = async (updates: any) => {
     try {
