@@ -154,7 +154,7 @@ const AuthForm: React.FC = () => {
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
                 {isSignUp 
-                  ? 'Create your account to start defending your productivity'
+                  ? 'Your last line of defense against procrastination'
                   : 'Sign in to continue your productivity journey'
                 }
               </p>

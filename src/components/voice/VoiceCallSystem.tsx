@@ -38,7 +38,15 @@ interface VoiceCharacter {
 
 const VoiceCallSystem: React.FC = () => {
   const { user, tasks } = useApp();
-  const { getCriticalTasks, getProcrastinatingTasks } = useSarcasticPrompts();
+  const { 
+    getCriticalTasks, 
+    getProcrastinatingTasks, 
+    userPersona, 
+    generateNudge, 
+    currentPrompt,
+    dismissPrompt 
+  } = useSarcasticPrompts();
+  
   const [isCallActive, setIsCallActive] = useState(false);
   const [currentCharacter, setCurrentCharacter] = useState<VoiceCharacter | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -49,6 +57,7 @@ const VoiceCallSystem: React.FC = () => {
     criticalTaskCalls: true,
     procrastinationCalls: true,
     celebrationCalls: true,
+    sarcasticPromptCalls: true, // New setting for sarcasm engine integration
     callFrequency: 'normal' as 'low' | 'normal' | 'high',
     selectedVoiceId: ''
   });
@@ -173,6 +182,36 @@ const VoiceCallSystem: React.FC = () => {
         ]
       },
       voiceSettings: { rate: 0.95, pitch: 1.1, volume: 0.8, preferredVoice: 'female' }
+    },
+    {
+      id: 'default',
+      name: 'TaskDefender AI',
+      description: 'Your witty productivity assistant',
+      icon: User,
+      color: 'text-orange-600',
+      scripts: {
+        greeting: [
+          "Hello there! Your productivity guardian here with a friendly reminder.",
+          "Greetings! I've been monitoring your task situation and thought we should chat.",
+          "Hey! Your AI assistant calling with some observations about your work patterns."
+        ],
+        motivation: [
+          "Those tasks aren't going to complete themselves, you know.",
+          "I see you're practicing the ancient art of productive procrastination.",
+          "Time to channel that energy into actual task completion, don't you think?"
+        ],
+        deadline: [
+          "Your deadline is approaching faster than you might think!",
+          "Time is ticking, and your tasks are still waiting patiently.",
+          "Urgent alert: Your deadline needs some serious attention!"
+        ],
+        completion: [
+          "Excellent work! I knew you had it in you.",
+          "Task completed! Your productivity score just got a nice boost.",
+          "Well done! That's the kind of progress I like to see."
+        ]
+      },
+      voiceSettings: { rate: 1.0, pitch: 1.0, volume: 0.8, preferredVoice: 'neutral' }
     }
   ];
 
@@ -218,6 +257,34 @@ const VoiceCallSystem: React.FC = () => {
     localStorage.setItem('taskdefender_voice_settings', JSON.stringify(settingsToSave));
   }, [callSettings, selectedVoice]);
 
+  // Listen for sarcastic prompts and convert to voice calls
+  useEffect(() => {
+    if (!callSettings.enableCalls || !callSettings.sarcasticPromptCalls || !currentPrompt) return;
+
+    // Convert sarcastic prompt to voice call with 30% chance
+    const shouldMakeCall = Math.random() < 0.3;
+    if (shouldMakeCall && !isCallActive) {
+      // Find character that matches the current persona
+      const matchingCharacter = characters.find(char => char.id === userPersona) || 
+                               characters.find(char => char.id === 'default');
+      
+      if (matchingCharacter) {
+        setCurrentCharacter(matchingCharacter);
+        setIsCallActive(true);
+        
+        // Speak the sarcastic prompt message
+        setTimeout(() => {
+          speakSarcasticPrompt(matchingCharacter, currentPrompt.message);
+        }, 1000);
+        
+        // Dismiss the text prompt since we're speaking it
+        setTimeout(() => {
+          dismissPrompt();
+        }, 2000);
+      }
+    }
+  }, [currentPrompt, callSettings, userPersona, isCallActive]);
+
   // Check for call triggers
   useEffect(() => {
     if (!callSettings.enableCalls) return;
@@ -257,22 +324,31 @@ const VoiceCallSystem: React.FC = () => {
   const initiateCall = (type: 'greeting' | 'motivation' | 'deadline' | 'completion') => {
     if (isCallActive || !('speechSynthesis' in window)) return;
 
-    // Select random character
-    const character = characters[Math.floor(Math.random() * characters.length)];
-    setCurrentCharacter(character);
+    // Select character based on user's sarcasm persona preference
+    const preferredCharacter = characters.find(char => char.id === userPersona) || 
+                              characters[Math.floor(Math.random() * characters.length)];
+    
+    setCurrentCharacter(preferredCharacter);
     setIsCallActive(true);
 
     // Start speaking after a short delay
     setTimeout(() => {
-      speakScript(character, type);
+      speakScript(preferredCharacter, type);
     }, 1000);
   };
 
   const speakScript = (character: VoiceCharacter, type: keyof VoiceCharacter['scripts']) => {
     const scripts = character.scripts[type];
     const script = scripts[Math.floor(Math.random() * scripts.length)];
+    speakText(character, script);
+  };
 
-    const utterance = new SpeechSynthesisUtterance(script);
+  const speakSarcasticPrompt = (character: VoiceCharacter, message: string) => {
+    speakText(character, message);
+  };
+
+  const speakText = (character: VoiceCharacter, text: string) => {
+    const utterance = new SpeechSynthesisUtterance(text);
     
     // Find the best voice for this character
     const voice = findBestVoice(character);
@@ -320,12 +396,13 @@ const VoiceCallSystem: React.FC = () => {
                voiceName.includes('samantha') || voiceName.includes('victoria') ||
                voiceName.includes('karen') || voiceName.includes('susan') ||
                voiceName.includes('zira') || voiceName.includes('hazel');
-      } else {
+      } else if (preferredGender === 'male') {
         return voiceName.includes('male') || voiceName.includes('man') || 
                voiceName.includes('daniel') || voiceName.includes('alex') ||
                voiceName.includes('tom') || voiceName.includes('fred') ||
                voiceName.includes('david') || voiceName.includes('mark');
       }
+      return true; // neutral - any voice
     });
 
     if (matchingVoices.length > 0) {
@@ -349,6 +426,22 @@ const VoiceCallSystem: React.FC = () => {
       setCurrentCharacter(character);
       setIsCallActive(true);
       setTimeout(() => speakScript(character, type), 500);
+    }
+  };
+
+  const testSarcasticPrompt = () => {
+    // Generate a sarcastic prompt and speak it
+    generateNudge();
+    
+    // If there's a current prompt, speak it immediately
+    if (currentPrompt) {
+      const character = characters.find(char => char.id === userPersona) || 
+                       characters.find(char => char.id === 'default');
+      if (character) {
+        setCurrentCharacter(character);
+        setIsCallActive(true);
+        setTimeout(() => speakSarcasticPrompt(character, currentPrompt.message), 500);
+      }
     }
   };
 
@@ -515,24 +608,6 @@ const VoiceCallSystem: React.FC = () => {
             </p>
           </div>
         )}
-
-        {availableVoices.length > 0 && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
-            <h4 className="font-medium text-blue-700 dark:text-blue-400 mb-2">
-              Available Voice Types:
-            </h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-              {Array.from(new Set(availableVoices.map(voice => {
-                const { gender, accent } = getVoiceInfo(voice);
-                return `${gender} ${accent}`;
-              }))).map(type => (
-                <div key={type} className="bg-white dark:bg-gray-800 rounded-lg p-2 text-center">
-                  <span className="text-blue-600 dark:text-blue-400">{type}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Call Settings */}
@@ -558,7 +633,7 @@ const VoiceCallSystem: React.FC = () => {
             </label>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Critical Tasks</span>
               <input
@@ -588,6 +663,16 @@ const VoiceCallSystem: React.FC = () => {
                 className="rounded border-gray-300 text-green-600 focus:ring-green-500"
               />
             </div>
+
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sarcasm Engine</span>
+              <input
+                type="checkbox"
+                checked={callSettings.sarcasticPromptCalls}
+                onChange={(e) => setCallSettings(prev => ({ ...prev, sarcasticPromptCalls: e.target.checked }))}
+                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+              />
+            </div>
           </div>
 
           <div>
@@ -605,6 +690,23 @@ const VoiceCallSystem: React.FC = () => {
             </select>
           </div>
         </div>
+
+        {/* Sarcasm Engine Integration Info */}
+        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl p-4 mb-6">
+          <h4 className="font-medium text-orange-700 dark:text-orange-400 mb-2">
+            🤖 Sarcasm Engine Integration
+          </h4>
+          <p className="text-sm text-orange-600 dark:text-orange-300 mb-3">
+            When enabled, sarcastic prompts from your AI assistant will sometimes be converted to voice calls using your selected persona character. 
+            Current persona: <strong>{userPersona.charAt(0).toUpperCase() + userPersona.slice(1).replace('-', ' ')}</strong>
+          </p>
+          <button
+            onClick={testSarcasticPrompt}
+            className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors duration-200 text-sm"
+          >
+            Test Sarcastic Voice Call
+          </button>
+        </div>
       </div>
 
       {/* Character Previews */}
@@ -615,13 +717,22 @@ const VoiceCallSystem: React.FC = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {characters.map(character => (
-            <div key={character.id} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+            <div key={character.id} className={`bg-gray-50 dark:bg-gray-700 rounded-xl p-4 ${
+              character.id === userPersona ? 'ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-900/20' : ''
+            }`}>
               <div className="flex items-center space-x-3 mb-3">
                 <div className="p-2 bg-white dark:bg-gray-800 rounded-lg">
                   <character.icon className={`h-5 w-5 ${character.color}`} />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">{character.name}</h4>
+                  <h4 className="font-semibold text-gray-900 dark:text-white">
+                    {character.name}
+                    {character.id === userPersona && (
+                      <span className="ml-2 text-xs bg-orange-500 text-white px-2 py-1 rounded-full">
+                        Current Persona
+                      </span>
+                    )}
+                  </h4>
                   <p className="text-sm text-gray-600 dark:text-gray-400">{character.description}</p>
                 </div>
               </div>

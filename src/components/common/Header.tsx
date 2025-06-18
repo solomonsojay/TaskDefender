@@ -37,13 +37,21 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
     setIsMenuOpen(false);
   };
 
+  const handleLogoClick = () => {
+    setCurrentView('dashboard');
+    setIsMenuOpen(false);
+  };
+
   return (
     <>
       <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <div className="flex items-center space-x-3">
+            {/* Logo - Clickable */}
+            <button 
+              onClick={handleLogoClick}
+              className="flex items-center space-x-3 hover:opacity-80 transition-opacity duration-200"
+            >
               <div className="bg-orange-500/20 p-2 rounded-lg shadow-lg">
                 <Logo size="sm" className="text-orange-500" />
               </div>
@@ -52,10 +60,10 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
                   Task Defender
                 </h1>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Defend Your Productivity
+                  Your Last Line of Defense Against Procrastination
                 </p>
               </div>
-            </div>
+            </button>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-4">

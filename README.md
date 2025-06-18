@@ -160,6 +160,12 @@ The app automatically creates a default user with the following settings:
 
 You can modify these settings in the Settings panel.
 
+## Tagline
+
+**"Your Last Line of Defense Against Procrastination"**
+
+TaskDefender stands as your ultimate productivity guardian, helping you overcome procrastination and achieve your goals with AI-powered motivation, smart interventions, and privacy-first design.
+
 ## Contributing
 
 1. Fork the repository

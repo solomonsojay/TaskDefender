@@ -170,7 +170,7 @@ const OnboardingFlow: React.FC = () => {
                 Welcome to Task Defender
               </h1>
               <p className="text-gray-600 dark:text-gray-300 mb-8">
-                Your personal productivity guardian against procrastination
+                Your last line of defense against procrastination
               </p>
               
               <div className="space-y-4 mb-8">

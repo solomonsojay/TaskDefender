@@ -12,7 +12,7 @@ const LoadingSpinner: React.FC = () => {
           TaskDefender
         </h2>
         <p className="text-gray-600 dark:text-gray-400 mb-4">
-          Loading your productivity fortress...
+          Your last line of defense against procrastination...
         </p>
         <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
       </div>
