@@ -1,23 +1,16 @@
 import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase, auth, db } from '../lib/supabase';
-import { useApp } from '../contexts/AppContext';
 
 export const useSupabase = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const { setUser: setAppUser, dispatch } = useApp();
 
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await loadUserProfile(session.user.id);
-      }
-      
       setLoading(false);
     };
 
@@ -26,19 +19,11 @@ export const useSupabase = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await loadUserProfile(session.user.id);
-      } else {
-        setAppUser(null);
-        dispatch({ type: 'SET_TASKS', payload: [] });
-      }
-      
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [setAppUser, dispatch]);
+  }, []);
 
   const loadUserProfile = async (userId: string) => {
     try {
@@ -46,7 +31,7 @@ export const useSupabase = () => {
       
       if (error) {
         console.error('Error loading profile:', error);
-        return;
+        return { data: null, error };
       }
 
       if (profile) {
@@ -73,14 +58,13 @@ export const useSupabase = () => {
           createdAt: new Date(profile.created_at)
         };
 
-        setAppUser(appUser);
-        dispatch({ type: 'COMPLETE_ONBOARDING' });
-
-        // Load user's tasks
-        await loadUserTasks(userId);
+        return { data: appUser, error: null };
       }
+      
+      return { data: null, error: null };
     } catch (error) {
       console.error('Error in loadUserProfile:', error);
+      return { data: null, error };
     }
   };
 
@@ -90,7 +74,7 @@ export const useSupabase = () => {
       
       if (error) {
         console.error('Error loading tasks:', error);
-        return;
+        return { data: null, error };
       }
 
       if (tasks) {
@@ -133,10 +117,13 @@ export const useSupabase = () => {
           })) || []
         }));
 
-        dispatch({ type: 'SET_TASKS', payload: appTasks });
+        return { data: appTasks, error: null };
       }
+      
+      return { data: [], error: null };
     } catch (error) {
       console.error('Error in loadUserTasks:', error);
+      return { data: null, error };
     }
   };
 
@@ -206,12 +193,6 @@ export const useSupabase = () => {
     if (updates.organizationDescription !== undefined) supabaseUpdates.organization_description = updates.organizationDescription;
 
     const { data, error } = await db.updateProfile(user.id, supabaseUpdates);
-    
-    if (!error) {
-      // Reload profile to get updated data
-      await loadUserProfile(user.id);
-    }
-    
     return { data, error };
   };
 
@@ -232,12 +213,6 @@ export const useSupabase = () => {
     };
 
     const { data, error } = await db.createTask(supabaseTask);
-    
-    if (!error && data) {
-      // Reload tasks to get the updated list
-      await loadUserTasks(user.id);
-    }
-    
     return { data, error };
   };
 
@@ -261,17 +236,10 @@ export const useSupabase = () => {
 
     const { data, error } = await db.updateTask(taskId, supabaseUpdates);
     
-    if (!error) {
-      // Reload tasks to get the updated list
-      await loadUserTasks(user.id);
-      
-      // Update integrity score if task was completed
-      if (updates.status === 'done') {
-        await db.calculateIntegrityScore(user.id);
-        await db.updateUserStreak(user.id);
-        // Reload profile to get updated scores
-        await loadUserProfile(user.id);
-      }
+    if (!error && updates.status === 'done') {
+      // Update integrity score and streak if task was completed
+      await db.calculateIntegrityScore(user.id);
+      await db.updateUserStreak(user.id);
     }
     
     return { data, error };
@@ -281,12 +249,6 @@ export const useSupabase = () => {
     if (!user) return { error: new Error('User not authenticated') };
 
     const { error } = await db.deleteTask(taskId);
-    
-    if (!error) {
-      // Reload tasks to get the updated list
-      await loadUserTasks(user.id);
-    }
-    
     return { error };
   };
 

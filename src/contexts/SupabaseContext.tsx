@@ -27,25 +27,81 @@ export const useSupabaseContext = () => {
 
 export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const supabase = useSupabase();
-  const { addTask, updateTask: updateAppTask, deleteTask: deleteAppTask } = useApp();
+  const { setUser, dispatch } = useApp();
 
-  // Override app context methods to use Supabase
+  // Sync Supabase auth state with app state
   useEffect(() => {
-    // This effect ensures Supabase integration is active
-  }, []);
+    const syncUserData = async () => {
+      if (supabase.user) {
+        // Load user profile and sync with app state
+        const { data: userProfile } = await supabase.loadUserProfile(supabase.user.id);
+        if (userProfile) {
+          setUser(userProfile);
+          dispatch({ type: 'COMPLETE_ONBOARDING' });
+        }
+
+        // Load user tasks and sync with app state
+        const { data: tasks } = await supabase.loadUserTasks(supabase.user.id);
+        if (tasks) {
+          dispatch({ type: 'SET_TASKS', payload: tasks });
+        }
+      } else {
+        // User signed out, clear app state
+        setUser(null);
+        dispatch({ type: 'SET_TASKS', payload: [] });
+      }
+    };
+
+    syncUserData();
+  }, [supabase.user, setUser, dispatch, supabase]);
 
   const value: SupabaseContextType = {
     ...supabase,
     createTask: async (taskData: any) => {
       const result = await supabase.createTask(taskData);
+      
+      // Reload tasks after creation
+      if (!result.error && supabase.user) {
+        const { data: tasks } = await supabase.loadUserTasks(supabase.user.id);
+        if (tasks) {
+          dispatch({ type: 'SET_TASKS', payload: tasks });
+        }
+      }
+      
       return result;
     },
     updateTask: async (taskId: string, updates: any) => {
       const result = await supabase.updateTask(taskId, updates);
+      
+      // Reload tasks and profile after update
+      if (!result.error && supabase.user) {
+        const { data: tasks } = await supabase.loadUserTasks(supabase.user.id);
+        if (tasks) {
+          dispatch({ type: 'SET_TASKS', payload: tasks });
+        }
+        
+        // If task was completed, reload profile for updated scores
+        if (updates.status === 'done') {
+          const { data: userProfile } = await supabase.loadUserProfile(supabase.user.id);
+          if (userProfile) {
+            setUser(userProfile);
+          }
+        }
+      }
+      
       return result;
     },
     deleteTask: async (taskId: string) => {
       const result = await supabase.deleteTask(taskId);
+      
+      // Reload tasks after deletion
+      if (!result.error && supabase.user) {
+        const { data: tasks } = await supabase.loadUserTasks(supabase.user.id);
+        if (tasks) {
+          dispatch({ type: 'SET_TASKS', payload: tasks });
+        }
+      }
+      
       return result;
     }
   };
