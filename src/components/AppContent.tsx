@@ -2,7 +2,6 @@ import React from 'react';
 import { useApp } from '../contexts/AppContext';
 import { useSarcasticPrompts } from '../hooks/useSarcasticPrompts';
 import Header from './common/Header';
-import OnboardingFlow from './onboarding/OnboardingFlow';
 import Dashboard from './dashboard/Dashboard';
 import TaskList from './tasks/TaskList';
 import QuickTaskCapture from './tasks/QuickTaskCapture';
@@ -15,7 +14,7 @@ import SmartInterventionSystem from './ai/SmartInterventionSystem';
 import SarcasticPromptDisplay from './sarcasm/SarcasticPromptDisplay';
 
 const AppContent: React.FC = () => {
-  const { user, isOnboarding } = useApp();
+  const { user } = useApp();
   const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'focus' | 'teams' | 'notifications' | 'voice' | 'monitoring' | 'ai-interventions'>('dashboard');
   
   const {
@@ -43,10 +42,6 @@ const AppContent: React.FC = () => {
     };
   }, [updateActivity]);
 
-  if (isOnboarding || !user) {
-    return <OnboardingFlow />;
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       <Header />
@@ -63,7 +58,7 @@ const AppContent: React.FC = () => {
               { id: 'ai-interventions', label: 'AI Interventions' },
               { id: 'notifications', label: 'Notifications' },
               { id: 'voice', label: 'Voice Calls' },
-              ...(user.role === 'admin' ? [{ id: 'teams', label: 'Teams' }] : []),
+              ...(user?.role === 'admin' ? [{ id: 'teams', label: 'Teams' }] : []),
             ].map(item => (
               <button
                 key={item.id}
@@ -92,7 +87,7 @@ const AppContent: React.FC = () => {
           {currentView === 'focus' && <FocusMode />}
           {currentView === 'monitoring' && <MonitoringDashboard />}
           {currentView === 'ai-interventions' && <SmartInterventionSystem />}
-          {currentView === 'teams' && user.role === 'admin' && <TeamManagement />}
+          {currentView === 'teams' && user?.role === 'admin' && <TeamManagement />}
           {currentView === 'voice' && <VoiceCallSystem />}
           {currentView === 'notifications' && <NotificationScheduler />}
         </main>

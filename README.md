@@ -35,6 +35,10 @@ A comprehensive productivity application with AI-powered motivation and privacy-
 4. **Open in browser**
    Navigate to `http://localhost:5173`
 
+## No Authentication Required
+
+TaskDefender now works without any sign-up or sign-in process. Simply open the app and start using it immediately. A default user profile is automatically created with admin privileges to access all features.
+
 ## Deployment
 
 ### Option 1: Netlify (Recommended)
@@ -56,6 +60,7 @@ A comprehensive productivity application with AI-powered motivation and privacy-
 - **No External Servers**: No data is sent to third parties
 - **Export/Import**: Full control over your data
 - **Optional Monitoring**: External monitoring features are opt-in only
+- **No Authentication**: No personal information required to use the app
 
 ## Tech Stack
 
@@ -64,13 +69,14 @@ A comprehensive productivity application with AI-powered motivation and privacy-
 - **Icons**: Lucide React
 - **Build Tool**: Vite
 - **Testing**: Vitest + Testing Library
+- **Storage**: Browser localStorage
 
 ## Project Structure
 
 ```
 src/
 ├── components/          # React components
-│   ├── auth/           # Authentication components
+│   ├── auth/           # Authentication components (minimal)
 │   ├── tasks/          # Task management
 │   ├── focus/          # Focus mode & Pomodoro
 │   ├── dashboard/      # Main dashboard
@@ -142,6 +148,17 @@ src/
 - External monitoring permissions
 - Complete data export
 - Secure data deletion
+
+## Default User Profile
+
+The app automatically creates a default user with the following settings:
+- **Name**: TaskDefender User
+- **Role**: Admin (access to all features)
+- **Organization**: My Organization
+- **Goals**: Improve Focus, Better Time Management, Increase Productivity
+- **Work Style**: Focused
+
+You can modify these settings in the Settings panel.
 
 ## Contributing
 

@@ -12,12 +12,6 @@ interface AppContextType extends AppState {
   endFocusSession: () => void;
   createTeam: (team: Omit<Team, 'id' | 'createdAt' | 'inviteCode'>) => void;
   joinTeam: (inviteCode: string) => void;
-  signUp: (email: string, password: string, userData: { name: string; username?: string }) => Promise<{ data: any; error: any }>;
-  signIn: (email: string, password: string) => Promise<{ data: any; error: any }>;
-  signOut: () => Promise<{ error: any }>;
-  resetPassword: (email: string) => Promise<{ data: any; error: any }>;
-  checkEmailExists: (email: string) => Promise<boolean>;
-  checkUsernameAvailability: (username: string) => Promise<boolean>;
   updateProfile: (updates: any) => Promise<{ data: any; error: any }>;
 }
 
@@ -35,14 +29,35 @@ type AppAction =
   | { type: 'SET_CURRENT_TEAM'; payload: Team | null }
   | { type: 'COMPLETE_ONBOARDING' };
 
+// Create a default user
+const createDefaultUser = (): User => ({
+  id: 'default-user',
+  name: 'TaskDefender User',
+  email: 'user@taskdefender.app',
+  username: 'taskdefender_user',
+  role: 'admin', // Make default user admin to access all features
+  goals: ['Improve Focus', 'Better Time Management', 'Increase Productivity'],
+  workStyle: 'focused',
+  integrityScore: 100,
+  streak: 0,
+  organizationName: 'My Organization',
+  organizationType: 'startup',
+  organizationIndustry: 'Technology',
+  organizationSize: '1-10',
+  userRoleInOrg: 'Founder',
+  organizationWebsite: '',
+  organizationDescription: 'Building amazing products',
+  createdAt: new Date(),
+});
+
 const initialState: AppState = {
-  user: null,
+  user: createDefaultUser(),
   tasks: [],
   teams: [],
   currentTeam: null,
   focusSession: null,
   theme: 'light',
-  isOnboarding: true,
+  isOnboarding: false, // Skip onboarding
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
@@ -105,18 +120,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Load data from localStorage on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem('taskdefender_user');
     const savedTasks = localStorage.getItem('taskdefender_tasks');
     const savedTeams = localStorage.getItem('taskdefender_teams');
     const savedTheme = localStorage.getItem('theme') as Theme;
+    const savedUser = localStorage.getItem('taskdefender_user');
 
+    // Load user or create default
     if (savedUser) {
       try {
         const user = JSON.parse(savedUser);
         dispatch({ type: 'SET_USER', payload: user });
-        dispatch({ type: 'COMPLETE_ONBOARDING' });
       } catch (error) {
         console.error('Failed to load user:', error);
+        // Keep default user
       }
     }
 
@@ -180,151 +196,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [state.theme]);
 
-  // Mock authentication functions
-  const signUp = async (email: string, password: string, userData: { name: string; username?: string }) => {
-    try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Check if email already exists
-      const existingUsers = JSON.parse(localStorage.getItem('taskdefender_users') || '[]');
-      if (existingUsers.find((u: any) => u.email === email)) {
-        return { data: null, error: new Error('Email already exists') };
-      }
-
-      // Check username availability
-      if (userData.username) {
-        const isAvailable = await checkUsernameAvailability(userData.username);
-        if (!isAvailable) {
-          return { data: null, error: new Error('Username is not available') };
-        }
-      }
-
-      const user: User = {
-        id: Date.now().toString(),
-        name: userData.name,
-        email,
-        username: userData.username || email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, ''),
-        role: 'user',
-        goals: [],
-        workStyle: 'focused',
-        integrityScore: 100,
-        streak: 0,
-        createdAt: new Date()
-      };
-
-      // Save user to localStorage
-      existingUsers.push(user);
-      localStorage.setItem('taskdefender_users', JSON.stringify(existingUsers));
-      
-      dispatch({ type: 'SET_USER', payload: user });
-      dispatch({ type: 'COMPLETE_ONBOARDING' });
-
-      return { data: { user }, error: null };
-    } catch (error) {
-      return { data: null, error };
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
-    try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const existingUsers = JSON.parse(localStorage.getItem('taskdefender_users') || '[]');
-      const user = existingUsers.find((u: any) => u.email === email);
-      
-      if (!user) {
-        return { data: null, error: new Error('Invalid email or password') };
-      }
-
-      // Convert dates back to Date objects
-      const userWithDates = {
-        ...user,
-        createdAt: new Date(user.createdAt)
-      };
-
-      dispatch({ type: 'SET_USER', payload: userWithDates });
-      dispatch({ type: 'COMPLETE_ONBOARDING' });
-
-      return { data: { user: userWithDates }, error: null };
-    } catch (error) {
-      return { data: null, error };
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      dispatch({ type: 'SET_USER', payload: null });
-      dispatch({ type: 'SET_TASKS', payload: [] });
-      localStorage.removeItem('taskdefender_user');
-      return { error: null };
-    } catch (error) {
-      return { error };
-    }
-  };
-
-  const resetPassword = async (email: string) => {
-    try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const existingUsers = JSON.parse(localStorage.getItem('taskdefender_users') || '[]');
-      const userExists = existingUsers.find((u: any) => u.email === email);
-      
-      if (!userExists) {
-        return { data: null, error: new Error('Email not found') };
-      }
-
-      // In a real app, this would send an email
-      return { data: { message: 'Password reset email sent' }, error: null };
-    } catch (error) {
-      return { data: null, error };
-    }
-  };
-
-  const checkEmailExists = async (email: string) => {
-    try {
-      const existingUsers = JSON.parse(localStorage.getItem('taskdefender_users') || '[]');
-      return existingUsers.some((u: any) => u.email === email);
-    } catch (error) {
-      return false;
-    }
-  };
-
-  const checkUsernameAvailability = async (username: string) => {
-    try {
-      if (!username || username.length < 3 || username.length > 20) {
-        return false;
-      }
-      
-      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-        return false;
-      }
-      
-      const existingUsers = JSON.parse(localStorage.getItem('taskdefender_users') || '[]');
-      return !existingUsers.some((u: any) => u.username === username.toLowerCase());
-    } catch (error) {
-      return false;
-    }
-  };
-
   const updateProfile = async (updates: any) => {
     try {
       if (!state.user) {
-        return { data: null, error: new Error('User not authenticated') };
+        return { data: null, error: new Error('User not found') };
       }
 
       const updatedUser = { ...state.user, ...updates };
       dispatch({ type: 'SET_USER', payload: updatedUser });
-
-      // Update in localStorage
-      const existingUsers = JSON.parse(localStorage.getItem('taskdefender_users') || '[]');
-      const userIndex = existingUsers.findIndex((u: any) => u.id === state.user.id);
-      if (userIndex !== -1) {
-        existingUsers[userIndex] = updatedUser;
-        localStorage.setItem('taskdefender_users', JSON.stringify(existingUsers));
-      }
 
       return { data: updatedUser, error: null };
     } catch (error) {
@@ -338,7 +217,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...taskData,
       id: Date.now().toString(),
       createdAt: new Date(),
-      userId: state.user?.id || '',
+      userId: state.user?.id || 'default-user',
     };
     dispatch({ type: 'ADD_TASK', payload: task });
   };
@@ -376,7 +255,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       duration: 0,
       completed: false,
       distractions: 0,
-      userId: state.user?.id || '',
+      userId: state.user?.id || 'default-user',
       createdAt: new Date(),
     };
     dispatch({ type: 'START_FOCUS_SESSION', payload: session });
@@ -422,12 +301,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     endFocusSession,
     createTeam,
     joinTeam,
-    signUp,
-    signIn,
-    signOut,
-    resetPassword,
-    checkEmailExists,
-    checkUsernameAvailability,
     updateProfile,
   };
 
