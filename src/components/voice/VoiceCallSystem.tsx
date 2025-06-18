@@ -80,7 +80,7 @@ const VoiceCallSystem: React.FC = () => {
       id: 'voice3',
       name: 'Energetic',
       gender: 'female',
-      accent: 'Australian',
+      accent: 'African English',
       description: 'Upbeat, energetic female voice'
     },
     {
