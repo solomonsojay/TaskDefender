@@ -4,7 +4,6 @@ import { useSarcasticPrompts } from '../hooks/useSarcasticPrompts';
 import Header from './common/Header';
 import Dashboard from './dashboard/Dashboard';
 import TaskList from './tasks/TaskList';
-import QuickTaskCapture from './tasks/QuickTaskCapture';
 import AchievementSystem from './dashboard/AchievementSystem';
 import FocusMode from './focus/FocusMode';
 import TeamManagement from './teams/TeamManagement';
@@ -15,7 +14,7 @@ import ChatBot from './chatbot/ChatBot';
 
 const AppContent: React.FC = () => {
   const { user } = useApp();
-  const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'quick-capture' | 'achievements' | 'focus' | 'teams' | 'analytics' | 'voice-calls'>('dashboard');
+  const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'achievements' | 'focus' | 'teams' | 'analytics' | 'voice-calls'>('dashboard');
   const [isChatBotOpen, setIsChatBotOpen] = React.useState(false);
   const [hasShownIntro, setHasShownIntro] = React.useState(false);
   
@@ -67,7 +66,6 @@ const AppContent: React.FC = () => {
             {[
               { id: 'dashboard', label: 'Dashboard' },
               { id: 'tasks', label: 'Tasks' },
-              { id: 'quick-capture', label: 'Quick Capture' },
               { id: 'achievements', label: 'Achievements' },
               { id: 'focus', label: 'Focus Mode' },
               { id: 'voice-calls', label: 'Voice Calls' },
@@ -92,22 +90,6 @@ const AppContent: React.FC = () => {
         <main>
           {currentView === 'dashboard' && <Dashboard />}
           {currentView === 'tasks' && <TaskList />}
-          {currentView === 'quick-capture' && (
-            <div className="space-y-8">
-              <QuickTaskCapture />
-              <div className="text-center">
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Need to see all your tasks?
-                </p>
-                <button
-                  onClick={() => setCurrentView('tasks')}
-                  className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200"
-                >
-                  View All Tasks
-                </button>
-              </div>
-            </div>
-          )}
           {currentView === 'achievements' && <AchievementSystem />}
           {currentView === 'focus' && <FocusMode />}
           {currentView === 'voice-calls' && <VoiceCallSystem />}

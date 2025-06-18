@@ -8,11 +8,13 @@ import {
   Play,
   AlertTriangle,
   Target,
-  Zap
+  Zap,
+  Plus
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useSarcasticPrompts } from '../../hooks/useSarcasticPrompts';
 import { Task } from '../../types';
+import QuickTaskCapture from './QuickTaskCapture';
 
 interface TaskItemProps {
   task: Task;
@@ -200,6 +202,7 @@ const TaskList: React.FC = () => {
   const { tasks, updateTask, startFocusSession } = useApp();
   const { getCriticalTasks, getProcrastinatingTasks } = useSarcasticPrompts();
   const [filter, setFilter] = useState<'all' | 'todo' | 'in-progress' | 'done' | 'critical' | 'procrastinating'>('all');
+  const [showQuickCapture, setShowQuickCapture] = useState(false);
 
   const criticalTasks = getCriticalTasks();
   const procrastinatingTasks = getProcrastinatingTasks();
@@ -227,9 +230,24 @@ const TaskList: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Your Tasks
+          Task Management
         </h2>
+        
+        <button
+          onClick={() => setShowQuickCapture(!showQuickCapture)}
+          className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center space-x-2"
+        >
+          <Plus className="h-4 w-4" />
+          <span>{showQuickCapture ? 'Hide Quick Capture' : 'Quick Capture'}</span>
+        </button>
       </div>
+
+      {/* Quick Task Capture */}
+      {showQuickCapture && (
+        <div className="mb-6">
+          <QuickTaskCapture />
+        </div>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl overflow-x-auto">
@@ -265,12 +283,20 @@ const TaskList: React.FC = () => {
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
               {filter === 'all' ? 'No tasks yet' : `No ${filter.replace('-', ' ')} tasks`}
             </h3>
-            <p className="text-gray-500 dark:text-gray-400">
+            <p className="text-gray-500 dark:text-gray-400 mb-4">
               {filter === 'all' 
                 ? 'Add your first task to get started' 
                 : `All your ${filter.replace('-', ' ')} tasks will appear here`
               }
             </p>
+            {filter === 'all' && (
+              <button
+                onClick={() => setShowQuickCapture(true)}
+                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
+              >
+                Create Your First Task
+              </button>
+            )}
           </div>
         ) : (
           filteredTasks.map(task => (
