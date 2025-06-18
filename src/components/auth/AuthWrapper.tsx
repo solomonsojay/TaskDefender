@@ -16,3 +16,5 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
 
   return <>{children}</>;
 };
+
+export default AuthWrapper
