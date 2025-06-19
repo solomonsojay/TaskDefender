@@ -11,8 +11,5 @@
     "*.html": "@parcel/packager-html",
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": "@parcel/packager-js",
     "*.{css,scss,sass,less,styl}": "@parcel/packager-css"
-  },
-  "runtimes": {
-    "browser": ["@parcel/runtime-browser-hmr", "@parcel/runtime-react-refresh"]
   }
 }
