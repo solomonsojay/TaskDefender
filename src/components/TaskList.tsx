@@ -201,15 +201,21 @@ const TaskList: React.FC = () => {
                     
                     <div className="flex items-center space-x-2 ml-2">
                       {isOverdue(task) && (
-                        <AlertTriangle className="h-4 w-4 text-red-500" title="Overdue" />
+                        <span title="Overdue">
+                          <AlertTriangle className="h-4 w-4 text-red-500" aria-label="Overdue" />
+                        </span>
                       )}
                       
                       {isAtRisk(task) && (
-                        <Zap className="h-4 w-4 text-yellow-500 animate-pulse" title="At Risk" />
+                        <span title="At Risk">
+                          <Zap className="h-4 w-4 text-yellow-500 animate-pulse" aria-label="At Risk" />
+                        </span>
                       )}
                       
                       {isCritical(task) && !isAtRisk(task) && (
-                        <AlertTriangle className="h-4 w-4 text-orange-500" title="Critical" />
+                        <span title="Critical">
+                          <AlertTriangle className="h-4 w-4 text-orange-500" aria-label="Critical" />
+                        </span>
                       )}
                       
                       {task.status !== 'done' && (
@@ -218,7 +224,7 @@ const TaskList: React.FC = () => {
                           className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
                           title="Start focus session"
                         >
-                          <Play className="h-4 w-4 text-gray-500 hover:text-orange-500" />
+                          <Play className="h-4 w-4 text-gray-500 hover:text-orange-500" aria-label="Start focus session" />
                         </button>
                       )}
                       
@@ -227,7 +233,7 @@ const TaskList: React.FC = () => {
                         className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
                         title="Delete task"
                       >
-                        <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                        <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" aria-label="Delete task" />
                       </button>
                     </div>
                   </div>
