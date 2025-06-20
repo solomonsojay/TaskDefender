@@ -37,7 +37,7 @@ const initialState: AppState = {
   currentTeam: null,
   focusSession: null,
   theme: 'light',
-  isOnboarding: true,
+  isOnboarding: true, // Always start with onboarding
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
@@ -108,17 +108,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const savedUser = localStorage.getItem('taskdefender_user');
     const hasCompletedOnboarding = localStorage.getItem('taskdefender_onboarding_completed');
 
-    if (hasCompletedOnboarding === 'true') {
-      dispatch({ type: 'COMPLETE_ONBOARDING' });
-    }
-
-    if (savedUser) {
+    // Check if onboarding was completed AND user exists
+    if (hasCompletedOnboarding === 'true' && savedUser) {
       try {
         const user = JSON.parse(savedUser);
         dispatch({ type: 'SET_USER', payload: user });
+        dispatch({ type: 'COMPLETE_ONBOARDING' });
       } catch (error) {
         console.error('Failed to load user:', error);
+        // If user data is corrupted, restart onboarding
+        localStorage.removeItem('taskdefender_onboarding_completed');
+        localStorage.removeItem('taskdefender_user');
       }
+    } else {
+      // No completed onboarding or no user - show onboarding
+      dispatch({ type: 'START_ONBOARDING' });
     }
 
     if (savedTasks) {
