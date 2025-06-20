@@ -9,7 +9,8 @@ import {
   Play,
   Save,
   Trash2,
-  Edit3
+  Edit3,
+  TestTube
 } from 'lucide-react';
 
 interface VoiceSettings {
@@ -43,10 +44,32 @@ const VoiceCallSettings: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const characters = [
-    { id: 'default', name: 'TaskDefender AI', description: 'Your witty productivity assistant' },
-    { id: 'mom', name: 'Concerned Mom', description: 'Loving but disappointed maternal figure' },
-    { id: 'coach', name: 'Motivational Coach', description: 'Intense motivational speaker' },
-    { id: 'custom', name: settings.customCharacterName, description: 'Your personalized assistant' }
+    { 
+      id: 'default', 
+      name: 'TaskDefender AI', 
+      description: 'Your witty productivity assistant',
+      testMessage: "Hey there! I'm your TaskDefender AI assistant. Time to get back to work and defend against procrastination!"
+    },
+    { 
+      id: 'mom', 
+      name: 'Concerned Mom', 
+      description: 'Loving but disappointed maternal figure',
+      testMessage: "Honey, I'm not angry, just disappointed. You know you can do better than this. Now get back to your tasks!"
+    },
+    { 
+      id: 'coach', 
+      name: 'Motivational Coach', 
+      description: 'Intense motivational speaker',
+      testMessage: "LISTEN UP CHAMPION! NO EXCUSES! WINNERS DON'T PROCRASTINATE! GET BACK TO WORK AND SHOW ME WHAT YOU'RE MADE OF!"
+    },
+    { 
+      id: 'custom', 
+      name: settings.customCharacterName, 
+      description: 'Your personalized assistant',
+      testMessage: settings.customPrompts.length > 0 
+        ? settings.customPrompts[0] 
+        : "This is your custom assistant speaking. Add some custom prompts to personalize my messages!"
+    }
   ];
 
   const voiceOptions = [
@@ -136,10 +159,13 @@ const VoiceCallSettings: React.FC = () => {
     }));
   };
 
-  const testVoiceCall = () => {
-    const testMessage = settings.selectedCharacter === 'custom' && settings.customPrompts.length > 0
-      ? settings.customPrompts[Math.floor(Math.random() * settings.customPrompts.length)]
-      : "Hey there! This is a test call from TaskDefender. Time to get back to work and defend against procrastination!";
+  const testCharacterVoice = (character: any) => {
+    let testMessage = character.testMessage;
+    
+    // Use custom prompts if available for custom character
+    if (character.id === 'custom' && settings.customPrompts.length > 0) {
+      testMessage = settings.customPrompts[Math.floor(Math.random() * settings.customPrompts.length)];
+    }
 
     if ('speechSynthesis' in window) {
       const utterance = new SpeechSynthesisUtterance(testMessage);
@@ -148,16 +174,44 @@ const VoiceCallSettings: React.FC = () => {
       const voices = speechSynthesis.getVoices();
       const selectedVoice = voices.find(voice => 
         voice.lang.includes(settings.selectedVoice.split('-')[0]) &&
-        voice.name.toLowerCase().includes(settings.selectedVoice.includes('female') ? 'female' : 'male')
+        (settings.selectedVoice.includes('female') ? 
+          voice.name.toLowerCase().includes('female') || voice.name.toLowerCase().includes('woman') :
+          voice.name.toLowerCase().includes('male') || voice.name.toLowerCase().includes('man'))
       );
       
       if (selectedVoice) {
         utterance.voice = selectedVoice;
       }
       
+      // Character-specific voice adjustments
+      switch (character.id) {
+        case 'mom':
+          utterance.rate = 0.9;
+          utterance.pitch = 1.1;
+          break;
+        case 'coach':
+          utterance.rate = 1.2;
+          utterance.pitch = 0.9;
+          utterance.volume = 1.0;
+          break;
+        case 'custom':
+          // Use custom voice settings if available
+          break;
+        default:
+          utterance.rate = 1.0;
+          utterance.pitch = 1.0;
+      }
+      
       speechSynthesis.speak(utterance);
     } else {
       alert('Speech synthesis not supported in this browser');
+    }
+  };
+
+  const testVoiceCall = () => {
+    const selectedCharacter = characters.find(c => c.id === settings.selectedCharacter);
+    if (selectedCharacter) {
+      testCharacterVoice(selectedCharacter);
     }
   };
 
@@ -246,18 +300,40 @@ const VoiceCallSettings: React.FC = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {characters.map(character => (
-            <button
+            <div
               key={character.id}
-              onClick={() => setSettings(prev => ({ ...prev, selectedCharacter: character.id }))}
-              className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${
+              className={`p-4 rounded-xl border-2 transition-all duration-200 ${
                 settings.selectedCharacter === character.id
                   ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
                   : 'border-gray-200 dark:border-gray-600 hover:border-green-300 dark:hover:border-green-600'
               }`}
             >
-              <h4 className="font-semibold text-gray-900 dark:text-white">{character.name}</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{character.description}</p>
-            </button>
+              <div className="flex items-start justify-between mb-3">
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, selectedCharacter: character.id }))}
+                  className="flex-1 text-left"
+                >
+                  <h4 className="font-semibold text-gray-900 dark:text-white">{character.name}</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{character.description}</p>
+                </button>
+                
+                <button
+                  onClick={() => testCharacterVoice(character)}
+                  className="ml-3 p-2 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/30 transition-colors duration-200"
+                  title={`Test ${character.name} voice`}
+                >
+                  <TestTube className="h-4 w-4" />
+                </button>
+              </div>
+              
+              {/* Test message preview */}
+              <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 mt-3">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Test Message:</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200 italic">
+                  "{character.testMessage.substring(0, 100)}{character.testMessage.length > 100 ? '...' : ''}"
+                </p>
+              </div>
+            </div>
           ))}
         </div>
 
@@ -433,7 +509,7 @@ const VoiceCallSettings: React.FC = () => {
           className="flex items-center space-x-2 px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors duration-200"
         >
           <Play className="h-4 w-4" />
-          <span>Test Voice Call</span>
+          <span>Test Selected Character</span>
         </button>
         
         <button

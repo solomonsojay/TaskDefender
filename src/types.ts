@@ -18,6 +18,7 @@ export interface User {
   organizationDescription?: string;
   createdAt: Date;
   socialAccounts?: SocialAccount[];
+  profilePicture?: string | null; // Base64 encoded image or URL
 }
 
 export interface SocialAccount {

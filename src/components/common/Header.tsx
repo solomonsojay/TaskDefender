@@ -132,18 +132,35 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
                 </button>
               )}
 
-              {/* User Info - Always visible on lg+ */}
+              {/* User Profile Picture & Info - Always visible on lg+ */}
               {user && (
-                <div className="hidden lg:flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
-                  <User className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    @{user.username}
-                  </span>
+                <div className="hidden lg:flex items-center space-x-3 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-orange-500/20 flex items-center justify-center">
+                    {user.profilePicture ? (
+                      <img
+                        src={user.profilePicture}
+                        alt={user.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-sm font-medium text-orange-500">
+                        {user.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {user.name}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      @{user.username}
+                    </p>
+                  </div>
                 </div>
               )}
 
               {/* Mobile Menu Button - Only visible on small screens */}
-              <div className="sm:hidden">
+              <div className="lg:hidden">
                 <button
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
                   className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
@@ -158,22 +175,51 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
             </div>
           </div>
 
-          {/* Mobile Menu - Only for very small screens */}
+          {/* Mobile Menu - Only for small screens */}
           {isMenuOpen && (
-            <div className="sm:hidden py-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="lg:hidden py-4 border-t border-gray-200 dark:border-gray-700">
               <div className="space-y-3">
                 {user && (
                   <>
-                    {/* User Info - Mobile only */}
+                    {/* User Info with Profile Picture - Mobile only */}
                     <div className="flex items-center space-x-3 py-2">
-                      <div className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center">
-                        <span className="text-orange-500 text-sm font-medium">
-                          {user.name.charAt(0).toUpperCase()}
-                        </span>
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-orange-500/20 flex items-center justify-center">
+                        {user.profilePicture ? (
+                          <img
+                            src={user.profilePicture}
+                            alt={user.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-lg font-medium text-orange-500">
+                            {user.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
                       </div>
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">{user.name}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">@{user.username}</p>
+                      </div>
+                    </div>
+
+                    {/* Stats - Mobile only */}
+                    <div className="grid grid-cols-2 gap-3 py-2">
+                      <div className="bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <Shield className="h-4 w-4 text-green-500" />
+                          <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                            {user.integrityScore}% Integrity
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-orange-50 dark:bg-orange-900/20 px-3 py-2 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <TrendingUp className="h-4 w-4 text-orange-500" />
+                          <span className="text-sm font-medium text-orange-700 dark:text-orange-400">
+                            🔥 {user.streak} days
+                          </span>
+                        </div>
                       </div>
                     </div>
 
