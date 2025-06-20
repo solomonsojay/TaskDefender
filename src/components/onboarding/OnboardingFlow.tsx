@@ -8,7 +8,14 @@ import {
   CheckCircle,
   User,
   Crown,
-  Building
+  Building,
+  PhoneCall,
+  Mic,
+  Upload,
+  Volume2,
+  Shield,
+  Zap,
+  Settings
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { User as UserType } from '../../types';
@@ -28,11 +35,26 @@ interface FormData {
   userRoleInOrg: string;
   organizationWebsite: string;
   organizationDescription: string;
+  // Voice call settings
+  enableVoiceCalls: boolean;
+  voiceCallInterval: number;
+  selectedCharacter: string;
+  customCharacterName: string;
+  customPrompts: string[];
+  selectedVoice: string;
+  // Task defense settings
+  enableTaskDefense: boolean;
+  honestyCheckpoints: boolean;
+  criticalTaskAlerts: boolean;
+  procrastinationDefense: boolean;
 }
 
 const OnboardingFlow: React.FC = () => {
   const { setUser, dispatch } = useApp();
   const [step, setStep] = useState(1);
+  const [isRecording, setIsRecording] = useState(false);
+  const [customVoiceBlob, setCustomVoiceBlob] = useState<Blob | null>(null);
+  const [newPrompt, setNewPrompt] = useState('');
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
@@ -47,9 +69,19 @@ const OnboardingFlow: React.FC = () => {
     userRoleInOrg: '',
     organizationWebsite: '',
     organizationDescription: '',
+    enableVoiceCalls: true,
+    voiceCallInterval: 30,
+    selectedCharacter: 'default',
+    customCharacterName: 'My Assistant',
+    customPrompts: [],
+    selectedVoice: 'en-US-female',
+    enableTaskDefense: true,
+    honestyCheckpoints: true,
+    criticalTaskAlerts: true,
+    procrastinationDefense: true,
   });
 
-  const totalSteps = formData.role === 'admin' ? 5 : 4;
+  const totalSteps = formData.role === 'admin' ? 7 : 6;
 
   const handleNext = () => {
     if (step < totalSteps) {
@@ -88,6 +120,28 @@ const OnboardingFlow: React.FC = () => {
       })
     };
     
+    // Save voice call settings
+    const voiceSettings = {
+      enableCalls: formData.enableVoiceCalls,
+      callInterval: formData.voiceCallInterval,
+      selectedCharacter: formData.selectedCharacter,
+      customCharacterName: formData.customCharacterName,
+      customPrompts: formData.customPrompts,
+      selectedVoice: formData.selectedVoice,
+      customVoiceBlob: customVoiceBlob,
+      callFrequency: 'normal' as const
+    };
+    localStorage.setItem('taskdefender_voice_settings', JSON.stringify(voiceSettings));
+
+    // Save task defense settings
+    const taskDefenseSettings = {
+      enableTaskDefense: formData.enableTaskDefense,
+      honestyCheckpoints: formData.honestyCheckpoints,
+      criticalTaskAlerts: formData.criticalTaskAlerts,
+      procrastinationDefense: formData.procrastinationDefense
+    };
+    localStorage.setItem('taskdefender_defense_settings', JSON.stringify(taskDefenseSettings));
+    
     setUser(user);
     dispatch({ type: 'COMPLETE_ONBOARDING' });
   };
@@ -101,6 +155,59 @@ const OnboardingFlow: React.FC = () => {
       ? formData.goals.filter(g => g !== goal)
       : [...formData.goals, goal];
     updateFormData({ goals: newGoals });
+  };
+
+  const addCustomPrompt = () => {
+    if (newPrompt.trim()) {
+      updateFormData({ 
+        customPrompts: [...formData.customPrompts, newPrompt.trim()] 
+      });
+      setNewPrompt('');
+    }
+  };
+
+  const removePrompt = (index: number) => {
+    updateFormData({
+      customPrompts: formData.customPrompts.filter((_, i) => i !== index)
+    });
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/wav' });
+        setCustomVoiceBlob(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+
+      // Auto-stop after 10 seconds
+      setTimeout(() => {
+        if (mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+          setIsRecording(false);
+        }
+      }, 10000);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      alert('Could not access microphone. Please check permissions.');
+    }
+  };
+
+  const stopRecording = () => {
+    setIsRecording(false);
   };
 
   const goalOptions = [
@@ -133,6 +240,23 @@ const OnboardingFlow: React.FC = () => {
     },
   ];
 
+  const voiceCharacters = [
+    { id: 'default', name: 'TaskDefender AI', description: 'Your witty productivity assistant' },
+    { id: 'mom', name: 'Concerned Mom', description: 'Loving but disappointed maternal figure' },
+    { id: 'coach', name: 'Motivational Coach', description: 'Intense motivational speaker' },
+    { id: 'custom', name: 'Custom Assistant', description: 'Your personalized assistant' }
+  ];
+
+  const voiceOptions = [
+    { id: 'en-US-female', name: 'American English (Female)' },
+    { id: 'en-US-male', name: 'American English (Male)' },
+    { id: 'en-GB-female', name: 'British English (Female)' },
+    { id: 'en-GB-male', name: 'British English (Male)' },
+    { id: 'en-AU-female', name: 'Australian English (Female)' },
+    { id: 'en-AU-male', name: 'Australian English (Male)' },
+    { id: 'custom', name: 'Custom Voice Recording' }
+  ];
+
   const canProceed = () => {
     switch (step) {
       case 1:
@@ -144,6 +268,10 @@ const OnboardingFlow: React.FC = () => {
       case 4:
         return formData.workStyle;
       case 5:
+        return true; // Voice calls are optional
+      case 6:
+        return true; // Task defense settings
+      case 7:
         return formData.role !== 'admin' || (
           formData.organizationName &&
           formData.organizationType &&
@@ -158,7 +286,7 @@ const OnboardingFlow: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4 transition-colors duration-200">
-      <div className="max-w-md w-full">
+      <div className="max-w-2xl w-full">
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-2">
@@ -183,7 +311,7 @@ const OnboardingFlow: React.FC = () => {
                 Welcome to TaskDefender
               </h1>
               <p className="text-gray-600 dark:text-gray-300 mb-8">
-                Your last line of defense against procrastination
+                Your Last Line of Defense Against Procrastination
               </p>
               
               <div className="space-y-4 mb-8">
@@ -292,7 +420,7 @@ const OnboardingFlow: React.FC = () => {
                 What are your goals?
               </h2>
               <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
-                Select all that apply to personalize your experience
+                Select all that apply to personalize your TaskDefender experience
               </p>
               
               <div className="space-y-3 mb-8">
@@ -330,7 +458,7 @@ const OnboardingFlow: React.FC = () => {
                 Work Style Preference
               </h2>
               <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
-                How do you prefer to work?
+                How do you prefer to work and defend against procrastination?
               </p>
               
               <div className="space-y-4 mb-8">
@@ -363,7 +491,273 @@ const OnboardingFlow: React.FC = () => {
             </div>
           )}
 
-          {step === 5 && formData.role === 'admin' && (
+          {step === 5 && (
+            <div>
+              <div className="text-center mb-6">
+                <div className="bg-green-500/20 p-3 rounded-full w-16 h-16 mx-auto mb-4">
+                  <PhoneCall className="h-10 w-10 text-green-500 mx-auto" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                  Voice Call Defense System
+                </h2>
+                <p className="text-gray-600 dark:text-gray-300">
+                  Set up motivational voice calls to defend against procrastination
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                {/* Enable Voice Calls */}
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-white">Enable Voice Calls</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Allow characters to call you with motivation</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={formData.enableVoiceCalls}
+                      onChange={(e) => updateFormData({ enableVoiceCalls: e.target.checked })}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 dark:peer-focus:ring-green-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                  </label>
+                </div>
+
+                {formData.enableVoiceCalls && (
+                  <>
+                    {/* Call Interval */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Call Interval (minutes)
+                      </label>
+                      <input
+                        type="number"
+                        min="5"
+                        max="120"
+                        value={formData.voiceCallInterval}
+                        onChange={(e) => updateFormData({ voiceCallInterval: parseInt(e.target.value) || 30 })}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors duration-200"
+                      />
+                    </div>
+
+                    {/* Character Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Choose Your Defense Character
+                      </label>
+                      <div className="grid grid-cols-1 gap-3">
+                        {voiceCharacters.map(character => (
+                          <button
+                            key={character.id}
+                            onClick={() => updateFormData({ selectedCharacter: character.id })}
+                            className={`p-3 rounded-xl border-2 text-left transition-all duration-200 ${
+                              formData.selectedCharacter === character.id
+                                ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-green-300 dark:hover:border-green-600'
+                            }`}
+                          >
+                            <h4 className="font-semibold text-gray-900 dark:text-white">{character.name}</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{character.description}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Custom Assistant Setup */}
+                    {formData.selectedCharacter === 'custom' && (
+                      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                        <h4 className="font-semibold text-blue-700 dark:text-blue-400 mb-4">
+                          Custom Assistant Setup
+                        </h4>
+                        
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Assistant Name
+                            </label>
+                            <input
+                              type="text"
+                              value={formData.customCharacterName}
+                              onChange={(e) => updateFormData({ customCharacterName: e.target.value })}
+                              className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                              placeholder="Enter custom name"
+                            />
+                          </div>
+
+                          {/* Custom Prompts */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Motivational Prompts
+                            </label>
+                            <div className="space-y-2">
+                              <div className="flex space-x-2">
+                                <input
+                                  type="text"
+                                  value={newPrompt}
+                                  onChange={(e) => setNewPrompt(e.target.value)}
+                                  className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                  placeholder="Add a motivational prompt"
+                                />
+                                <button
+                                  onClick={addCustomPrompt}
+                                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200"
+                                >
+                                  Add
+                                </button>
+                              </div>
+
+                              {formData.customPrompts.length > 0 && (
+                                <div className="space-y-1 max-h-32 overflow-y-auto">
+                                  {formData.customPrompts.map((prompt, index) => (
+                                    <div key={index} className="flex items-center justify-between bg-white dark:bg-gray-800 p-2 rounded-lg">
+                                      <span className="text-sm text-gray-700 dark:text-gray-300">{prompt}</span>
+                                      <button
+                                        onClick={() => removePrompt(index)}
+                                        className="text-red-500 hover:text-red-700 text-sm"
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Voice Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Voice Selection
+                      </label>
+                      <select
+                        value={formData.selectedVoice}
+                        onChange={(e) => updateFormData({ selectedVoice: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors duration-200"
+                      >
+                        {voiceOptions.map(voice => (
+                          <option key={voice.id} value={voice.id}>{voice.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Custom Voice Recording */}
+                    {formData.selectedVoice === 'custom' && (
+                      <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
+                        <h4 className="font-semibold text-purple-700 dark:text-purple-400 mb-4">
+                          Record Your Voice
+                        </h4>
+                        
+                        <div className="flex items-center space-x-4">
+                          <button
+                            onClick={isRecording ? stopRecording : startRecording}
+                            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
+                              isRecording
+                                ? 'bg-red-500 text-white hover:bg-red-600'
+                                : 'bg-purple-500 text-white hover:bg-purple-600'
+                            }`}
+                          >
+                            <Mic className="h-4 w-4" />
+                            <span>{isRecording ? 'Stop Recording' : 'Start Recording'}</span>
+                          </button>
+                          
+                          {customVoiceBlob && (
+                            <span className="text-sm text-green-600 dark:text-green-400">
+                              ✓ Voice recorded successfully
+                            </span>
+                          )}
+                        </div>
+                        
+                        <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">
+                          Record a sample phrase (max 10 seconds) for voice synthesis
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {step === 6 && (
+            <div>
+              <div className="text-center mb-6">
+                <div className="bg-orange-500/20 p-3 rounded-full w-16 h-16 mx-auto mb-4">
+                  <Shield className="h-10 w-10 text-orange-500 mx-auto" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                  Task Defense System
+                </h2>
+                <p className="text-gray-600 dark:text-gray-300">
+                  Configure your last line of defense against procrastination
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  {
+                    key: 'enableTaskDefense',
+                    title: 'Enable Task Defense',
+                    description: 'Activate the complete TaskDefender system',
+                    icon: Shield
+                  },
+                  {
+                    key: 'honestyCheckpoints',
+                    title: 'Honesty Checkpoints',
+                    description: 'Verify task completion integrity before marking as done',
+                    icon: CheckCircle
+                  },
+                  {
+                    key: 'criticalTaskAlerts',
+                    title: 'Critical Task Alerts',
+                    description: 'Get alerts for tasks approaching deadlines',
+                    icon: Zap
+                  },
+                  {
+                    key: 'procrastinationDefense',
+                    title: 'Procrastination Defense',
+                    description: 'AI-powered interventions to keep you on track',
+                    icon: Target
+                  }
+                ].map(setting => (
+                  <div key={setting.key} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
+                        <setting.icon className="h-5 w-5 text-orange-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-white">{setting.title}</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{setting.description}</p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={formData[setting.key as keyof FormData] as boolean}
+                        onChange={(e) => updateFormData({ [setting.key]: e.target.checked })}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 dark:peer-focus:ring-orange-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl">
+                <h4 className="font-medium text-orange-700 dark:text-orange-400 mb-2">
+                  🛡️ Your Last Line of Defense
+                </h4>
+                <p className="text-sm text-orange-600 dark:text-orange-300">
+                  TaskDefender will monitor your tasks, detect procrastination patterns, and intervene with motivational calls, 
+                  honesty checkpoints, and critical task alerts to keep you productive and accountable.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {step === 7 && formData.role === 'admin' && (
             <div>
               <div className="text-center mb-6">
                 <div className="bg-blue-500/20 p-3 rounded-full w-16 h-16 mx-auto mb-4">
@@ -373,11 +767,11 @@ const OnboardingFlow: React.FC = () => {
                   Organization Details
                 </h2>
                 <p className="text-gray-600 dark:text-gray-300">
-                  Tell us about your organization
+                  Set up your organization for team productivity defense
                 </p>
               </div>
               
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Organization Name *
@@ -425,8 +819,8 @@ const OnboardingFlow: React.FC = () => {
                     <option value="">Select industry</option>
                     <option value="technology">Technology</option>
                     <option value="healthcare">Healthcare</option>
-                    <option value="finance">Finance</option>
                     <option value="education">Education</option>
+                    <option value="finance">Finance</option>
                     <option value="manufacturing">Manufacturing</option>
                     <option value="retail">Retail</option>
                     <option value="consulting">Consulting</option>
@@ -453,7 +847,7 @@ const OnboardingFlow: React.FC = () => {
                   </select>
                 </div>
 
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Your Role *
                   </label>
