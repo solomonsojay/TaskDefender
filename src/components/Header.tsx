@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Moon, Sun, Settings, User, Users } from 'lucide-react';
+import { Moon, Sun, Settings, User, Users, Shield } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import Logo from './Logo';
 import SettingsModal from './settings/SettingsModal';
@@ -42,7 +42,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
                   TaskDefender
                 </h1>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Your Last Line of Defense
+                  Your Last Line of Defense Against Procrastination
                 </p>
               </div>
             </button>
@@ -57,7 +57,8 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
                     </span>
                   </div>
                   
-                  <div className="flex items-center space-x-2 bg-orange-50 dark:bg-orange-900/20 px-3 py-1 rounded-full">
+                  <div className="flex items-center space-x-2 bg-orange-50 dark:bg-orange-900/20 px-3 py-1 rounded-full hover:bg-orange-100 dark:hover:bg-orange-900/30 cursor-pointer transition-colors duration-200" onClick={() => setCurrentView('analytics')}>
+                    <Shield className="h-4 w-4 text-orange-500" />
                     <span className="text-sm font-medium text-orange-700 dark:text-orange-400">
                       🔥 {user.streak} day streak
                     </span>
@@ -68,6 +69,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
+                title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
               >
                 {theme === 'light' ? (
                   <Moon className="h-5 w-5 text-gray-600 dark:text-gray-400" />

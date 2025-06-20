@@ -1,25 +1,51 @@
 import React, { useState } from 'react';
-import { CheckCircle2, Circle, Clock, Calendar, Play, Trash2 } from 'lucide-react';
+import { 
+  CheckCircle2, 
+  Circle, 
+  Clock, 
+  Calendar,
+  Play,
+  Trash2,
+  AlertTriangle
+} from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 const TaskList: React.FC = () => {
   const { tasks, updateTask, deleteTask, startFocusSession } = useApp();
   const [filter, setFilter] = useState<'all' | 'todo' | 'in-progress' | 'done'>('all');
+  const [showHonestyCheck, setShowHonestyCheck] = useState<string | null>(null);
 
   const filteredTasks = tasks.filter(task => {
     if (filter === 'all') return true;
     return task.status === filter;
   });
 
+  const handleHonestyCheck = (taskId: string, honestlyCompleted: boolean) => {
+    if (honestlyCompleted) {
+      updateTask(taskId, {
+        status: 'done',
+        completedAt: new Date(),
+        honestlyCompleted: true
+      });
+    } else {
+      // If not honestly completed, keep as in-progress
+      updateTask(taskId, {
+        status: 'in-progress',
+        honestlyCompleted: false
+      });
+    }
+    setShowHonestyCheck(null);
+  };
+
   const toggleTaskStatus = (taskId: string, currentStatus: string) => {
     if (currentStatus === 'done') {
-      updateTask(taskId, { status: 'todo', completedAt: undefined });
+      updateTask(taskId, { status: 'todo', completedAt: undefined, honestlyCompleted: undefined });
+    } else if (currentStatus === 'todo') {
+      // Show honesty check before completing
+      setShowHonestyCheck(taskId);
     } else {
-      updateTask(taskId, { 
-        status: 'done', 
-        completedAt: new Date(),
-        honestlyCompleted: true 
-      });
+      // Show honesty check before completing
+      setShowHonestyCheck(taskId);
     }
   };
 
@@ -29,6 +55,11 @@ const TaskList: React.FC = () => {
     { value: 'in-progress', label: 'In Progress', count: tasks.filter(t => t.status === 'in-progress').length },
     { value: 'done', label: 'Done', count: tasks.filter(t => t.status === 'done').length },
   ];
+
+  const isOverdue = (task: any) => {
+    if (!task.dueDate || task.status === 'done') return false;
+    return new Date(task.dueDate) < new Date();
+  };
 
   return (
     <div className="space-y-6">
@@ -97,6 +128,10 @@ const TaskList: React.FC = () => {
                     </h3>
                     
                     <div className="flex items-center space-x-2 ml-2">
+                      {isOverdue(task) && (
+                        <AlertTriangle className="h-4 w-4 text-red-500" title="Overdue" />
+                      )}
+                      
                       {task.status !== 'done' && (
                         <button
                           onClick={() => startFocusSession(task.id)}
@@ -132,7 +167,14 @@ const TaskList: React.FC = () => {
                       {task.status.replace('-', ' ').toUpperCase()}
                     </span>
                     
-                    <span className="capitalize">{task.priority}</span>
+                    <span className={`px-2 py-1 rounded-full ${
+                      task.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
+                      task.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400' :
+                      task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
+                      'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                    }`}>
+                      {task.priority}
+                    </span>
                     
                     {task.estimatedTime && (
                       <div className="flex items-center space-x-1">
@@ -142,7 +184,7 @@ const TaskList: React.FC = () => {
                     )}
                     
                     {task.dueDate && (
-                      <div className="flex items-center space-x-1">
+                      <div className={`flex items-center space-x-1 ${isOverdue(task) ? 'text-red-500' : ''}`}>
                         <Calendar className="h-3 w-3" />
                         <span>{new Date(task.dueDate).toLocaleDateString()}</span>
                       </div>
@@ -167,6 +209,51 @@ const TaskList: React.FC = () => {
           ))
         )}
       </div>
+
+      {/* Honesty Check Modal */}
+      {showHonestyCheck && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="text-center mb-6">
+              <div className="bg-orange-100 dark:bg-orange-900/20 p-3 rounded-full w-16 h-16 mx-auto mb-4">
+                <Shield className="h-10 w-10 text-orange-500 mx-auto" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                Honesty Checkpoint
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Did you really complete this task honestly and thoroughly?
+              </p>
+              <p className="text-sm text-orange-600 dark:text-orange-400 mt-2">
+                Your Last Line of Defense Against Procrastination
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => handleHonestyCheck(showHonestyCheck, true)}
+                className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200"
+              >
+                Yes, I completed it honestly
+              </button>
+              
+              <button
+                onClick={() => handleHonestyCheck(showHonestyCheck, false)}
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
+              >
+                I need to be more honest
+              </button>
+              
+              <button
+                onClick={() => setShowHonestyCheck(null)}
+                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-3 px-4 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

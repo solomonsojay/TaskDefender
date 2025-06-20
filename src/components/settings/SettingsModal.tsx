@@ -6,9 +6,11 @@ import {
   Moon,
   Sun,
   Save,
-  Building
+  Building,
+  PhoneCall
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import VoiceCallSettings from './VoiceCallSettings';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -17,7 +19,7 @@ interface SettingsModalProps {
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const { user, theme, setTheme, updateProfile } = useApp();
-  const [activeTab, setActiveTab] = useState<'profile' | 'organization' | 'notifications'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'organization' | 'notifications' | 'voice-calls'>('profile');
   const [profileData, setProfileData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -49,6 +51,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     ...(user?.role === 'admin' ? [{ id: 'organization', label: 'Organization', icon: Building }] : []),
+    { id: 'voice-calls', label: 'Voice Calls', icon: PhoneCall },
     { id: 'notifications', label: 'Notifications', icon: Bell },
   ];
 
@@ -339,6 +342,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
               </div>
             )}
 
+            {activeTab === 'voice-calls' && (
+              <VoiceCallSettings />
+            )}
+
             {activeTab === 'notifications' && (
               <div className="space-y-6">
                 <div>
@@ -356,6 +363,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     { key: 'focusMode', label: 'Focus Mode', description: 'Notifications during focus sessions' },
                     { key: 'dailySummary', label: 'Daily Summary', description: 'End of day productivity summary' },
                     { key: 'teamUpdates', label: 'Team Updates', description: 'Updates from your team members' },
+                    { key: 'voiceCalls', label: 'Voice Calls', description: 'Allow motivational voice calls' },
                   ].map(setting => (
                     <div key={setting.key} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
                       <div>

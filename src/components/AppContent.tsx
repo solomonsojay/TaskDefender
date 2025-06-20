@@ -6,11 +6,12 @@ import TaskList from './TaskList';
 import FocusMode from './FocusMode';
 import TeamManagement from './teams/TeamManagement';
 import Analytics from './analytics/Analytics';
-import VoiceCallSystem from './voice/VoiceCallSystem';
 import ChatBot from './chatbot/ChatBot';
+import AchievementSystem from './achievements/AchievementSystem';
+import NotificationScheduler from './scheduler/NotificationScheduler';
 
 const AppContent: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics' | 'voice-calls'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics' | 'achievements' | 'scheduler'>('dashboard');
   const [isChatBotOpen, setIsChatBotOpen] = useState(false);
 
   return (
@@ -25,8 +26,9 @@ const AppContent: React.FC = () => {
               { id: 'dashboard', label: 'Dashboard' },
               { id: 'tasks', label: 'Tasks' },
               { id: 'focus', label: 'Focus Mode' },
-              { id: 'voice-calls', label: 'Voice Calls' },
+              { id: 'achievements', label: 'Achievements' },
               { id: 'analytics', label: 'Analytics' },
+              { id: 'scheduler', label: 'Scheduler' },
               { id: 'teams', label: 'Teams' },
             ].map(item => (
               <button
@@ -49,8 +51,9 @@ const AppContent: React.FC = () => {
           {currentView === 'dashboard' && <Dashboard />}
           {currentView === 'tasks' && <TaskList />}
           {currentView === 'focus' && <FocusMode />}
-          {currentView === 'voice-calls' && <VoiceCallSystem />}
+          {currentView === 'achievements' && <AchievementSystem />}
           {currentView === 'analytics' && <Analytics />}
+          {currentView === 'scheduler' && <NotificationScheduler />}
           {currentView === 'teams' && <TeamManagement />}
         </main>
       </div>

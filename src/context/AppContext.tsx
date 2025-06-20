@@ -123,6 +123,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           createdAt: new Date(task.createdAt),
           dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
           completedAt: task.completedAt ? new Date(task.completedAt) : undefined,
+          expectedCompletionTime: task.expectedCompletionTime ? new Date(task.expectedCompletionTime) : undefined
         }));
         dispatch({ type: 'SET_TASKS', payload: tasks });
       } catch (error) {
@@ -191,6 +192,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateTask = (id: string, updates: Partial<Task>) => {
     dispatch({ type: 'UPDATE_TASK', payload: { id, updates } });
+    
+    // Update integrity score if task was completed
+    if (updates.status === 'done' && state.user) {
+      const completedTasks = state.tasks.filter(t => t.status === 'done').length + 1;
+      const honestTasks = state.tasks.filter(t => t.status === 'done' && t.honestlyCompleted !== false).length + (updates.honestlyCompleted !== false ? 1 : 0);
+      const integrityScore = Math.round((honestTasks / completedTasks) * 100);
+      
+      // Update streak if this is the first task completed today
+      const today = new Date().toDateString();
+      const completedToday = state.tasks.some(t => 
+        t.status === 'done' && 
+        t.completedAt && 
+        new Date(t.completedAt).toDateString() === today
+      );
+      
+      const streak = completedToday ? state.user.streak : state.user.streak + 1;
+      
+      const updatedUser = { 
+        ...state.user, 
+        integrityScore,
+        streak
+      };
+      
+      dispatch({ type: 'SET_USER', payload: updatedUser });
+    }
   };
 
   const deleteTask = (id: string) => {

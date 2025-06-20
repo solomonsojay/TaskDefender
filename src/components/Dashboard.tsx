@@ -1,14 +1,32 @@
 import React, { useState } from 'react';
-import { Target, Clock, CheckCircle2, Plus, Play } from 'lucide-react';
+import { 
+  Target, 
+  Clock, 
+  CheckCircle2, 
+  Plus, 
+  Play,
+  Calendar,
+  AlertTriangle,
+  Award,
+  Shield
+} from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 const Dashboard: React.FC = () => {
   const { user, tasks, addTask, startFocusSession } = useApp();
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDueDate, setNewTaskDueDate] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState('medium');
 
   const completedTasks = tasks.filter(task => task.status === 'done');
   const inProgressTasks = tasks.filter(task => task.status === 'in-progress');
   const todoTasks = tasks.filter(task => task.status === 'todo');
+  
+  // Find overdue tasks
+  const overdueTasks = tasks.filter(task => {
+    if (!task.dueDate || task.status === 'done') return false;
+    return new Date(task.dueDate) < new Date();
+  });
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,12 +35,15 @@ const Dashboard: React.FC = () => {
     addTask({
       title: newTaskTitle,
       description: '',
-      priority: 'medium',
+      priority: newTaskPriority as any,
       status: 'todo',
       tags: [],
+      dueDate: newTaskDueDate ? new Date(newTaskDueDate) : undefined,
     });
 
     setNewTaskTitle('');
+    setNewTaskDueDate('');
+    setNewTaskPriority('medium');
   };
 
   const recentTasks = tasks
@@ -37,15 +58,23 @@ const Dashboard: React.FC = () => {
           Welcome back, {user?.name}! 👋
         </h1>
         <p className="text-orange-100 mb-4">
-          Ready to defend your productivity today?
+          Your Last Line of Defense Against Procrastination
         </p>
         <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-2">
+            <Shield className="h-5 w-5 text-yellow-300" />
             <span className="font-medium">🔥 {user?.streak} day streak</span>
           </div>
           <div className="flex items-center space-x-2">
+            <Award className="h-5 w-5 text-yellow-300" />
             <span className="font-medium">✅ {user?.integrityScore}% integrity</span>
           </div>
+          {overdueTasks.length > 0 && (
+            <div className="flex items-center space-x-2 bg-red-500/20 px-3 py-1 rounded-full">
+              <AlertTriangle className="h-4 w-4 text-red-200 animate-pulse" />
+              <span className="font-medium text-red-200">{overdueTasks.length} overdue</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -54,14 +83,35 @@ const Dashboard: React.FC = () => {
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
           Quick Task Capture
         </h2>
-        <form onSubmit={handleAddTask} className="flex space-x-4">
-          <input
-            type="text"
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-            placeholder="What needs to be done?"
-            className="flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-          />
+        <form onSubmit={handleAddTask} className="space-y-4">
+          <div className="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0">
+            <input
+              type="text"
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              placeholder="What needs to be done?"
+              className="flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+            />
+            
+            <select
+              value={newTaskPriority}
+              onChange={(e) => setNewTaskPriority(e.target.value)}
+              className="md:w-40 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+            >
+              <option value="low">Low Priority</option>
+              <option value="medium">Medium Priority</option>
+              <option value="high">High Priority</option>
+              <option value="urgent">Urgent</option>
+            </select>
+            
+            <input
+              type="date"
+              value={newTaskDueDate}
+              onChange={(e) => setNewTaskDueDate(e.target.value)}
+              className="md:w-40 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+            />
+          </div>
+          
           <button
             type="submit"
             disabled={!newTaskTitle.trim()}
@@ -148,6 +198,12 @@ const Dashboard: React.FC = () => {
                   }`}>
                     {task.title}
                   </p>
+                  {task.dueDate && (
+                    <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400">
+                      <Calendar className="h-3 w-3" />
+                      <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                    </div>
+                  )}
                 </div>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                   task.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' :

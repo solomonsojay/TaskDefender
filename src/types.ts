@@ -31,7 +31,9 @@ export interface Task {
   createdAt: Date;
   completedAt?: Date;
   userId: string;
+  teamId?: string;
   honestlyCompleted?: boolean;
+  expectedCompletionTime?: Date;
 }
 
 export interface Team {
@@ -82,6 +84,31 @@ export interface VoiceSettings {
   selectedVoice: string;
   enableCalls: boolean;
   callFrequency: 'low' | 'normal' | 'high';
+  selectedCharacter: string;
+}
+
+export interface ScheduledNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'reminder' | 'nudge' | 'deadline' | 'celebration';
+  scheduledFor: Date;
+  recurring: 'none' | 'daily' | 'weekly' | 'workdays';
+  isActive: boolean;
+  taskId?: string;
+  character: string;
+  voiceEnabled: boolean;
+  interval: number;
+}
+
+export interface Badge {
+  id: string;
+  title: string;
+  description: string;
+  earned: boolean;
+  progress?: number;
+  maxProgress?: number;
+  earnedAt?: Date;
 }
 
 export type Theme = 'light' | 'dark';
