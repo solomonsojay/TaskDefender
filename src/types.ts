@@ -43,6 +43,11 @@ export interface Task {
   teamId?: string;
   honestlyCompleted?: boolean;
   expectedCompletionTime?: Date;
+  scheduledTime?: Date;
+  isDefenseActive?: boolean;
+  defenseLevel?: 'low' | 'medium' | 'high' | 'critical';
+  lastDefenseAction?: Date;
+  procrastinationCount?: number;
 }
 
 export interface Team {
@@ -71,6 +76,8 @@ export interface FocusSession {
   distractions: number;
   userId: string;
   createdAt: Date;
+  defenseTriggered?: boolean;
+  interventionCount?: number;
 }
 
 export interface ChatMessage {
@@ -89,13 +96,15 @@ export interface VoiceSettings {
   customPrompts: string[];
   customVoiceBlob: Blob | null;
   callInterval: number;
+  defenseMode: boolean;
+  emergencyCallThreshold: number;
 }
 
 export interface ScheduledNotification {
   id: string;
   title: string;
   message: string;
-  type: 'reminder' | 'nudge' | 'deadline' | 'celebration';
+  type: 'reminder' | 'nudge' | 'deadline' | 'celebration' | 'defense' | 'emergency';
   scheduledFor: Date;
   recurring: 'none' | 'daily' | 'weekly' | 'workdays';
   isActive: boolean;
@@ -103,6 +112,8 @@ export interface ScheduledNotification {
   character: string;
   voiceEnabled: boolean;
   interval: number;
+  defenseLevel?: 'low' | 'medium' | 'high' | 'critical';
+  isDefenseAction?: boolean;
 }
 
 export interface Badge {
@@ -115,6 +126,26 @@ export interface Badge {
   earnedAt?: Date;
 }
 
+export interface DefenseAction {
+  id: string;
+  taskId: string;
+  actionType: 'voice_call' | 'notification' | 'intervention' | 'emergency_call';
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  message: string;
+  triggeredAt: Date;
+  successful?: boolean;
+  userResponse?: 'acknowledged' | 'dismissed' | 'completed_task';
+}
+
+export interface TaskDefenseSystem {
+  isActive: boolean;
+  monitoringTasks: string[];
+  defenseLevel: 'passive' | 'active' | 'aggressive' | 'emergency';
+  lastAction?: DefenseAction;
+  interventionHistory: DefenseAction[];
+  successRate: number;
+}
+
 export type Theme = 'light' | 'dark';
 
 export interface AppState {
@@ -125,4 +156,5 @@ export interface AppState {
   focusSession: FocusSession | null;
   theme: Theme;
   isOnboarding: boolean;
+  defenseSystem: TaskDefenseSystem;
 }

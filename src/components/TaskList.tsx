@@ -25,6 +25,7 @@ const TaskList: React.FC = () => {
     priority: 'medium' as const,
     dueDate: '',
     expectedCompletionTime: '',
+    scheduledTime: '',
     estimatedTime: 30,
     tags: [] as string[]
   });
@@ -83,13 +84,17 @@ const TaskList: React.FC = () => {
       updateTask(taskId, {
         status: 'done',
         completedAt: new Date(),
-        honestlyCompleted: true
+        honestlyCompleted: true,
+        isDefenseActive: false
       });
     } else {
-      // If not honestly completed, keep as in-progress
+      // If not honestly completed, keep as in-progress and activate defense
       updateTask(taskId, {
         status: 'in-progress',
-        honestlyCompleted: false
+        honestlyCompleted: false,
+        isDefenseActive: true,
+        defenseLevel: 'medium',
+        procrastinationCount: (tasks.find(t => t.id === taskId)?.procrastinationCount || 0) + 1
       });
     }
     setShowHonestyCheck(null);
@@ -97,7 +102,12 @@ const TaskList: React.FC = () => {
 
   const toggleTaskStatus = (taskId: string, currentStatus: string) => {
     if (currentStatus === 'done') {
-      updateTask(taskId, { status: 'todo', completedAt: undefined, honestlyCompleted: undefined });
+      updateTask(taskId, { 
+        status: 'todo', 
+        completedAt: undefined, 
+        honestlyCompleted: undefined,
+        isDefenseActive: false 
+      });
     } else if (currentStatus === 'todo') {
       // Show honesty check before completing
       setShowHonestyCheck(taskId);
@@ -119,7 +129,12 @@ const TaskList: React.FC = () => {
       tags: newTask.tags,
       dueDate: newTask.dueDate ? new Date(newTask.dueDate) : undefined,
       expectedCompletionTime: newTask.expectedCompletionTime ? new Date(newTask.expectedCompletionTime) : undefined,
+      scheduledTime: newTask.scheduledTime ? new Date(newTask.scheduledTime) : undefined,
       estimatedTime: newTask.estimatedTime,
+      isDefenseActive: true,
+      defenseLevel: newTask.priority === 'urgent' ? 'critical' : 
+                   newTask.priority === 'high' ? 'high' : 'medium',
+      procrastinationCount: 0
     });
 
     setNewTask({
@@ -128,6 +143,7 @@ const TaskList: React.FC = () => {
       priority: 'medium',
       dueDate: '',
       expectedCompletionTime: '',
+      scheduledTime: '',
       estimatedTime: 30,
       tags: []
     });
@@ -171,9 +187,14 @@ const TaskList: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Your Tasks
-        </h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Your Tasks
+          </h2>
+          <p className="text-orange-600 dark:text-orange-400 font-medium">
+            🛡️ TaskDefender is actively monitoring your progress
+          </p>
+        </div>
         <button
           onClick={() => setShowTaskForm(true)}
           className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center space-x-2"
@@ -274,6 +295,21 @@ const TaskList: React.FC = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Scheduled Work Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={newTask.scheduledTime}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, scheduledTime: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  When do you plan to work on this task?
+                </p>
+              </div>
+
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -335,7 +371,9 @@ const TaskList: React.FC = () => {
           </div>
         ) : (
           filteredTasks.map(task => (
-            <div key={task.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200 p-4">
+            <div key={task.id} className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 p-4 ${
+              task.isDefenseActive ? 'border-orange-300 dark:border-orange-600 bg-orange-50 dark:bg-orange-900/10' : 'border-gray-200 dark:border-gray-700'
+            }`}>
               <div className="flex items-start space-x-3">
                 <button
                   onClick={() => toggleTaskStatus(task.id, task.status)}
@@ -350,13 +388,24 @@ const TaskList: React.FC = () => {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between">
-                    <h3 className={`font-medium transition-all duration-200 ${
-                      task.status === 'done' 
-                        ? 'text-gray-500 dark:text-gray-400 line-through' 
-                        : 'text-gray-900 dark:text-white'
-                    }`}>
-                      {task.title}
-                    </h3>
+                    <div className="flex-1">
+                      <h3 className={`font-medium transition-all duration-200 ${
+                        task.status === 'done' 
+                          ? 'text-gray-500 dark:text-gray-400 line-through' 
+                          : 'text-gray-900 dark:text-white'
+                      }`}>
+                        {task.title}
+                        {task.isDefenseActive && (
+                          <Shield className="inline h-4 w-4 text-orange-500 ml-2" title="Defense Active" />
+                        )}
+                      </h3>
+                      
+                      {task.procrastinationCount && task.procrastinationCount > 0 && (
+                        <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                          ⚠️ Procrastination detected {task.procrastinationCount} time(s)
+                        </p>
+                      )}
+                    </div>
                     
                     <div className="flex items-center space-x-2 ml-2">
                       {isOverdue(task) && (
@@ -447,6 +496,12 @@ const TaskList: React.FC = () => {
                         <span>Expected: {new Date(task.expectedCompletionTime).toLocaleString()}</span>
                       </div>
                     )}
+
+                    {task.scheduledTime && (
+                      <div className="flex items-center space-x-1">
+                        <span>Scheduled: {new Date(task.scheduledTime).toLocaleString()}</span>
+                      </div>
+                    )}
                   </div>
 
                   {task.tags.length > 0 && (
@@ -492,14 +547,14 @@ const TaskList: React.FC = () => {
                 onClick={() => handleHonestyCheck(showHonestyCheck, true)}
                 className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200"
               >
-                Yes, I completed it honestly
+                ✅ Yes, I completed it honestly
               </button>
               
               <button
                 onClick={() => handleHonestyCheck(showHonestyCheck, false)}
                 className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
               >
-                I need to be more honest
+                🛡️ I need TaskDefender's help
               </button>
               
               <button

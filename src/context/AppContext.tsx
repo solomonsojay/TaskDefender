@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { AppState, Task, User, Theme, FocusSession, Team } from '../types';
+import { AppState, Task, User, Theme, FocusSession, Team, TaskDefenseSystem } from '../types';
+import { taskDefenseService } from '../services/TaskDefenseService';
 
 interface AppContextType extends AppState {
   dispatch: React.Dispatch<AppAction>;
@@ -13,6 +14,7 @@ interface AppContextType extends AppState {
   createTeam: (team: Omit<Team, 'id' | 'createdAt' | 'inviteCode'>) => void;
   joinTeam: (inviteCode: string) => void;
   updateProfile: (updates: Partial<User>) => void;
+  triggerDefense: (taskId: string, severity?: 'low' | 'medium' | 'high' | 'critical') => void;
 }
 
 type AppAction =
@@ -28,7 +30,8 @@ type AppAction =
   | { type: 'JOIN_TEAM'; payload: Team }
   | { type: 'SET_TEAMS'; payload: Team[] }
   | { type: 'COMPLETE_ONBOARDING' }
-  | { type: 'START_ONBOARDING' };
+  | { type: 'START_ONBOARDING' }
+  | { type: 'UPDATE_DEFENSE_SYSTEM'; payload: Partial<TaskDefenseSystem> };
 
 const initialState: AppState = {
   user: null,
@@ -38,6 +41,13 @@ const initialState: AppState = {
   focusSession: null,
   theme: 'light',
   isOnboarding: true, // Always start with onboarding
+  defenseSystem: {
+    isActive: true,
+    monitoringTasks: [],
+    defenseLevel: 'active',
+    interventionHistory: [],
+    successRate: 0
+  }
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
@@ -82,6 +92,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       return { ...state, isOnboarding: false };
     case 'START_ONBOARDING':
       return { ...state, isOnboarding: true };
+    case 'UPDATE_DEFENSE_SYSTEM':
+      return { 
+        ...state, 
+        defenseSystem: { ...state.defenseSystem, ...action.payload } 
+      };
     default:
       return state;
   }
@@ -132,7 +147,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           createdAt: new Date(task.createdAt),
           dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
           completedAt: task.completedAt ? new Date(task.completedAt) : undefined,
-          expectedCompletionTime: task.expectedCompletionTime ? new Date(task.expectedCompletionTime) : undefined
+          expectedCompletionTime: task.expectedCompletionTime ? new Date(task.expectedCompletionTime) : undefined,
+          scheduledTime: task.scheduledTime ? new Date(task.scheduledTime) : undefined
         }));
         dispatch({ type: 'SET_TASKS', payload: tasks });
       } catch (error) {
@@ -158,6 +174,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (savedTheme) {
       dispatch({ type: 'SET_THEME', payload: savedTheme });
+    }
+
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
     }
   }, []);
 
@@ -195,6 +216,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: Date.now().toString(),
       createdAt: new Date(),
       userId: state.user?.id || 'default-user',
+      isDefenseActive: true,
+      defenseLevel: taskData.priority === 'urgent' ? 'critical' : 
+                   taskData.priority === 'high' ? 'high' : 'medium',
+      procrastinationCount: 0
     };
     dispatch({ type: 'ADD_TASK', payload: task });
   };
@@ -249,6 +274,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       distractions: 0,
       userId: state.user?.id || 'default-user',
       createdAt: new Date(),
+      defenseTriggered: false,
+      interventionCount: 0
     };
     dispatch({ type: 'START_FOCUS_SESSION', payload: session });
   };
@@ -288,6 +315,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const triggerDefense = (taskId: string, severity: 'low' | 'medium' | 'high' | 'critical' = 'medium') => {
+    taskDefenseService.triggerManualDefense(taskId, severity);
+  };
+
   const value: AppContextType = {
     ...state,
     dispatch,
@@ -301,6 +332,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     createTeam,
     joinTeam,
     updateProfile,
+    triggerDefense,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
