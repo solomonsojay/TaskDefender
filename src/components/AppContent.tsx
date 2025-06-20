@@ -1,6 +1,5 @@
 import React from 'react';
 import { useApp } from '../contexts/AppContext';
-import { useSarcasticPrompts } from '../hooks/useSarcasticPrompts';
 import Header from './common/Header';
 import Dashboard from './dashboard/Dashboard';
 import TaskList from './tasks/TaskList';
@@ -9,7 +8,6 @@ import FocusMode from './focus/FocusMode';
 import TeamManagement from './teams/TeamManagement';
 import UserAnalytics from './analytics/UserAnalytics';
 import VoiceCallSystem from './voice/VoiceCallSystem';
-import SarcasticPromptDisplay from './sarcasm/SarcasticPromptDisplay';
 import ChatBot from './chatbot/ChatBot';
 import BoltBadge from './common/BoltBadge';
 
@@ -17,14 +15,6 @@ const AppContent: React.FC = () => {
   const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'achievements' | 'focus' | 'teams' | 'analytics' | 'voice-calls'>('dashboard');
   const [isChatBotOpen, setIsChatBotOpen] = React.useState(false);
   const [hasShownIntro, setHasShownIntro] = React.useState(false);
-  
-  const {
-    currentPrompt,
-    userPersona,
-    updateActivity,
-    dismissPrompt,
-    changePersona
-  } = useSarcasticPrompts();
 
   // Show Ninja introduction once
   React.useEffect(() => {
@@ -37,23 +27,6 @@ const AppContent: React.FC = () => {
       }, 2000); // Show after 2 seconds
     }
   }, [hasShownIntro]);
-
-  // Track user activity for sarcastic prompts
-  React.useEffect(() => {
-    const handleActivity = () => updateActivity();
-    
-    // Listen for various user interactions
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    events.forEach(event => {
-      document.addEventListener(event, handleActivity, true);
-    });
-
-    return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, handleActivity, true);
-      });
-    };
-  }, [updateActivity]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
@@ -97,14 +70,6 @@ const AppContent: React.FC = () => {
           {currentView === 'analytics' && <UserAnalytics />}
         </main>
       </div>
-
-      {/* Sarcastic Prompt Overlay */}
-      <SarcasticPromptDisplay
-        prompt={currentPrompt}
-        onDismiss={dismissPrompt}
-        onPersonaChange={changePersona}
-        currentPersona={userPersona}
-      />
 
       {/* ChatBot */}
       <ChatBot 

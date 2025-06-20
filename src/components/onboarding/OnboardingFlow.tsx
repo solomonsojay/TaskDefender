@@ -13,7 +13,6 @@ import {
 import { useApp } from '../../contexts/AppContext';
 import { User as UserType } from '../../types';
 import Logo from '../common/Logo';
-import OrganizationDetailsForm from './OrganizationDetailsForm';
 
 const OnboardingFlow: React.FC = () => {
   const { setUser, dispatch } = useApp();
@@ -25,7 +24,6 @@ const OnboardingFlow: React.FC = () => {
     role: 'user' as 'user' | 'admin',
     goals: [] as string[],
     workStyle: 'focused' as 'focused' | 'flexible' | 'collaborative',
-    // Organization details
     organizationName: '',
     organizationType: '',
     organizationIndustry: '',
@@ -35,7 +33,7 @@ const OnboardingFlow: React.FC = () => {
     organizationDescription: '',
   });
 
-  const totalSteps = formData.role === 'admin' ? 6 : 5;
+  const totalSteps = formData.role === 'admin' ? 5 : 4;
 
   const handleNext = () => {
     if (step < totalSteps) {
@@ -63,12 +61,11 @@ const OnboardingFlow: React.FC = () => {
       integrityScore: 100,
       streak: 0,
       createdAt: new Date(),
-      // Organization details (only for admin users)
       ...(formData.role === 'admin' && {
         organizationName: formData.organizationName,
-        organizationType: formData.organizationType as any,
+        organizationType: formData.organizationType,
         organizationIndustry: formData.organizationIndustry,
-        organizationSize: formData.organizationSize as any,
+        organizationSize: formData.organizationSize,
         userRoleInOrg: formData.userRoleInOrg,
         organizationWebsite: formData.organizationWebsite,
         organizationDescription: formData.organizationDescription,
@@ -130,14 +127,6 @@ const OnboardingFlow: React.FC = () => {
         return formData.goals.length > 0;
       case 4:
         return formData.workStyle;
-      case 5:
-        return formData.role !== 'admin' || (
-          formData.organizationName &&
-          formData.organizationType &&
-          formData.organizationIndustry &&
-          formData.organizationSize &&
-          formData.userRoleInOrg
-        );
       default:
         return false;
     }
@@ -347,35 +336,6 @@ const OnboardingFlow: React.FC = () => {
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-
-          {step === 5 && formData.role === 'admin' && (
-            <div>
-              <div className="text-center mb-6">
-                <div className="bg-blue-500/20 p-3 rounded-full w-16 h-16 mx-auto mb-4">
-                  <Building className="h-10 w-10 text-blue-500 mx-auto" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                  Organization Details
-                </h2>
-                <p className="text-gray-600 dark:text-gray-300">
-                  Tell us about your organization to customize your admin experience
-                </p>
-              </div>
-              
-              <OrganizationDetailsForm
-                data={{
-                  organizationName: formData.organizationName,
-                  organizationType: formData.organizationType,
-                  organizationIndustry: formData.organizationIndustry,
-                  organizationSize: formData.organizationSize,
-                  userRoleInOrg: formData.userRoleInOrg,
-                  organizationWebsite: formData.organizationWebsite,
-                  organizationDescription: formData.organizationDescription,
-                }}
-                onChange={(updates) => updateFormData(updates)}
-              />
             </div>
           )}
 

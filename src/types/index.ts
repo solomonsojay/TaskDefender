@@ -9,12 +9,10 @@ export interface User {
   integrityScore: number;
   streak: number;
   teamId?: string;
-  walletAddress?: string;
-  // Organization details (for admin users)
   organizationName?: string;
-  organizationType?: 'startup' | 'sme' | 'enterprise' | 'non-profit' | 'government' | 'other';
+  organizationType?: string;
   organizationIndustry?: string;
-  organizationSize?: '1-10' | '11-50' | '51-200' | '201-1000' | '1000+';
+  organizationSize?: string;
   userRoleInOrg?: string;
   organizationWebsite?: string;
   organizationDescription?: string;
@@ -31,34 +29,12 @@ export interface Task {
   startDate?: Date;
   estimatedTime?: number;
   actualTime?: number;
-  timeBlocks?: TimeBlock[];
   tags: string[];
   createdAt: Date;
   completedAt?: Date;
   userId: string;
   teamId?: string;
   honestlyCompleted?: boolean;
-  workPattern?: WorkPattern;
-}
-
-export interface TimeBlock {
-  id: string;
-  startTime: Date;
-  endTime: Date;
-  duration: number; // minutes
-  isScheduled: boolean;
-  isCompleted: boolean;
-  notes?: string;
-}
-
-export interface WorkPattern {
-  totalTimeSpent: number; // minutes
-  sessionsCount: number;
-  averageSessionLength: number;
-  productiveHours: number[]; // hours of day when most productive
-  procrastinationScore: number; // 0-100, higher = more procrastination
-  consistencyScore: number; // 0-100, higher = more consistent
-  lastWorkedOn?: Date;
 }
 
 export interface Team {
@@ -87,18 +63,6 @@ export interface FocusSession {
   distractions: number;
   userId: string;
   createdAt: Date;
-  timeBlockId?: string;
-}
-
-export interface DailySummary {
-  date: Date;
-  tasksCompleted: number;
-  tasksPlanned: number;
-  focusTime: number;
-  integrityScore: number;
-  mood?: number;
-  reflection?: string;
-  userId: string;
 }
 
 export type Theme = 'light' | 'dark';

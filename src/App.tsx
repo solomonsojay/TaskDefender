@@ -1,3 +1,4 @@
+import React from 'react';
 import { AppProvider } from './contexts/AppContext';
 import AuthWrapper from './components/auth/AuthWrapper';
 import AppContent from './components/AppContent';
