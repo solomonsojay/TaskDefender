@@ -6,17 +6,62 @@ import {
   Calendar,
   Play,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Zap
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 const TaskList: React.FC = () => {
   const { tasks, updateTask, deleteTask, startFocusSession } = useApp();
-  const [filter, setFilter] = useState<'all' | 'todo' | 'in-progress' | 'done'>('all');
+  const [filter, setFilter] = useState<'all' | 'todo' | 'in-progress' | 'done' | 'critical' | 'at-risk'>('all');
   const [showHonestyCheck, setShowHonestyCheck] = useState<string | null>(null);
+
+  // Find critical tasks (80% close to deadline)
+  const criticalTasks = tasks.filter(task => {
+    if (!task.dueDate || task.status === 'done') return false;
+    const now = new Date();
+    const dueDate = new Date(task.dueDate);
+    const createdDate = new Date(task.createdAt);
+    const totalTimespan = dueDate.getTime() - createdDate.getTime();
+    const timeLeft = dueDate.getTime() - now.getTime();
+    
+    // If less than 20% of time remains, it's critical
+    return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.2;
+  });
+
+  // Find at-risk tasks (90% close to deadline)
+  const atRiskTasks = tasks.filter(task => {
+    if (!task.dueDate || task.status === 'done') return false;
+    const now = new Date();
+    const dueDate = new Date(task.dueDate);
+    const createdDate = new Date(task.createdAt);
+    const totalTimespan = dueDate.getTime() - createdDate.getTime();
+    const timeLeft = dueDate.getTime() - now.getTime();
+    
+    // If less than 10% of time remains, it's at risk
+    return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.1;
+  });
 
   const filteredTasks = tasks.filter(task => {
     if (filter === 'all') return true;
+    if (filter === 'critical') {
+      const now = new Date();
+      if (!task.dueDate || task.status === 'done') return false;
+      const dueDate = new Date(task.dueDate);
+      const createdDate = new Date(task.createdAt);
+      const totalTimespan = dueDate.getTime() - createdDate.getTime();
+      const timeLeft = dueDate.getTime() - now.getTime();
+      return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.2;
+    }
+    if (filter === 'at-risk') {
+      const now = new Date();
+      if (!task.dueDate || task.status === 'done') return false;
+      const dueDate = new Date(task.dueDate);
+      const createdDate = new Date(task.createdAt);
+      const totalTimespan = dueDate.getTime() - createdDate.getTime();
+      const timeLeft = dueDate.getTime() - now.getTime();
+      return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.1;
+    }
     return task.status === filter;
   });
 
@@ -51,6 +96,8 @@ const TaskList: React.FC = () => {
 
   const filterOptions = [
     { value: 'all', label: 'All Tasks', count: tasks.length },
+    { value: 'critical', label: 'Critical', count: criticalTasks.length },
+    { value: 'at-risk', label: 'At Risk', count: atRiskTasks.length },
     { value: 'todo', label: 'To Do', count: tasks.filter(t => t.status === 'todo').length },
     { value: 'in-progress', label: 'In Progress', count: tasks.filter(t => t.status === 'in-progress').length },
     { value: 'done', label: 'Done', count: tasks.filter(t => t.status === 'done').length },
@@ -59,6 +106,26 @@ const TaskList: React.FC = () => {
   const isOverdue = (task: any) => {
     if (!task.dueDate || task.status === 'done') return false;
     return new Date(task.dueDate) < new Date();
+  };
+
+  const isCritical = (task: any) => {
+    if (!task.dueDate || task.status === 'done') return false;
+    const now = new Date();
+    const dueDate = new Date(task.dueDate);
+    const createdDate = new Date(task.createdAt);
+    const totalTimespan = dueDate.getTime() - createdDate.getTime();
+    const timeLeft = dueDate.getTime() - now.getTime();
+    return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.2;
+  };
+
+  const isAtRisk = (task: any) => {
+    if (!task.dueDate || task.status === 'done') return false;
+    const now = new Date();
+    const dueDate = new Date(task.dueDate);
+    const createdDate = new Date(task.createdAt);
+    const totalTimespan = dueDate.getTime() - createdDate.getTime();
+    const timeLeft = dueDate.getTime() - now.getTime();
+    return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.1;
   };
 
   return (
@@ -80,7 +147,11 @@ const TaskList: React.FC = () => {
             }`}
           >
             {option.label}
-            <span className="ml-2 text-xs px-2 py-1 rounded-full bg-gray-200 dark:bg-gray-600">
+            <span className={`ml-2 text-xs px-2 py-1 rounded-full ${
+              option.value === 'critical' ? 'bg-red-200 dark:bg-red-800 text-red-700 dark:text-red-300' :
+              option.value === 'at-risk' ? 'bg-yellow-200 dark:bg-yellow-800 text-yellow-700 dark:text-yellow-300' :
+              'bg-gray-200 dark:bg-gray-600'
+            }`}>
               {option.count}
             </span>
           </button>
@@ -130,6 +201,14 @@ const TaskList: React.FC = () => {
                     <div className="flex items-center space-x-2 ml-2">
                       {isOverdue(task) && (
                         <AlertTriangle className="h-4 w-4 text-red-500" title="Overdue" />
+                      )}
+                      
+                      {isAtRisk(task) && (
+                        <Zap className="h-4 w-4 text-yellow-500 animate-pulse" title="At Risk" />
+                      )}
+                      
+                      {isCritical(task) && !isAtRisk(task) && (
+                        <AlertTriangle className="h-4 w-4 text-orange-500" title="Critical" />
                       )}
                       
                       {task.status !== 'done' && (
@@ -184,9 +263,16 @@ const TaskList: React.FC = () => {
                     )}
                     
                     {task.dueDate && (
-                      <div className={`flex items-center space-x-1 ${isOverdue(task) ? 'text-red-500' : ''}`}>
+                      <div className={`flex items-center space-x-1 ${
+                        isOverdue(task) ? 'text-red-500' :
+                        isAtRisk(task) ? 'text-yellow-500' :
+                        isCritical(task) ? 'text-orange-500' : ''
+                      }`}>
                         <Calendar className="h-3 w-3" />
                         <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                        {isOverdue(task) && <span className="text-red-500 font-medium">Overdue!</span>}
+                        {isAtRisk(task) && <span className="text-yellow-500 font-medium">At Risk!</span>}
+                        {isCritical(task) && !isAtRisk(task) && <span className="text-orange-500 font-medium">Critical!</span>}
                       </div>
                     )}
                   </div>

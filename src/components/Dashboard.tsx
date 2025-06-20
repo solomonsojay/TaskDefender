@@ -8,7 +8,8 @@ import {
   Calendar,
   AlertTriangle,
   Award,
-  Shield
+  Shield,
+  Zap
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -22,6 +23,32 @@ const Dashboard: React.FC = () => {
   const inProgressTasks = tasks.filter(task => task.status === 'in-progress');
   const todoTasks = tasks.filter(task => task.status === 'todo');
   
+  // Find critical tasks (80% close to deadline)
+  const criticalTasks = tasks.filter(task => {
+    if (!task.dueDate || task.status === 'done') return false;
+    const now = new Date();
+    const dueDate = new Date(task.dueDate);
+    const createdDate = new Date(task.createdAt);
+    const totalTimespan = dueDate.getTime() - createdDate.getTime();
+    const timeLeft = dueDate.getTime() - now.getTime();
+    
+    // If less than 20% of time remains, it's critical
+    return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.2;
+  });
+
+  // Find at-risk tasks (90% close to deadline)
+  const atRiskTasks = tasks.filter(task => {
+    if (!task.dueDate || task.status === 'done') return false;
+    const now = new Date();
+    const dueDate = new Date(task.dueDate);
+    const createdDate = new Date(task.createdAt);
+    const totalTimespan = dueDate.getTime() - createdDate.getTime();
+    const timeLeft = dueDate.getTime() - now.getTime();
+    
+    // If less than 10% of time remains, it's at risk
+    return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.1;
+  });
+
   // Find overdue tasks
   const overdueTasks = tasks.filter(task => {
     if (!task.dueDate || task.status === 'done') return false;
@@ -124,7 +151,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 rounded-lg bg-green-500">
@@ -166,6 +193,48 @@ const Dashboard: React.FC = () => {
             To Do
           </h3>
         </div>
+
+        <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-red-500">
+              <AlertTriangle className="h-6 w-6 text-white" />
+            </div>
+            <div className="text-2xl font-bold text-red-700 dark:text-red-400">
+              {criticalTasks.length}
+            </div>
+          </div>
+          <h3 className="font-medium text-red-700 dark:text-red-400">
+            Critical
+          </h3>
+        </div>
+
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-yellow-500">
+              <Zap className="h-6 w-6 text-white" />
+            </div>
+            <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">
+              {atRiskTasks.length}
+            </div>
+          </div>
+          <h3 className="font-medium text-yellow-700 dark:text-yellow-400">
+            At Risk
+          </h3>
+        </div>
+
+        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-purple-500">
+              <Shield className="h-6 w-6 text-white" />
+            </div>
+            <div className="text-2xl font-bold text-purple-700 dark:text-purple-400">
+              {user?.integrityScore || 100}%
+            </div>
+          </div>
+          <h3 className="font-medium text-purple-700 dark:text-purple-400">
+            Integrity
+          </h3>
+        </div>
       </div>
 
       {/* Recent Tasks */}
@@ -183,47 +252,81 @@ const Dashboard: React.FC = () => {
               </p>
             </div>
           ) : (
-            recentTasks.map(task => (
-              <div key={task.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
-                <div className={`w-3 h-3 rounded-full ${
-                  task.status === 'done' ? 'bg-green-500' :
-                  task.status === 'in-progress' ? 'bg-orange-500' :
-                  'bg-gray-400'
-                }`} />
-                <div className="flex-1 min-w-0">
-                  <p className={`font-medium truncate ${
-                    task.status === 'done' 
-                      ? 'text-gray-500 dark:text-gray-400 line-through' 
-                      : 'text-gray-900 dark:text-white'
+            recentTasks.map(task => {
+              // Check if task is critical or at risk
+              const now = new Date();
+              const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+              const createdDate = new Date(task.createdAt);
+              
+              let isCritical = false;
+              let isAtRisk = false;
+              
+              if (dueDate && task.status !== 'done') {
+                const totalTimespan = dueDate.getTime() - createdDate.getTime();
+                const timeLeft = dueDate.getTime() - now.getTime();
+                
+                if (timeLeft > 0) {
+                  const timeRatio = timeLeft / totalTimespan;
+                  isAtRisk = timeRatio <= 0.1;
+                  isCritical = timeRatio <= 0.2 && !isAtRisk;
+                }
+              }
+              
+              const isOverdue = dueDate && now > dueDate && task.status !== 'done';
+              
+              return (
+                <div key={task.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
+                  <div className={`w-3 h-3 rounded-full ${
+                    task.status === 'done' ? 'bg-green-500' :
+                    task.status === 'in-progress' ? 'bg-orange-500' :
+                    isOverdue ? 'bg-red-500' :
+                    isAtRisk ? 'bg-yellow-500' :
+                    isCritical ? 'bg-red-400' :
+                    'bg-gray-400'
+                  }`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-medium truncate ${
+                      task.status === 'done' 
+                        ? 'text-gray-500 dark:text-gray-400 line-through' 
+                        : 'text-gray-900 dark:text-white'
+                    }`}>
+                      {task.title}
+                    </p>
+                    {task.dueDate && (
+                      <div className={`flex items-center space-x-1 text-xs ${
+                        isOverdue ? 'text-red-500' :
+                        isAtRisk ? 'text-yellow-500' :
+                        isCritical ? 'text-red-400' :
+                        'text-gray-500 dark:text-gray-400'
+                      }`}>
+                        <Calendar className="h-3 w-3" />
+                        <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                        {isOverdue && <span className="text-red-500 font-medium">Overdue!</span>}
+                        {isAtRisk && <span className="text-yellow-500 font-medium">At Risk!</span>}
+                        {isCritical && <span className="text-red-400 font-medium">Critical!</span>}
+                      </div>
+                    )}
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    task.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
+                    task.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400' :
+                    task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
+                    'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
                   }`}>
-                    {task.title}
-                  </p>
-                  {task.dueDate && (
-                    <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400">
-                      <Calendar className="h-3 w-3" />
-                      <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                    </div>
+                    {task.priority}
+                  </span>
+                  {task.status !== 'done' && (
+                    <button
+                      onClick={() => startFocusSession(task.id)}
+                      className="p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                      title="Start focus session"
+                    >
+                      <Play className="h-4 w-4 text-gray-500" />
+                    </button>
                   )}
                 </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  task.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
-                  task.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400' :
-                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
-                  'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
-                }`}>
-                  {task.priority}
-                </span>
-                {task.status !== 'done' && (
-                  <button
-                    onClick={() => startFocusSession(task.id)}
-                    className="p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
-                    title="Start focus session"
-                  >
-                    <Play className="h-4 w-4 text-gray-500" />
-                  </button>
-                )}
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

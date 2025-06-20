@@ -11,7 +11,8 @@ import {
   Lightbulb,
   HelpCircle,
   Settings,
-  Zap
+  Zap,
+  AlertTriangle
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ChatMessage } from '../../types';
@@ -49,7 +50,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle }) => {
   const initializeChat = () => {
     const welcomeMessage: ChatMessage = {
       id: 'welcome',
-      text: `🥷 Hey ${user?.name || 'there'}! I'm Ninja, your TaskDefender Assistant! I'm here to help you master productivity and navigate the app like a true ninja warrior!\n\nI can help you with:\n• 🎯 Understanding app features\n• 🚀 Getting started guides\n• 🔧 Troubleshooting issues\n• 💡 Tips and best practices\n• ⚡ Quick actions and shortcuts\n• 🏆 Achievement system guidance\n• 📞 Voice call setup\n• 📅 Scheduler configuration\n\nWhat would you like to know, productivity warrior?`,
+      text: `🥷 Hey ${user?.name || 'there'}! I'm Ninja, your TaskDefender Assistant! I'm here to help you master productivity and navigate the app like a true ninja warrior!\n\nI can help you with:\n• 🎯 Understanding app features\n• 🚀 Getting started guides\n• 🔧 Troubleshooting issues\n• 💡 Tips and best practices\n• ⚡ Quick actions and shortcuts\n• 🏆 Achievement system guidance\n• 📞 Voice call setup\n• 📅 Scheduler configuration\n• 🚨 Critical and At-Risk task management\n\nWhat would you like to know, productivity warrior?`,
       sender: 'bot',
       timestamp: new Date()
     };
@@ -89,17 +90,21 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle }) => {
     const lowerMessage = message.toLowerCase();
     let response = '';
 
+    // Critical and At-Risk Tasks
+    if (lowerMessage.includes('critical') || lowerMessage.includes('at risk') || lowerMessage.includes('at-risk') || lowerMessage.includes('deadline')) {
+      response = `🥷 **Ninja's Task Defense System**\n\nTaskDefender automatically categorizes your tasks based on deadline proximity:\n\n**Critical Tasks (🚨):**\n• Tasks that have used 80% of their available time\n• Automatically highlighted in the dashboard\n• Filter available in the Tasks view\n• Receive priority notifications\n\n**At-Risk Tasks (⚡):**\n• Tasks that have used 90% of their available time\n• Highest priority for intervention\n• Automatically moved to the At-Risk category\n• Receive urgent voice call reminders\n\nThese categories help you identify which tasks need immediate attention, forming your last line of defense against procrastination and missed deadlines!\n\nTip: Set realistic deadlines when creating tasks to make this system more effective. 🥷⚡`;
+    }
     // Getting Started
-    if (lowerMessage.includes('getting started') || lowerMessage.includes('get started')) {
-      response = `🥷 **Ninja's Quick Start Guide**\n\n1. **Create Your First Task**: Use Quick Capture on dashboard\n2. **Set Priorities**: Choose from low, medium, high, or urgent\n3. **Start Focusing**: Click the play button to begin a focus session\n4. **Track Progress**: View your analytics in the Analytics tab\n5. **Stay Honest**: Use honesty checkpoints when completing tasks\n6. **Earn Achievements**: Complete tasks to unlock badges\n7. **Schedule Reminders**: Use the Scheduler for task notifications\n8. **Voice Calls**: Set up motivational voice calls in Settings\n\nReady to become a productivity ninja? 🥷⚡`;
+    else if (lowerMessage.includes('getting started') || lowerMessage.includes('get started')) {
+      response = `🥷 **Ninja's Quick Start Guide**\n\n1. **Create Your First Task**: Use Quick Capture on dashboard\n2. **Set Priorities**: Choose from low, medium, high, or urgent\n3. **Start Focusing**: Click the play button to begin a focus session\n4. **Track Progress**: View your analytics in the Analytics tab\n5. **Stay Honest**: Use honesty checkpoints when completing tasks\n6. **Earn Achievements**: Complete tasks to unlock badges\n7. **Schedule Reminders**: Use the Scheduler for task notifications\n8. **Voice Calls**: Set up motivational voice calls in Settings\n9. **Monitor Deadlines**: Watch for Critical and At-Risk task warnings\n\nReady to become a productivity ninja? 🥷⚡`;
     }
     // Features Overview
     else if (lowerMessage.includes('features') || lowerMessage.includes('what can') || lowerMessage.includes('what does')) {
-      response = `🥷 **Ninja's Feature Arsenal**\n\n🎯 **Task Management**: Create, prioritize, and track tasks with honesty checkpoints\n⏰ **Focus Mode**: Pomodoro-style work sessions with distraction tracking\n📊 **Analytics**: Weekly, monthly, yearly insights with social sharing\n👥 **Teams**: Collaborate with team members (admin feature)\n📞 **Voice Calls**: Character-based motivational interventions\n🏆 **Achievement System**: Earn badges for productivity milestones\n📅 **Scheduler**: Smart notification scheduling with custom prompts\n🤖 **AI Defense**: Contextual productivity interventions\n🔒 **Privacy First**: All data stored locally on your device\n\nWhich ninja skill interests you most? 🥷`;
+      response = `🥷 **Ninja's Feature Arsenal**\n\n🎯 **Task Management**: Create, prioritize, and track tasks with honesty checkpoints\n⏰ **Focus Mode**: Pomodoro-style work sessions with distraction tracking\n📊 **Analytics**: Weekly, monthly, yearly insights with social sharing\n👥 **Teams**: Collaborate with team members (admin feature)\n📞 **Voice Calls**: Character-based motivational interventions\n🏆 **Achievement System**: Earn badges for productivity milestones\n📅 **Scheduler**: Smart notification scheduling with custom prompts\n🚨 **Critical & At-Risk Detection**: Automatic deadline monitoring\n🤖 **AI Defense**: Contextual productivity interventions\n🔒 **Privacy First**: All data stored locally on your device\n\nWhich ninja skill interests you most? 🥷`;
     }
     // Task Management
     else if (lowerMessage.includes('task') || lowerMessage.includes('create') || lowerMessage.includes('manage')) {
-      response = `🥷 **Ninja Task Mastery**\n\nTaskDefender helps you organize and complete tasks like a true ninja:\n\n• **Create**: Quick capture with smart suggestions\n• **Prioritize**: 4-level priority system with colors\n• **Focus**: Start focus sessions on any task\n• **Track**: Monitor time spent and progress\n• **Complete**: Honesty checkpoints for integrity\n• **Schedule**: Set due dates and expected completion times\n• **Defend**: AI-powered procrastination defense\n\n**Honesty System**: Only honestly completed tasks move to "Done" status. This maintains your integrity score and builds real productivity habits.\n\nWhat ninja skill would you like to master first? 🥷`;
+      response = `🥷 **Ninja Task Mastery**\n\nTaskDefender helps you organize and complete tasks like a true ninja:\n\n• **Create**: Quick capture with smart suggestions\n• **Prioritize**: 4-level priority system with colors\n• **Focus**: Start focus sessions on any task\n• **Track**: Monitor time spent and progress\n• **Complete**: Honesty checkpoints for integrity\n• **Schedule**: Set due dates and expected completion times\n• **Defend**: AI-powered procrastination defense\n• **Monitor**: Automatic Critical and At-Risk detection\n\n**Honesty System**: Only honestly completed tasks move to "Done" status. This maintains your integrity score and builds real productivity habits.\n\n**Deadline Defense**: Tasks approaching their deadline are automatically categorized as Critical (80% time used) or At-Risk (90% time used) to help you prioritize effectively.\n\nWhat ninja skill would you like to master first? 🥷`;
     }
     // Achievement System
     else if (lowerMessage.includes('achievement') || lowerMessage.includes('badge') || lowerMessage.includes('trophy') || lowerMessage.includes('reward')) {
@@ -115,19 +120,19 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle }) => {
     }
     // Analytics
     else if (lowerMessage.includes('analytics') || lowerMessage.includes('progress') || lowerMessage.includes('stats') || lowerMessage.includes('streak')) {
-      response = `🥷 **Ninja Analytics Mastery**\n\n**Access**: Analytics tab for detailed insights\n\n**Views Available**:\n• **Weekly**: 7-day overview, consistency tracking\n• **Monthly**: Long-term trends, growth patterns\n• **Yearly**: Annual productivity patterns\n\n**Key Metrics**:\n• Tasks completed with honesty tracking\n• Focus time and session quality\n• Productivity percentage\n• Consistency score\n• Integrity score (honesty-based)\n• Achievement progress\n\n**Social Sharing**: Share your progress on social media to inspire others and stay accountable!\n\nTrack your ninja progress! 🥷📊`;
+      response = `🥷 **Ninja Analytics Mastery**\n\n**Access**: Analytics tab for detailed insights\n\n**Views Available**:\n• **Weekly**: 7-day overview, consistency tracking\n• **Monthly**: Long-term trends, growth patterns\n• **Yearly**: Annual productivity patterns\n\n**Key Metrics**:\n• Tasks completed with honesty tracking\n• Focus time and session quality\n• Productivity percentage\n• Consistency score\n• Integrity score (honesty-based)\n• Achievement progress\n• Critical and At-Risk task counts\n\n**Social Sharing**: Share your progress on social media to inspire others and stay accountable!\n\nTrack your ninja progress! 🥷📊`;
     }
     // Teams
     else if (lowerMessage.includes('team') || lowerMessage.includes('collaborate') || lowerMessage.includes('admin')) {
       if (user?.role === 'admin') {
-        response = `🥷 **Ninja Team Leadership** (Admin)\n\n**Creating Teams**:\n1. Go to Teams tab\n2. Click "Create Team"\n3. Enter team name and description\n4. Share invite code with members\n\n**Team Features**:\n• Team productivity tracking\n• Member management with roles\n• Collaborative goal setting\n• Shared achievement celebrations\n• Team analytics and insights\n\n**Leadership Tips**: Set a good example with your own productivity to inspire your team!\n\nLead your team to productivity victory! 🥷👥`;
+        response = `🥷 **Ninja Team Leadership** (Admin)\n\n**Creating Teams**:\n1. Go to Teams tab\n2. Click "Create Team"\n3. Enter team name and description\n4. Share invite code with members\n\n**Team Features**:\n• Team productivity tracking\n• Member management with roles\n• Collaborative goal setting\n• Shared achievement celebrations\n• Team analytics and insights\n• Critical task monitoring across team\n\n**Leadership Tips**: Set a good example with your own productivity to inspire your team!\n\nLead your team to productivity victory! 🥷👥`;
       } else {
-        response = `🥷 **Ninja Team Collaboration**\n\n**Joining a Team**:\n1. Get invite code from team admin\n2. Go to Teams tab\n3. Click "Join Team"\n4. Enter the code\n\n**Team Features**:\n• Shared productivity goals\n• Team analytics and progress\n• Collaborative motivation\n• Group achievements\n\n*Note: Team creation requires admin privileges*\n\nJoin forces with fellow productivity ninjas! 🥷👥`;
+        response = `🥷 **Ninja Team Collaboration**\n\n**Joining a Team**:\n1. Get invite code from team admin\n2. Go to Teams tab\n3. Click "Join Team"\n4. Enter the code\n\n**Team Features**:\n• Shared productivity goals\n• Team analytics and progress\n• Collaborative motivation\n• Group achievements\n• Team-wide deadline defense\n\n*Note: Team creation requires admin privileges*\n\nJoin forces with fellow productivity ninjas! 🥷👥`;
       }
     }
     // Default response
     else {
-      response = `🥷 **Ninja Assistance Available**\n\nI'm here to help you master TaskDefender - Your Last Line of Defense Against Procrastination! I can assist with:\n\n• **Task Management**: Creating, organizing, and honestly completing tasks\n• **Focus Mode**: Pomodoro-style productivity sessions\n• **Achievement System**: Earning badges and tracking milestones\n• **Analytics**: Tracking your progress and achievements\n• **Voice Calls**: Character-based motivational calls\n• **Scheduler**: Smart notification and reminder setup\n• **Teams**: Collaborating with others (admin feature)\n• **Settings**: Customizing your productivity experience\n• **Troubleshooting**: Solving common issues\n\nTry asking about any of these topics, or be more specific about what you need help with, fellow ninja! 🥷⚡`;
+      response = `🥷 **Ninja Assistance Available**\n\nI'm here to help you master TaskDefender - Your Last Line of Defense Against Procrastination! I can assist with:\n\n• **Task Management**: Creating, organizing, and honestly completing tasks\n• **Focus Mode**: Pomodoro-style productivity sessions\n• **Achievement System**: Earning badges and tracking milestones\n• **Analytics**: Tracking your progress and achievements\n• **Voice Calls**: Character-based motivational calls\n• **Scheduler**: Smart notification and reminder setup\n• **Critical & At-Risk Tasks**: Managing deadline-sensitive work\n• **Teams**: Collaborating with others (admin feature)\n• **Settings**: Customizing your productivity experience\n• **Troubleshooting**: Solving common issues\n\nTry asking about any of these topics, or be more specific about what you need help with, fellow ninja! 🥷⚡`;
     }
 
     return {
@@ -273,7 +278,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle }) => {
               {[
                 { icon: Lightbulb, label: 'Features', message: 'What features does TaskDefender have?' },
                 { icon: HelpCircle, label: 'Help', message: 'How do I get started?' },
-                { icon: Zap, label: 'Focus', message: 'How does focus mode work?' }
+                { icon: AlertTriangle, label: 'Critical Tasks', message: 'What are critical and at-risk tasks?' }
               ].map((action, index) => (
                 <button
                   key={index}
