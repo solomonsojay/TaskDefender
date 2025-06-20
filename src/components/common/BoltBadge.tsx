@@ -8,10 +8,10 @@ const BoltBadge: React.FC = () => {
         target="_blank"
         rel="noopener noreferrer"
         className="block transition-transform duration-200 hover:scale-110 hover:shadow-lg"
-        title="Built with Bolt.new - World's Largest Hackathon"
+        title="Powered by Bolt.new - Made in Bolt.new"
       >
         <img
-          src="/black_circle_360x360.png"
+          src="/bolt-badge.png"
           alt="Powered by Bolt.new"
           className="w-16 h-16 rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200"
         />
