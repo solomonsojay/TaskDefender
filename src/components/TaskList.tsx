@@ -8,14 +8,26 @@ import {
   Trash2,
   AlertTriangle,
   Zap,
-  Shield
+  Shield,
+  Plus,
+  Edit3
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 const TaskList: React.FC = () => {
-  const { tasks, updateTask, deleteTask, startFocusSession } = useApp();
+  const { tasks, updateTask, deleteTask, startFocusSession, addTask } = useApp();
   const [filter, setFilter] = useState<'all' | 'todo' | 'in-progress' | 'done' | 'critical' | 'at-risk'>('all');
   const [showHonestyCheck, setShowHonestyCheck] = useState<string | null>(null);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    priority: 'medium' as const,
+    dueDate: '',
+    expectedCompletionTime: '',
+    estimatedTime: 30,
+    tags: [] as string[]
+  });
 
   // Find critical tasks (80% close to deadline)
   const criticalTasks = tasks.filter(task => {
@@ -95,6 +107,33 @@ const TaskList: React.FC = () => {
     }
   };
 
+  const handleAddTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTask.title.trim()) return;
+
+    addTask({
+      title: newTask.title,
+      description: newTask.description,
+      priority: newTask.priority,
+      status: 'todo',
+      tags: newTask.tags,
+      dueDate: newTask.dueDate ? new Date(newTask.dueDate) : undefined,
+      expectedCompletionTime: newTask.expectedCompletionTime ? new Date(newTask.expectedCompletionTime) : undefined,
+      estimatedTime: newTask.estimatedTime,
+    });
+
+    setNewTask({
+      title: '',
+      description: '',
+      priority: 'medium',
+      dueDate: '',
+      expectedCompletionTime: '',
+      estimatedTime: 30,
+      tags: []
+    });
+    setShowTaskForm(false);
+  };
+
   const filterOptions = [
     { value: 'all', label: 'All Tasks', count: tasks.length },
     { value: 'critical', label: 'Critical', count: criticalTasks.length },
@@ -131,9 +170,129 @@ const TaskList: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-        Your Tasks
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Your Tasks
+        </h2>
+        <button
+          onClick={() => setShowTaskForm(true)}
+          className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center space-x-2"
+        >
+          <Plus className="h-4 w-4" />
+          <span>Add Task</span>
+        </button>
+      </div>
+
+      {/* Task Form Modal */}
+      {showTaskForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              Add New Task
+            </h3>
+            
+            <form onSubmit={handleAddTask} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Task Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newTask.title}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                  placeholder="What needs to be done?"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={newTask.description}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200 resize-none"
+                  rows={3}
+                  placeholder="Task description (optional)"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Priority
+                  </label>
+                  <select
+                    value={newTask.priority}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, priority: e.target.value as any }))}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Estimated Time (min)
+                  </label>
+                  <input
+                    type="number"
+                    min="5"
+                    value={newTask.estimatedTime}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, estimatedTime: parseInt(e.target.value) || 30 }))}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Due Date
+                </label>
+                <input
+                  type="datetime-local"
+                  value={newTask.dueDate}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, dueDate: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Expected Completion Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={newTask.expectedCompletionTime}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, expectedCompletionTime: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowTaskForm(false)}
+                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
+                >
+                  Add Task
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl overflow-x-auto">
@@ -280,6 +439,12 @@ const TaskList: React.FC = () => {
                         {isOverdue(task) && <span className="text-red-500 font-medium">Overdue!</span>}
                         {isAtRisk(task) && <span className="text-yellow-500 font-medium">At Risk!</span>}
                         {isCritical(task) && !isAtRisk(task) && <span className="text-orange-500 font-medium">Critical!</span>}
+                      </div>
+                    )}
+
+                    {task.expectedCompletionTime && (
+                      <div className="flex items-center space-x-1">
+                        <span>Expected: {new Date(task.expectedCompletionTime).toLocaleString()}</span>
                       </div>
                     )}
                   </div>

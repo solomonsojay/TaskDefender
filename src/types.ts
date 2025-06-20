@@ -85,6 +85,10 @@ export interface VoiceSettings {
   enableCalls: boolean;
   callFrequency: 'low' | 'normal' | 'high';
   selectedCharacter: string;
+  customCharacterName: string;
+  customPrompts: string[];
+  customVoiceBlob: Blob | null;
+  callInterval: number;
 }
 
 export interface ScheduledNotification {

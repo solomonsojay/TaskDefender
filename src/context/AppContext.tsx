@@ -37,7 +37,7 @@ const initialState: AppState = {
   currentTeam: null,
   focusSession: null,
   theme: 'light',
-  isOnboarding: false,
+  isOnboarding: true,
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {

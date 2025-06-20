@@ -58,7 +58,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Task Defender
+                  TaskDefender
                 </h1>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Your Last Line of Defense Against Procrastination
