@@ -34,9 +34,10 @@ const initialState: AppState = {
   user: null,
   tasks: [],
   teams: [],
+  currentTeam: null,
   focusSession: null,
   theme: 'light',
-  isOnboarding: true,
+  isOnboarding: false,
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
@@ -70,7 +71,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     case 'CREATE_TEAM':
       return { ...state, teams: [...state.teams, action.payload] };
     case 'JOIN_TEAM':
-      return { ...state, teams: [...state.teams, action.payload] };
+      return { 
+        ...state, 
+        teams: [...state.teams, action.payload],
+        currentTeam: action.payload 
+      };
     case 'SET_TEAMS':
       return { ...state, teams: action.payload };
     case 'COMPLETE_ONBOARDING':

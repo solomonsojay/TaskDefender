@@ -1,3 +1,5 @@
+import { ComponentType } from 'react';
+
 export interface User {
   id: string;
   name: string;
@@ -17,6 +19,14 @@ export interface User {
   organizationWebsite?: string;
   organizationDescription?: string;
   createdAt: Date;
+  socialAccounts?: SocialAccount[];
+}
+
+export interface SocialAccount {
+  platform: 'twitter' | 'linkedin' | 'facebook' | 'devto';
+  connected: boolean;
+  username?: string;
+  profileUrl?: string;
 }
 
 export interface Task {
@@ -24,17 +34,16 @@ export interface Task {
   title: string;
   description?: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'todo' | 'in-progress' | 'blocked' | 'done';
+  status: 'todo' | 'in-progress' | 'done';
   dueDate?: Date;
-  startDate?: Date;
   estimatedTime?: number;
-  actualTime?: number;
   tags: string[];
   createdAt: Date;
   completedAt?: Date;
   userId: string;
   teamId?: string;
   honestlyCompleted?: boolean;
+  expectedCompletionTime?: Date;
 }
 
 export interface Team {
@@ -65,13 +74,60 @@ export interface FocusSession {
   createdAt: Date;
 }
 
+export interface ChatMessage {
+  id: string;
+  text: string;
+  sender: 'user' | 'bot';
+  timestamp: Date;
+  actions?: QuickAction[];
+}
+
+export interface QuickAction {
+  id: string;
+  label: string;
+  message: string;
+  icon: ComponentType<any>;
+  category: 'help' | 'action' | 'navigation';
+}
+
+export interface VoiceSettings {
+  selectedVoice: string;
+  enableCalls: boolean;
+  callFrequency: 'low' | 'normal' | 'high';
+  selectedCharacter: string;
+}
+
+export interface ScheduledNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'reminder' | 'nudge' | 'deadline' | 'celebration';
+  scheduledFor: Date;
+  recurring: 'none' | 'daily' | 'weekly' | 'workdays';
+  isActive: boolean;
+  taskId?: string;
+  character: string;
+  voiceEnabled: boolean;
+  interval: number;
+}
+
+export interface Badge {
+  id: string;
+  title: string;
+  description: string;
+  earned: boolean;
+  progress?: number;
+  maxProgress?: number;
+  earnedAt?: Date;
+}
+
 export type Theme = 'light' | 'dark';
 
 export interface AppState {
   user: User | null;
   tasks: Task[];
   teams: Team[];
-  currentTeam: Team | null;
+  currentTeam?: Team | null;
   focusSession: FocusSession | null;
   theme: Theme;
   isOnboarding: boolean;
