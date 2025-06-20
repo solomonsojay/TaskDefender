@@ -35,6 +35,7 @@ export interface Task {
   status: 'todo' | 'in-progress' | 'done';
   dueDate?: Date;
   estimatedTime?: number;
+  actualTime?: number;
   tags: string[];
   createdAt: Date;
   completedAt?: Date;
@@ -77,15 +78,6 @@ export interface ChatMessage {
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
-  actions?: QuickAction[];
-}
-
-export interface QuickAction {
-  id: string;
-  label: string;
-  message: string;
-  icon: React.ComponentType<any>;
-  category: 'help' | 'action' | 'navigation';
 }
 
 export interface VoiceSettings {
@@ -125,6 +117,7 @@ export interface AppState {
   user: User | null;
   tasks: Task[];
   teams: Team[];
+  currentTeam: Team | null;
   focusSession: FocusSession | null;
   theme: Theme;
   isOnboarding: boolean;
