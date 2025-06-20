@@ -14,6 +14,10 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
+// Define types for better type safety
+type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+type DefenseLevel = 'low' | 'medium' | 'high' | 'critical';
+
 const TaskList: React.FC = () => {
   const { tasks, updateTask, deleteTask, startFocusSession, addTask } = useApp();
   const [filter, setFilter] = useState<'all' | 'todo' | 'in-progress' | 'done' | 'critical' | 'at-risk'>('all');
@@ -22,13 +26,21 @@ const TaskList: React.FC = () => {
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
-    priority: 'medium' as const,
+    priority: 'medium' as TaskPriority,
     dueDate: '',
     expectedCompletionTime: '',
     scheduledTime: '',
     estimatedTime: 30,
     tags: [] as string[]
   });
+
+  // Priority to defense level mapping with proper typing
+  const priorityToDefenseMap: Record<TaskPriority, DefenseLevel> = {
+    'low': 'low',
+    'medium': 'medium',
+    'high': 'high',
+    'urgent': 'critical'
+  };
 
   // Find critical tasks (80% close to deadline)
   const criticalTasks = tasks.filter(task => {
@@ -132,8 +144,7 @@ const TaskList: React.FC = () => {
       scheduledTime: newTask.scheduledTime ? new Date(newTask.scheduledTime) : undefined,
       estimatedTime: newTask.estimatedTime,
       isDefenseActive: true,
-      defenseLevel: newTask.priority === 'urgent' ? 'critical' : 
-                   newTask.priority === 'high' ? 'high' : 'medium',
+      defenseLevel: priorityToDefenseMap[newTask.priority],
       procrastinationCount: 0
     });
 
@@ -247,7 +258,7 @@ const TaskList: React.FC = () => {
                   </label>
                   <select
                     value={newTask.priority}
-                    onChange={(e) => setNewTask(prev => ({ ...prev, priority: e.target.value as any }))}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, priority: e.target.value as TaskPriority }))}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
                   >
                     <option value="low">Low</option>
@@ -396,7 +407,9 @@ const TaskList: React.FC = () => {
                       }`}>
                         {task.title}
                         {task.isDefenseActive && (
-                          <Shield className="inline h-4 w-4 text-orange-500 ml-2" title="Defense Active" />
+                          <span title="Defense Active" className="ml-2">
+                            <Shield className="inline h-4 w-4 text-orange-500" aria-label="Defense Active" />
+                          </span>
                         )}
                       </h3>
                       
