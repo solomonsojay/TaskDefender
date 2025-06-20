@@ -7,14 +7,13 @@ import {
   UserPlus,
   Crown,
   Mail,
-  Calendar,
   Settings,
   Link
 } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '../../context/AppContext';
 
 const TeamManagement: React.FC = () => {
-  const { user, teams, currentTeam, createTeam, joinTeam } = useApp();
+  const { user, teams, createTeam, joinTeam } = useApp();
   const [activeTab, setActiveTab] = useState<'my-teams' | 'create' | 'join'>('my-teams');
   const [newTeam, setNewTeam] = useState({
     name: '',

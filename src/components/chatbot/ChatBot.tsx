@@ -13,8 +13,8 @@ import {
   Settings,
   Zap
 } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
-import { chatBotService, ChatMessage, QuickAction } from '../../services/ChatBotService';
+import { useApp } from '../../context/AppContext';
+import { ChatMessage } from '../../types';
 
 interface ChatBotProps {
   isOpen: boolean;
@@ -27,7 +27,6 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle }) => {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [quickActions, setQuickActions] = useState<QuickAction[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -48,11 +47,14 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle }) => {
   }, [isOpen, isMinimized]);
 
   const initializeChat = () => {
-    const welcomeMessage = chatBotService.getWelcomeMessage(user);
-    const initialQuickActions = chatBotService.getQuickActions();
+    const welcomeMessage: ChatMessage = {
+      id: 'welcome',
+      text: `🥷 Hey ${user?.name || 'there'}! I'm Ninja, your TaskDefender Assistant! I'm here to help you master productivity and navigate the app like a true ninja warrior!\n\nI can help you with:\n• 🎯 Understanding app features\n• 🚀 Getting started guides\n• 🔧 Troubleshooting issues\n• 💡 Tips and best practices\n• ⚡ Quick actions and shortcuts\n\nWhat would you like to know, productivity warrior?`,
+      sender: 'bot',
+      timestamp: new Date()
+    };
     
     setMessages([welcomeMessage]);
-    setQuickActions(initialQuickActions);
   };
 
   const scrollToBottom = () => {
@@ -77,28 +79,63 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle }) => {
 
     // Simulate typing delay
     setTimeout(async () => {
-      const response = await chatBotService.processMessage(messageText, {
-        user,
-        tasks,
-        currentContext: 'general'
-      });
-
+      const response = await processMessage(messageText);
       setMessages(prev => [...prev, response]);
       setIsTyping(false);
-
-      // Update quick actions based on response
-      const newQuickActions = chatBotService.getContextualQuickActions(messageText);
-      setQuickActions(newQuickActions);
     }, 1000 + Math.random() * 1000); // 1-2 second delay
   };
 
-  const handleQuickAction = (action: QuickAction) => {
-    handleSendMessage(action.message);
+  const processMessage = async (message: string): Promise<ChatMessage> => {
+    const lowerMessage = message.toLowerCase();
+    let response = '';
+
+    // Getting Started
+    if (lowerMessage.includes('getting started') || lowerMessage.includes('get started')) {
+      response = `🥷 **Ninja's Quick Start Guide**\n\n1. **Create Your First Task**: Use Quick Capture on dashboard\n2. **Set Priorities**: Choose from low, medium, high, or urgent\n3. **Start Focusing**: Click the play button to begin a focus session\n4. **Track Progress**: View your analytics in the Analytics tab\n5. **Stay Honest**: Use honesty checkpoints when completing tasks\n\nReady to become a productivity ninja? 🥷⚡`;
+    }
+    // Features Overview
+    else if (lowerMessage.includes('features') || lowerMessage.includes('what can') || lowerMessage.includes('what does')) {
+      response = `🥷 **Ninja's Feature Arsenal**\n\n🎯 **Task Management**: Create, prioritize, and track tasks\n⏰ **Focus Mode**: Pomodoro-style work sessions\n📊 **Analytics**: Daily, weekly, monthly insights\n👥 **Teams**: Collaborate with team members (admin)\n📞 **Voice Calls**: Character-based interventions\n🏆 **Achievements**: Earn badges for milestones\n🔒 **Privacy First**: All data stored locally\n\nWhich ninja skill interests you most? 🥷`;
+    }
+    // Task Management
+    else if (lowerMessage.includes('task') || lowerMessage.includes('create') || lowerMessage.includes('manage')) {
+      response = `🥷 **Ninja Task Mastery**\n\nTaskDefender helps you organize and complete tasks like a true ninja:\n\n• **Create**: Quick capture with smart suggestions\n• **Prioritize**: 4-level priority system with colors\n• **Focus**: Start focus sessions on any task\n• **Track**: Monitor time spent and progress\n• **Complete**: Honesty checkpoints for integrity\n\nWhat ninja skill would you like to master first? 🥷`;
+    }
+    // Focus Mode
+    else if (lowerMessage.includes('focus') || lowerMessage.includes('pomodoro') || lowerMessage.includes('timer')) {
+      response = `🥷 **Ninja Focus Techniques**\n\nMaster the art of deep focus with Pomodoro-style sessions:\n\n**How to Start**:\n1. Click play button next to any task\n2. Or go to Focus Mode tab\n3. Select your task and begin\n\n**Default Settings**:\n• 25 minutes work\n• 5 minutes break\n\n**Ninja Tip**: Use the distraction button to track interruptions and improve! 🥷⚡`;
+    }
+    // Analytics
+    else if (lowerMessage.includes('analytics') || lowerMessage.includes('progress') || lowerMessage.includes('stats') || lowerMessage.includes('streak')) {
+      response = `🥷 **Ninja Analytics Mastery**\n\n**Access**: Go to Analytics tab for detailed insights\n\n**Views Available**:\n• **Weekly**: 7-day overview, consistency\n• **Monthly**: Long-term trends, growth\n• **Yearly**: Annual productivity patterns\n\n**Key Metrics**:\n• Tasks completed\n• Focus time\n• Productivity percentage\n• Consistency score\n• Integrity score\n\nTrack your ninja progress! 🥷📊`;
+    }
+    // Teams
+    else if (lowerMessage.includes('team') || lowerMessage.includes('collaborate') || lowerMessage.includes('admin')) {
+      if (user?.role === 'admin') {
+        response = `🥷 **Ninja Team Leadership** (Admin)\n\n**Creating Teams**:\n1. Go to Teams tab\n2. Click "Create Team"\n3. Enter team name and description\n4. Share invite code with members\n\n**Ninja Features**:\n• Team productivity tracking\n• Member management\n• Role assignments\n• Shared goals\n\nLead your team to productivity victory! 🥷👥`;
+      } else {
+        response = `🥷 **Ninja Team Collaboration**\n\n**Joining a Team**:\n1. Get invite code from team admin\n2. Go to Teams tab\n3. Click "Join Team"\n4. Enter the code\n\n**Team Features**:\n• Shared productivity goals\n• Team analytics\n• Collaborative motivation\n\n*Note: Team creation requires admin privileges*\n\nJoin forces with fellow productivity ninjas! 🥷👥`;
+      }
+    }
+    // Voice Calls
+    else if (lowerMessage.includes('voice') || lowerMessage.includes('call') || lowerMessage.includes('speak')) {
+      response = `🥷 **Ninja Voice Call Arsenal**\n\n**Available Characters**:\n• TaskDefender AI (Default)\n• Concerned Mom\n• Motivational Coach\n• British Assistant\n\n**Voice Options**:\n• American English (Male/Female)\n• British English (Male/Female)\n• Australian English (Male/Female)\n• South African English (Male/Female)\n\n**Setup**: Go to Voice Calls tab to configure your motivational calls! 🥷📞`;
+    }
+    // Default response
+    else {
+      response = `🥷 **Ninja Assistance Available**\n\nI'm here to help you master TaskDefender! I can assist with:\n\n• **Task Management**: Creating, organizing, and completing tasks\n• **Focus Mode**: Pomodoro-style productivity sessions\n• **Analytics**: Tracking your progress and achievements\n• **Voice Calls**: Character-based motivational calls\n• **Teams**: Collaborating with others (admin feature)\n• **Troubleshooting**: Solving common issues\n\nTry asking about any of these topics, or be more specific about what you need help with, fellow ninja! 🥷⚡`;
+    }
+
+    return {
+      id: Date.now().toString(),
+      text: response,
+      sender: 'bot',
+      timestamp: new Date()
+    };
   };
 
   const clearChat = () => {
     setMessages([]);
-    setQuickActions([]);
     initializeChat();
   };
 
@@ -198,19 +235,6 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle }) => {
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
                   }`}>
                     <div className="whitespace-pre-wrap text-xs">{message.text}</div>
-                    {message.actions && message.actions.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {message.actions.map((action, index) => (
-                          <button
-                            key={index}
-                            onClick={() => handleQuickAction(action)}
-                            className="block w-full text-left p-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors duration-200 text-xs"
-                          >
-                            {action.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
                     <div className="text-xs opacity-70 mt-1">
                       {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
@@ -240,22 +264,24 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle }) => {
           </div>
 
           {/* Quick Actions */}
-          {quickActions.length > 0 && (
-            <div className="px-3 pb-2">
-              <div className="flex flex-wrap gap-1">
-                {quickActions.slice(0, 3).map(action => (
-                  <button
-                    key={action.id}
-                    onClick={() => handleQuickAction(action)}
-                    className="flex items-center space-x-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors duration-200 text-xs"
-                  >
-                    <action.icon className="h-2.5 w-2.5" />
-                    <span>{action.label}</span>
-                  </button>
-                ))}
-              </div>
+          <div className="px-3 pb-2">
+            <div className="flex flex-wrap gap-1">
+              {[
+                { icon: Lightbulb, label: 'Features', message: 'What features does TaskDefender have?' },
+                { icon: HelpCircle, label: 'Help', message: 'How do I get started?' },
+                { icon: Zap, label: 'Focus', message: 'How does focus mode work?' }
+              ].map((action, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleSendMessage(action.message)}
+                  className="flex items-center space-x-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors duration-200 text-xs"
+                >
+                  <action.icon className="h-2.5 w-2.5" />
+                  <span>{action.label}</span>
+                </button>
+              ))}
             </div>
-          )}
+          </div>
 
           {/* Input */}
           <div className="p-3 border-t border-gray-200 dark:border-gray-700">

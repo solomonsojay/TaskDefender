@@ -5,23 +5,17 @@ import {
   PhoneOff, 
   Volume2, 
   VolumeX,
-  Crown,
-  Heart,
-  Briefcase,
-  Coffee,
   Settings,
   User,
-  Mic
+  Mic,
+  Play
 } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
-import { useSarcasticPrompts } from '../../hooks/useSarcasticPrompts';
+import { useApp } from '../../context/AppContext';
 
 interface VoiceCharacter {
   id: string;
   name: string;
   description: string;
-  icon: React.ComponentType<any>;
-  color: string;
   scripts: {
     greeting: string[];
     motivation: string[];
@@ -38,15 +32,6 @@ interface VoiceCharacter {
 
 const VoiceCallSystem: React.FC = () => {
   const { user, tasks } = useApp();
-  const { 
-    getCriticalTasks, 
-    getProcrastinatingTasks, 
-    userPersona, 
-    generateNudge, 
-    currentPrompt,
-    dismissPrompt 
-  } = useSarcasticPrompts();
-  
   const [isCallActive, setIsCallActive] = useState(false);
   const [currentCharacter, setCurrentCharacter] = useState<VoiceCharacter | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -54,21 +39,43 @@ const VoiceCallSystem: React.FC = () => {
   const [selectedVoice, setSelectedVoice] = useState<string>('');
   const [callSettings, setCallSettings] = useState({
     enableCalls: true,
-    criticalTaskCalls: true,
-    procrastinationCalls: true,
-    celebrationCalls: true,
-    sarcasticPromptCalls: true,
     callFrequency: 'normal' as 'low' | 'normal' | 'high',
     selectedVoiceId: ''
   });
 
   const characters: VoiceCharacter[] = [
     {
+      id: 'default',
+      name: 'TaskDefender AI',
+      description: 'Your witty productivity assistant',
+      scripts: {
+        greeting: [
+          "Hello there! Your productivity guardian here with a friendly reminder.",
+          "Greetings! I've been monitoring your task situation and thought we should chat.",
+          "Hey! Your AI assistant calling with some observations about your work patterns."
+        ],
+        motivation: [
+          "Those tasks aren't going to complete themselves, you know.",
+          "I see you're practicing the ancient art of productive procrastination.",
+          "Time to channel that energy into actual task completion, don't you think?"
+        ],
+        deadline: [
+          "Your deadline is approaching faster than you might think!",
+          "Time is ticking, and your tasks are still waiting patiently.",
+          "Urgent alert: Your deadline needs some serious attention!"
+        ],
+        completion: [
+          "Excellent work! I knew you had it in you.",
+          "Task completed! Your productivity score just got a nice boost.",
+          "Well done! That's the kind of progress I like to see."
+        ]
+      },
+      voiceSettings: { rate: 1.0, pitch: 1.0, volume: 0.8, preferredVoice: 'neutral' }
+    },
+    {
       id: 'mom',
       name: 'Concerned Mom',
       description: 'Loving but disappointed maternal figure',
-      icon: Heart,
-      color: 'text-pink-600',
       scripts: {
         greeting: [
           "Hi sweetie, it's Mom. I noticed you haven't been working on your tasks...",
@@ -94,124 +101,60 @@ const VoiceCallSystem: React.FC = () => {
       voiceSettings: { rate: 0.9, pitch: 1.3, volume: 0.8, preferredVoice: 'female' }
     },
     {
-      id: 'gordon',
-      name: 'Gordon Ramsay',
-      description: 'Intense chef with colorful motivation',
-      icon: Crown,
-      color: 'text-red-600',
+      id: 'coach',
+      name: 'Motivational Coach',
+      description: 'Intense motivational speaker',
       scripts: {
         greeting: [
-          "RIGHT! What are you doing sitting there like a muppet?!",
-          "Listen here, you donkey! Your tasks are RAW! Absolutely RAW!",
-          "WHAT ARE YOU WAITING FOR?! Christmas?! GET MOVING!"
+          "RIGHT! What are you doing sitting there like that?!",
+          "Listen here, champion! Your tasks are waiting for a WINNER!",
+          "WHAT ARE YOU WAITING FOR?! Let's GET MOVING!"
         ],
         motivation: [
-          "This is absolutely PATHETIC! You call this productivity?!",
-          "I've seen snails move faster than your task completion rate!",
-          "GET YOUR HEAD OUT OF THE CLOUDS AND FOCUS!"
+          "This is your moment! Show those tasks who's BOSS!",
+          "I've seen champions move faster than your task completion rate!",
+          "GET YOUR HEAD IN THE GAME AND FOCUS!"
         ],
         deadline: [
           "YOUR DEADLINE IS BREATHING DOWN YOUR NECK! MOVE! MOVE! MOVE!",
-          "This is a DISASTER! You're running out of time like a headless chicken!",
-          "WAKE UP! Your deadline isn't going to wait for your beauty sleep!"
+          "This is CRUNCH TIME! You're running out of time!",
+          "WAKE UP! Your deadline isn't going to wait!"
         ],
         completion: [
-          "Finally! Some good productivity! You've redeemed yourself... barely.",
+          "Finally! Some REAL productivity! You've redeemed yourself!",
           "Well done! That's what I'm talking about! More of that!",
-          "BRILLIANT! Now that's how you get things done properly!"
+          "BRILLIANT! Now that's how you get things done!"
         ]
       },
       voiceSettings: { rate: 1.3, pitch: 0.7, volume: 0.9, preferredVoice: 'male' }
     },
     {
-      id: 'hr',
-      name: 'Corporate HR',
-      description: 'Professional buzzword enthusiast',
-      icon: Briefcase,
-      color: 'text-blue-600',
+      id: 'british',
+      name: 'British Assistant',
+      description: 'Polite but firm British assistant',
       scripts: {
         greeting: [
-          "Hi there! This is a courtesy call regarding your task completion metrics.",
-          "Good day! We need to circle back on your deliverable timeline.",
-          "Hello! I'm reaching out to touch base about your productivity KPIs."
+          "Good day! I do hope you're well. Shall we discuss your pending tasks?",
+          "Hello there! I'm afraid we need to have a word about your productivity.",
+          "Right then, I believe it's time we addressed your task situation."
         ],
         motivation: [
-          "We need to leverage your core competencies to drive results.",
-          "Let's synergize your efforts to maximize your output potential.",
-          "It's time to think outside the box and move the needle on these tasks."
+          "I say, those tasks won't complete themselves, will they?",
+          "Perhaps it's time to crack on with some proper work?",
+          "Come now, let's show these tasks what you're made of!"
         ],
         deadline: [
-          "Per our timeline analysis, we're seeing some concerning metrics around your deliverables.",
-          "We need to escalate this to ensure we meet our committed deadlines.",
-          "This is a high-priority action item that requires immediate bandwidth allocation."
+          "I'm terribly sorry to inform you that your deadline is rather urgent.",
+          "Time is of the essence, I'm afraid. Do get a move on!",
+          "Your deadline approaches with alarming speed, old chap!"
         ],
         completion: [
-          "Excellent work! This really moves the needle on our productivity metrics.",
-          "Outstanding! You've exceeded expectations and delivered value-added results.",
-          "Great job! This aligns perfectly with our strategic objectives."
+          "Splendid work! Absolutely brilliant, if I may say so.",
+          "Well done indeed! That's the spirit we like to see.",
+          "Excellent! You've done yourself proud there."
         ]
       },
-      voiceSettings: { rate: 1.0, pitch: 1.0, volume: 0.7, preferredVoice: 'female' }
-    },
-    {
-      id: 'passive-aggressive',
-      name: 'Passive Aggressive Friend',
-      description: 'Subtly judgmental with backhanded compliments',
-      icon: Coffee,
-      color: 'text-purple-600',
-      scripts: {
-        greeting: [
-          "Oh hi! Don't mind me calling, I just thought you might want to know about your tasks...",
-          "Hey there! I hope I'm not interrupting your... busy schedule.",
-          "Hi! I was just wondering if you remembered you have things to do today..."
-        ],
-        motivation: [
-          "I mean, I'm sure you have your reasons for not working on your tasks...",
-          "It's totally fine that you're taking your time. Some people work differently.",
-          "Oh, you're still on that task? That's... interesting. Take your time!"
-        ],
-        deadline: [
-          "I'm sure you're aware your deadline is coming up. Not that I'm worried or anything.",
-          "Just thought you should know time is running out. But I'm sure you have it handled!",
-          "Your deadline is approaching, but hey, you probably work better under pressure, right?"
-        ],
-        completion: [
-          "Wow, you actually finished! I mean, it only took forever, but who's counting?",
-          "Look at you being all productive! Better late than never, I suppose.",
-          "Congratulations! You did the thing you were supposed to do. Amazing!"
-        ]
-      },
-      voiceSettings: { rate: 0.95, pitch: 1.1, volume: 0.8, preferredVoice: 'female' }
-    },
-    {
-      id: 'default',
-      name: 'TaskDefender AI',
-      description: 'Your witty productivity assistant',
-      icon: User,
-      color: 'text-orange-600',
-      scripts: {
-        greeting: [
-          "Hello there! Your productivity guardian here with a friendly reminder.",
-          "Greetings! I've been monitoring your task situation and thought we should chat.",
-          "Hey! Your AI assistant calling with some observations about your work patterns."
-        ],
-        motivation: [
-          "Those tasks aren't going to complete themselves, you know.",
-          "I see you're practicing the ancient art of productive procrastination.",
-          "Time to channel that energy into actual task completion, don't you think?"
-        ],
-        deadline: [
-          "Your deadline is approaching faster than you might think!",
-          "Time is ticking, and your tasks are still waiting patiently.",
-          "Urgent alert: Your deadline needs some serious attention!"
-        ],
-        completion: [
-          "Excellent work! I knew you had it in you.",
-          "Task completed! Your productivity score just got a nice boost.",
-          "Well done! That's the kind of progress I like to see."
-        ]
-      },
-      voiceSettings: { rate: 1.0, pitch: 1.0, volume: 0.8, preferredVoice: 'neutral' }
+      voiceSettings: { rate: 1.0, pitch: 1.0, volume: 0.8, preferredVoice: 'british' }
     }
   ];
 
@@ -256,85 +199,42 @@ const VoiceCallSystem: React.FC = () => {
     localStorage.setItem('taskdefender_voice_settings', JSON.stringify(settingsToSave));
   }, [callSettings, selectedVoice]);
 
-  // Listen for sarcastic prompts and convert to voice calls
-  useEffect(() => {
-    if (!callSettings.enableCalls || !callSettings.sarcasticPromptCalls || !currentPrompt) return;
+  const findBestVoice = (character: VoiceCharacter): SpeechSynthesisVoice | null => {
+    if (availableVoices.length === 0) return null;
 
-    const shouldMakeCall = Math.random() < 0.3;
-    if (shouldMakeCall && !isCallActive) {
-      const matchingCharacter = characters.find(char => char.id === userPersona) || 
-                               characters.find(char => char.id === 'default');
-      
-      if (matchingCharacter) {
-        setCurrentCharacter(matchingCharacter);
-        setIsCallActive(true);
-        
-        setTimeout(() => {
-          speakSarcasticPrompt(matchingCharacter, currentPrompt.message);
-        }, 1000);
-        
-        setTimeout(() => {
-          dismissPrompt();
-        }, 2000);
-      }
+    if (selectedVoice) {
+      const userVoice = availableVoices.find(voice => voice.name === selectedVoice);
+      if (userVoice) return userVoice;
     }
-  }, [currentPrompt, callSettings, userPersona, isCallActive]);
 
-  // Check for call triggers
-  useEffect(() => {
-    if (!callSettings.enableCalls) return;
-
-    const checkForCalls = () => {
-      const criticalTasks = getCriticalTasks();
-      const procrastinatingTasks = getProcrastinatingTasks();
-
-      if (callSettings.criticalTaskCalls && criticalTasks.length > 0) {
-        const shouldCall = Math.random() < 0.3;
-        if (shouldCall) {
-          initiateCall('deadline');
-        }
-      }
-
-      if (callSettings.procrastinationCalls && procrastinatingTasks.length > 0) {
-        const shouldCall = Math.random() < 0.2;
-        if (shouldCall) {
-          initiateCall('motivation');
-        }
-      }
-    };
-
-    const intervals = {
-      low: 30 * 60 * 1000,
-      normal: 20 * 60 * 1000,
-      high: 10 * 60 * 1000
-    };
-
-    const interval = setInterval(checkForCalls, intervals[callSettings.callFrequency]);
-    return () => clearInterval(interval);
-  }, [callSettings, getCriticalTasks, getProcrastinatingTasks]);
-
-  const initiateCall = (type: 'greeting' | 'motivation' | 'deadline' | 'completion') => {
-    if (isCallActive || !('speechSynthesis' in window)) return;
-
-    const preferredCharacter = characters.find(char => char.id === userPersona) || 
-                              characters[Math.floor(Math.random() * characters.length)];
+    const preferredGender = character.voiceSettings.preferredVoice;
     
-    setCurrentCharacter(preferredCharacter);
-    setIsCallActive(true);
+    const matchingVoices = availableVoices.filter(voice => {
+      const voiceName = voice.name.toLowerCase();
+      const voiceLang = voice.lang.toLowerCase();
+      
+      if (preferredGender === 'female') {
+        return voiceName.includes('female') || voiceName.includes('woman') || 
+               voiceName.includes('samantha') || voiceName.includes('victoria') ||
+               voiceName.includes('karen') || voiceName.includes('susan') ||
+               voiceName.includes('zira') || voiceName.includes('hazel');
+      } else if (preferredGender === 'male') {
+        return voiceName.includes('male') || voiceName.includes('man') || 
+               voiceName.includes('daniel') || voiceName.includes('alex') ||
+               voiceName.includes('tom') || voiceName.includes('fred') ||
+               voiceName.includes('david') || voiceName.includes('mark');
+      } else if (preferredGender === 'british') {
+        return voiceLang.includes('en-gb') || voiceName.includes('british') ||
+               voiceName.includes('daniel') || voiceName.includes('kate');
+      }
+      return true;
+    });
 
-    setTimeout(() => {
-      speakScript(preferredCharacter, type);
-    }, 1000);
-  };
+    if (matchingVoices.length > 0) {
+      return matchingVoices[0];
+    }
 
-  const speakScript = (character: VoiceCharacter, type: keyof VoiceCharacter['scripts']) => {
-    const scripts = character.scripts[type];
-    const script = scripts[Math.floor(Math.random() * scripts.length)];
-    speakText(character, script);
-  };
-
-  const speakSarcasticPrompt = (character: VoiceCharacter, message: string) => {
-    speakText(character, message);
+    return availableVoices[0];
   };
 
   const speakText = (character: VoiceCharacter, text: string) => {
@@ -364,37 +264,10 @@ const VoiceCallSystem: React.FC = () => {
     window.speechSynthesis.speak(utterance);
   };
 
-  const findBestVoice = (character: VoiceCharacter): SpeechSynthesisVoice | null => {
-    if (availableVoices.length === 0) return null;
-
-    if (selectedVoice) {
-      const userVoice = availableVoices.find(voice => voice.name === selectedVoice);
-      if (userVoice) return userVoice;
-    }
-
-    const preferredGender = character.voiceSettings.preferredVoice;
-    
-    const matchingVoices = availableVoices.filter(voice => {
-      const voiceName = voice.name.toLowerCase();
-      if (preferredGender === 'female') {
-        return voiceName.includes('female') || voiceName.includes('woman') || 
-               voiceName.includes('samantha') || voiceName.includes('victoria') ||
-               voiceName.includes('karen') || voiceName.includes('susan') ||
-               voiceName.includes('zira') || voiceName.includes('hazel');
-      } else if (preferredGender === 'male') {
-        return voiceName.includes('male') || voiceName.includes('man') || 
-               voiceName.includes('daniel') || voiceName.includes('alex') ||
-               voiceName.includes('tom') || voiceName.includes('fred') ||
-               voiceName.includes('david') || voiceName.includes('mark');
-      }
-      return true;
-    });
-
-    if (matchingVoices.length > 0) {
-      return matchingVoices[0];
-    }
-
-    return availableVoices[0];
+  const speakScript = (character: VoiceCharacter, type: keyof VoiceCharacter['scripts']) => {
+    const scripts = character.scripts[type];
+    const script = scripts[Math.floor(Math.random() * scripts.length)];
+    speakText(character, script);
   };
 
   const endCall = () => {
@@ -410,20 +283,6 @@ const VoiceCallSystem: React.FC = () => {
       setCurrentCharacter(character);
       setIsCallActive(true);
       setTimeout(() => speakScript(character, type), 500);
-    }
-  };
-
-  const testSarcasticPrompt = () => {
-    generateNudge();
-    
-    if (currentPrompt) {
-      const character = characters.find(char => char.id === userPersona) || 
-                       characters.find(char => char.id === 'default');
-      if (character) {
-        setCurrentCharacter(character);
-        setIsCallActive(true);
-        setTimeout(() => speakSarcasticPrompt(character, currentPrompt.message), 500);
-      }
     }
   };
 
@@ -474,6 +333,12 @@ const VoiceCallSystem: React.FC = () => {
     return { gender, accent };
   };
 
+  // Filter voices to show only English variants
+  const englishVoices = availableVoices.filter(voice => 
+    voice.lang.startsWith('en-') && 
+    (voice.lang.includes('US') || voice.lang.includes('GB') || voice.lang.includes('AU') || voice.lang.includes('ZA'))
+  );
+
   return (
     <div className="space-y-6">
       {/* Active Call Interface */}
@@ -484,7 +349,7 @@ const VoiceCallSystem: React.FC = () => {
               <div className={`bg-gray-100 dark:bg-gray-700 p-6 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center ${
                 isSpeaking ? 'animate-pulse' : ''
               }`}>
-                <currentCharacter.icon className={`h-12 w-12 ${currentCharacter.color}`} />
+                <User className="h-12 w-12 text-orange-500" />
               </div>
 
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
@@ -547,7 +412,7 @@ const VoiceCallSystem: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Select Voice ({availableVoices.length} available)
+              Select Voice ({englishVoices.length} available)
             </label>
             <select
               value={selectedVoice}
@@ -555,7 +420,7 @@ const VoiceCallSystem: React.FC = () => {
               className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
             >
               <option value="">Default System Voice</option>
-              {availableVoices.map(voice => {
+              {englishVoices.map(voice => {
                 const { gender, accent } = getVoiceInfo(voice);
                 return (
                   <option key={voice.name} value={voice.name}>
@@ -577,10 +442,10 @@ const VoiceCallSystem: React.FC = () => {
           </div>
         </div>
 
-        {availableVoices.length === 0 && (
+        {englishVoices.length === 0 && (
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl p-4">
             <p className="text-yellow-700 dark:text-yellow-400 text-sm">
-              ⚠️ No voices detected. Speech synthesis may not be available in your browser or system.
+              ⚠️ No English voices detected. Speech synthesis may not be available in your browser or system.
             </p>
           </div>
         )}
@@ -609,48 +474,6 @@ const VoiceCallSystem: React.FC = () => {
             </label>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Critical Tasks</span>
-              <input
-                type="checkbox"
-                checked={callSettings.criticalTaskCalls}
-                onChange={(e) => setCallSettings(prev => ({ ...prev, criticalTaskCalls: e.target.checked }))}
-                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-              />
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Procrastination</span>
-              <input
-                type="checkbox"
-                checked={callSettings.procrastinationCalls}
-                onChange={(e) => setCallSettings(prev => ({ ...prev, procrastinationCalls: e.target.checked }))}
-                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-              />
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Celebrations</span>
-              <input
-                type="checkbox"
-                checked={callSettings.celebrationCalls}
-                onChange={(e) => setCallSettings(prev => ({ ...prev, celebrationCalls: e.target.checked }))}
-                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-              />
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sarcasm Engine</span>
-              <input
-                type="checkbox"
-                checked={callSettings.sarcasticPromptCalls}
-                onChange={(e) => setCallSettings(prev => ({ ...prev, sarcasticPromptCalls: e.target.checked }))}
-                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-              />
-            </div>
-          </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Call Frequency
@@ -666,63 +489,39 @@ const VoiceCallSystem: React.FC = () => {
             </select>
           </div>
         </div>
-
-        {/* Sarcasm Engine Integration Info */}
-        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl p-4 mb-6">
-          <h4 className="font-medium text-orange-700 dark:text-orange-400 mb-2">
-            🤖 Sarcasm Engine Integration
-          </h4>
-          <p className="text-sm text-orange-600 dark:text-orange-300 mb-3">
-            When enabled, sarcastic prompts from your AI assistant will sometimes be converted to voice calls using your selected persona character. 
-            Current persona: <strong>{userPersona.charAt(0).toUpperCase() + userPersona.slice(1).replace('-', ' ')}</strong>
-          </p>
-          <button
-            onClick={testSarcasticPrompt}
-            className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors duration-200 text-sm"
-          >
-            Test Sarcastic Voice Call
-          </button>
-        </div>
       </div>
 
-      {/* Character Previews - FIXED GRID */}
+      {/* Character Previews */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           Available Characters
         </h3>
         
-        {/* FIXED: Smaller grid with better spacing */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {characters.map(character => (
-            <div key={character.id} className={`bg-gray-50 dark:bg-gray-700 rounded-xl p-3 ${
-              character.id === userPersona ? 'ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-900/20' : ''
-            }`}>
-              <div className="flex flex-col items-center text-center space-y-2">
-                <div className="p-2 bg-white dark:bg-gray-800 rounded-lg">
-                  <character.icon className={`h-5 w-5 ${character.color}`} />
+            <div key={character.id} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+              <div className="flex flex-col items-center text-center space-y-3">
+                <div className="p-3 bg-white dark:bg-gray-800 rounded-lg">
+                  <User className="h-6 w-6 text-orange-500" />
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
                     {character.name}
-                    {character.id === userPersona && (
-                      <span className="block text-xs bg-orange-500 text-white px-2 py-1 rounded-full mt-1">
-                        Current
-                      </span>
-                    )}
                   </h4>
                   <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{character.description}</p>
                 </div>
                 
-                <div className="flex flex-col space-y-1 w-full">
+                <div className="flex flex-col space-y-2 w-full">
                   <button
                     onClick={() => testCall(character.id, 'greeting')}
-                    className="w-full bg-blue-500 text-white py-1 px-2 rounded-lg text-xs hover:bg-blue-600 transition-colors duration-200"
+                    className="w-full bg-blue-500 text-white py-2 px-3 rounded-lg text-xs hover:bg-blue-600 transition-colors duration-200 flex items-center justify-center space-x-1"
                   >
-                    Test Call
+                    <Play className="h-3 w-3" />
+                    <span>Test Call</span>
                   </button>
                   <button
                     onClick={() => testCall(character.id, 'motivation')}
-                    className="w-full bg-orange-500 text-white py-1 px-2 rounded-lg text-xs hover:bg-orange-600 transition-colors duration-200"
+                    className="w-full bg-orange-500 text-white py-2 px-3 rounded-lg text-xs hover:bg-orange-600 transition-colors duration-200"
                   >
                     Motivation
                   </button>

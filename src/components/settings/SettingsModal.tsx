@@ -5,9 +5,10 @@ import {
   Bell,
   Moon,
   Sun,
-  Save
+  Save,
+  Building
 } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '../../context/AppContext';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -15,19 +16,45 @@ interface SettingsModalProps {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const { user, theme, setTheme } = useApp();
-  const [activeTab, setActiveTab] = useState<'profile' | 'notifications'>('profile');
+  const { user, theme, setTheme, updateProfile } = useApp();
+  const [activeTab, setActiveTab] = useState<'profile' | 'organization' | 'notifications'>('profile');
+  const [profileData, setProfileData] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    username: user?.username || '',
+    workStyle: user?.workStyle || 'focused',
+  });
+  const [orgData, setOrgData] = useState({
+    organizationName: user?.organizationName || '',
+    organizationType: user?.organizationType || '',
+    organizationIndustry: user?.organizationIndustry || '',
+    organizationSize: user?.organizationSize || '',
+    userRoleInOrg: user?.userRoleInOrg || '',
+    organizationWebsite: user?.organizationWebsite || '',
+    organizationDescription: user?.organizationDescription || '',
+  });
 
   if (!isOpen) return null;
 
+  const handleSaveProfile = () => {
+    updateProfile(profileData);
+    onClose();
+  };
+
+  const handleSaveOrganization = () => {
+    updateProfile(orgData);
+    onClose();
+  };
+
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
+    ...(user?.role === 'admin' ? [{ id: 'organization', label: 'Organization', icon: Building }] : []),
     { id: 'notifications', label: 'Notifications', icon: Bell },
   ];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
@@ -91,7 +118,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                       </label>
                       <input
                         type="text"
-                        defaultValue={user?.name || ''}
+                        value={profileData.name}
+                        onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
                         className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
                       />
                     </div>
@@ -102,7 +130,20 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                       </label>
                       <input
                         type="email"
-                        defaultValue={user?.email || ''}
+                        value={profileData.email}
+                        onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Username
+                      </label>
+                      <input
+                        type="text"
+                        value={profileData.username}
+                        onChange={(e) => setProfileData({ ...profileData, username: e.target.value })}
                         className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
                       />
                     </div>
@@ -146,7 +187,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         Work Style
                       </label>
                       <select
-                        defaultValue={user?.workStyle || 'focused'}
+                        value={profileData.workStyle}
+                        onChange={(e) => setProfileData({ ...profileData, workStyle: e.target.value as any })}
                         className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
                       >
                         <option value="focused">Deep Focus</option>
@@ -157,7 +199,140 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   </div>
                 </div>
 
-                <button className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center space-x-2">
+                <button 
+                  onClick={handleSaveProfile}
+                  className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center space-x-2"
+                >
+                  <Save className="h-4 w-4" />
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            )}
+
+            {activeTab === 'organization' && user?.role === 'admin' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Organization Details
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">
+                    Manage your organization information and settings
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Organization Name
+                    </label>
+                    <input
+                      type="text"
+                      value={orgData.organizationName}
+                      onChange={(e) => setOrgData({ ...orgData, organizationName: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Organization Type
+                    </label>
+                    <select
+                      value={orgData.organizationType}
+                      onChange={(e) => setOrgData({ ...orgData, organizationType: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    >
+                      <option value="">Select type</option>
+                      <option value="startup">Startup</option>
+                      <option value="sme">Small/Medium Enterprise</option>
+                      <option value="enterprise">Large Enterprise</option>
+                      <option value="non-profit">Non-Profit</option>
+                      <option value="government">Government</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Industry
+                    </label>
+                    <select
+                      value={orgData.organizationIndustry}
+                      onChange={(e) => setOrgData({ ...orgData, organizationIndustry: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    >
+                      <option value="">Select industry</option>
+                      <option value="technology">Technology</option>
+                      <option value="healthcare">Healthcare</option>
+                      <option value="finance">Finance</option>
+                      <option value="education">Education</option>
+                      <option value="manufacturing">Manufacturing</option>
+                      <option value="retail">Retail</option>
+                      <option value="consulting">Consulting</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Organization Size
+                    </label>
+                    <select
+                      value={orgData.organizationSize}
+                      onChange={(e) => setOrgData({ ...orgData, organizationSize: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    >
+                      <option value="">Select size</option>
+                      <option value="1-10">1-10 employees</option>
+                      <option value="11-50">11-50 employees</option>
+                      <option value="51-200">51-200 employees</option>
+                      <option value="201-1000">201-1000 employees</option>
+                      <option value="1000+">1000+ employees</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Your Role
+                    </label>
+                    <input
+                      type="text"
+                      value={orgData.userRoleInOrg}
+                      onChange={(e) => setOrgData({ ...orgData, userRoleInOrg: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Website (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      value={orgData.organizationWebsite}
+                      onChange={(e) => setOrgData({ ...orgData, organizationWebsite: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    value={orgData.organizationDescription}
+                    onChange={(e) => setOrgData({ ...orgData, organizationDescription: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200 resize-none"
+                    rows={3}
+                    placeholder="Brief description of your organization"
+                  />
+                </div>
+
+                <button 
+                  onClick={handleSaveOrganization}
+                  className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center space-x-2"
+                >
                   <Save className="h-4 w-4" />
                   <span>Save Changes</span>
                 </button>

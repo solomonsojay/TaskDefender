@@ -10,9 +10,9 @@ import {
   Crown,
   Building
 } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '../../context/AppContext';
 import { User as UserType } from '../../types';
-import Logo from '../common/Logo';
+import Logo from '../Logo';
 
 const OnboardingFlow: React.FC = () => {
   const { setUser, dispatch } = useApp();
@@ -127,6 +127,14 @@ const OnboardingFlow: React.FC = () => {
         return formData.goals.length > 0;
       case 4:
         return formData.workStyle;
+      case 5:
+        return formData.role !== 'admin' || (
+          formData.organizationName &&
+          formData.organizationType &&
+          formData.organizationIndustry &&
+          formData.organizationSize &&
+          formData.userRoleInOrg
+        );
       default:
         return false;
     }
@@ -156,7 +164,7 @@ const OnboardingFlow: React.FC = () => {
                 <Logo size="md" className="text-orange-500" />
               </div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                Welcome to Task Defender
+                Welcome to TaskDefender
               </h1>
               <p className="text-gray-600 dark:text-gray-300 mb-8">
                 Your last line of defense against procrastination
@@ -335,6 +343,113 @@ const OnboardingFlow: React.FC = () => {
                     </div>
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {step === 5 && formData.role === 'admin' && (
+            <div>
+              <div className="text-center mb-6">
+                <div className="bg-blue-500/20 p-3 rounded-full w-16 h-16 mx-auto mb-4">
+                  <Building className="h-10 w-10 text-blue-500 mx-auto" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                  Organization Details
+                </h2>
+                <p className="text-gray-600 dark:text-gray-300">
+                  Tell us about your organization
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Organization Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.organizationName}
+                    onChange={(e) => updateFormData({ organizationName: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    placeholder="Enter organization name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Organization Type *
+                  </label>
+                  <select
+                    required
+                    value={formData.organizationType}
+                    onChange={(e) => updateFormData({ organizationType: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                  >
+                    <option value="">Select type</option>
+                    <option value="startup">Startup</option>
+                    <option value="sme">Small/Medium Enterprise</option>
+                    <option value="enterprise">Large Enterprise</option>
+                    <option value="non-profit">Non-Profit</option>
+                    <option value="government">Government</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Industry *
+                  </label>
+                  <select
+                    required
+                    value={formData.organizationIndustry}
+                    onChange={(e) => updateFormData({ organizationIndustry: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                  >
+                    <option value="">Select industry</option>
+                    <option value="technology">Technology</option>
+                    <option value="healthcare">Healthcare</option>
+                    <option value="finance">Finance</option>
+                    <option value="education">Education</option>
+                    <option value="manufacturing">Manufacturing</option>
+                    <option value="retail">Retail</option>
+                    <option value="consulting">Consulting</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Organization Size *
+                  </label>
+                  <select
+                    required
+                    value={formData.organizationSize}
+                    onChange={(e) => updateFormData({ organizationSize: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                  >
+                    <option value="">Select size</option>
+                    <option value="1-10">1-10 employees</option>
+                    <option value="11-50">11-50 employees</option>
+                    <option value="51-200">51-200 employees</option>
+                    <option value="201-1000">201-1000 employees</option>
+                    <option value="1000+">1000+ employees</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Your Role *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.userRoleInOrg}
+                    onChange={(e) => updateFormData({ userRoleInOrg: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    placeholder="e.g., CEO, Manager, Developer"
+                  />
+                </div>
               </div>
             </div>
           )}

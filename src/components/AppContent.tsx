@@ -1,32 +1,17 @@
-import React from 'react';
-import { useApp } from '../contexts/AppContext';
-import Header from './common/Header';
-import Dashboard from './dashboard/Dashboard';
-import TaskList from './tasks/TaskList';
-import AchievementSystem from './dashboard/AchievementSystem';
-import FocusMode from './focus/FocusMode';
+import React, { useState } from 'react';
+import { useApp } from '../context/AppContext';
+import Header from './Header';
+import Dashboard from './Dashboard';
+import TaskList from './TaskList';
+import FocusMode from './FocusMode';
 import TeamManagement from './teams/TeamManagement';
-import UserAnalytics from './analytics/UserAnalytics';
+import Analytics from './analytics/Analytics';
 import VoiceCallSystem from './voice/VoiceCallSystem';
 import ChatBot from './chatbot/ChatBot';
-import BoltBadge from './common/BoltBadge';
 
 const AppContent: React.FC = () => {
-  const [currentView, setCurrentView] = React.useState<'dashboard' | 'tasks' | 'achievements' | 'focus' | 'teams' | 'analytics' | 'voice-calls'>('dashboard');
-  const [isChatBotOpen, setIsChatBotOpen] = React.useState(false);
-  const [hasShownIntro, setHasShownIntro] = React.useState(false);
-
-  // Show Ninja introduction once
-  React.useEffect(() => {
-    const hasSeenIntro = localStorage.getItem('taskdefender_ninja_intro');
-    if (!hasSeenIntro && !hasShownIntro) {
-      setTimeout(() => {
-        setIsChatBotOpen(true);
-        setHasShownIntro(true);
-        localStorage.setItem('taskdefender_ninja_intro', 'true');
-      }, 2000); // Show after 2 seconds
-    }
-  }, [hasShownIntro]);
+  const [currentView, setCurrentView] = useState<'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics' | 'voice-calls'>('dashboard');
+  const [isChatBotOpen, setIsChatBotOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
@@ -39,10 +24,10 @@ const AppContent: React.FC = () => {
             {[
               { id: 'dashboard', label: 'Dashboard' },
               { id: 'tasks', label: 'Tasks' },
-              { id: 'achievements', label: 'Achievements' },
               { id: 'focus', label: 'Focus Mode' },
               { id: 'voice-calls', label: 'Voice Calls' },
               { id: 'analytics', label: 'Analytics' },
+              { id: 'teams', label: 'Teams' },
             ].map(item => (
               <button
                 key={item.id}
@@ -63,11 +48,10 @@ const AppContent: React.FC = () => {
         <main>
           {currentView === 'dashboard' && <Dashboard />}
           {currentView === 'tasks' && <TaskList />}
-          {currentView === 'achievements' && <AchievementSystem />}
           {currentView === 'focus' && <FocusMode />}
           {currentView === 'voice-calls' && <VoiceCallSystem />}
+          {currentView === 'analytics' && <Analytics />}
           {currentView === 'teams' && <TeamManagement />}
-          {currentView === 'analytics' && <UserAnalytics />}
         </main>
       </div>
 
@@ -76,9 +60,6 @@ const AppContent: React.FC = () => {
         isOpen={isChatBotOpen} 
         onToggle={() => setIsChatBotOpen(!isChatBotOpen)} 
       />
-
-      {/* Bolt.new Badge */}
-      <BoltBadge />
     </div>
   );
 };

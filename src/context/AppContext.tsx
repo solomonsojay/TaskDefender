@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { AppState, Task, User, Theme, FocusSession } from '../types';
+import { AppState, Task, User, Theme, FocusSession, Team } from '../types';
 
 interface AppContextType extends AppState {
   dispatch: React.Dispatch<AppAction>;
@@ -10,6 +10,9 @@ interface AppContextType extends AppState {
   setTheme: (theme: Theme) => void;
   startFocusSession: (taskId: string) => void;
   endFocusSession: () => void;
+  createTeam: (team: Omit<Team, 'id' | 'createdAt' | 'inviteCode'>) => void;
+  joinTeam: (inviteCode: string) => void;
+  updateProfile: (updates: Partial<User>) => void;
 }
 
 type AppAction =
@@ -20,22 +23,20 @@ type AppAction =
   | { type: 'DELETE_TASK'; payload: string }
   | { type: 'SET_TASKS'; payload: Task[] }
   | { type: 'START_FOCUS_SESSION'; payload: FocusSession }
-  | { type: 'END_FOCUS_SESSION' };
+  | { type: 'END_FOCUS_SESSION' }
+  | { type: 'CREATE_TEAM'; payload: Team }
+  | { type: 'JOIN_TEAM'; payload: Team }
+  | { type: 'SET_TEAMS'; payload: Team[] }
+  | { type: 'COMPLETE_ONBOARDING' }
+  | { type: 'START_ONBOARDING' };
 
 const initialState: AppState = {
-  user: {
-    id: 'default-user',
-    name: 'Productivity Warrior',
-    email: 'warrior@taskdefender.com',
-    username: 'warrior',
-    role: 'user',
-    integrityScore: 100,
-    streak: 0,
-    createdAt: new Date(),
-  },
+  user: null,
   tasks: [],
+  teams: [],
   focusSession: null,
   theme: 'light',
+  isOnboarding: true,
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
@@ -66,6 +67,16 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       return { ...state, focusSession: action.payload };
     case 'END_FOCUS_SESSION':
       return { ...state, focusSession: null };
+    case 'CREATE_TEAM':
+      return { ...state, teams: [...state.teams, action.payload] };
+    case 'JOIN_TEAM':
+      return { ...state, teams: [...state.teams, action.payload] };
+    case 'SET_TEAMS':
+      return { ...state, teams: action.payload };
+    case 'COMPLETE_ONBOARDING':
+      return { ...state, isOnboarding: false };
+    case 'START_ONBOARDING':
+      return { ...state, isOnboarding: true };
     default:
       return state;
   }
@@ -87,8 +98,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Load data from localStorage on mount
   useEffect(() => {
     const savedTasks = localStorage.getItem('taskdefender_tasks');
+    const savedTeams = localStorage.getItem('taskdefender_teams');
     const savedTheme = localStorage.getItem('theme') as Theme;
     const savedUser = localStorage.getItem('taskdefender_user');
+    const hasCompletedOnboarding = localStorage.getItem('taskdefender_onboarding_completed');
+
+    if (hasCompletedOnboarding === 'true') {
+      dispatch({ type: 'COMPLETE_ONBOARDING' });
+    }
 
     if (savedUser) {
       try {
@@ -113,6 +130,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
+    if (savedTeams) {
+      try {
+        const teams = JSON.parse(savedTeams).map((team: any) => ({
+          ...team,
+          createdAt: new Date(team.createdAt),
+          members: team.members.map((member: any) => ({
+            ...member,
+            joinedAt: new Date(member.joinedAt)
+          }))
+        }));
+        dispatch({ type: 'SET_TEAMS', payload: teams });
+      } catch (error) {
+        console.error('Failed to load teams:', error);
+      }
+    }
+
     if (savedTheme) {
       dispatch({ type: 'SET_THEME', payload: savedTheme });
     }
@@ -130,6 +163,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [state.tasks]);
 
   useEffect(() => {
+    localStorage.setItem('taskdefender_teams', JSON.stringify(state.teams));
+  }, [state.teams]);
+
+  useEffect(() => {
     localStorage.setItem('theme', state.theme);
     if (state.theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -137,6 +174,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       document.documentElement.classList.remove('dark');
     }
   }, [state.theme]);
+
+  useEffect(() => {
+    localStorage.setItem('taskdefender_onboarding_completed', state.isOnboarding ? 'false' : 'true');
+  }, [state.isOnboarding]);
 
   const addTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'userId'>) => {
     const task: Task = {
@@ -181,6 +222,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     dispatch({ type: 'END_FOCUS_SESSION' });
   };
 
+  const createTeam = (teamData: Omit<Team, 'id' | 'createdAt' | 'inviteCode'>) => {
+    const team: Team = {
+      ...teamData,
+      id: Date.now().toString(),
+      createdAt: new Date(),
+      inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+    };
+    dispatch({ type: 'CREATE_TEAM', payload: team });
+  };
+
+  const joinTeam = (inviteCode: string) => {
+    // Mock team joining
+    const mockTeam: Team = {
+      id: Date.now().toString(),
+      name: 'Sample Team',
+      description: 'Joined via invite code',
+      adminId: 'admin',
+      members: [],
+      inviteCode,
+      createdAt: new Date(),
+    };
+    dispatch({ type: 'JOIN_TEAM', payload: mockTeam });
+  };
+
+  const updateProfile = (updates: Partial<User>) => {
+    if (state.user) {
+      const updatedUser = { ...state.user, ...updates };
+      dispatch({ type: 'SET_USER', payload: updatedUser });
+    }
+  };
+
   const value: AppContextType = {
     ...state,
     dispatch,
@@ -191,6 +263,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTheme,
     startFocusSession,
     endFocusSession,
+    createTeam,
+    joinTeam,
+    updateProfile,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
