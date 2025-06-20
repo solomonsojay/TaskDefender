@@ -121,6 +121,38 @@ export interface Badge {
   earnedAt?: Date;
 }
 
+export interface AnalyticsData {
+  tasksCompleted: number;
+  totalTasks: number;
+  focusTime: number;
+  productivity: number;
+  consistency: number;
+  growth: number;
+  topDay: string;
+  achievements: number;
+}
+
+export interface NotificationSettings {
+  taskReminders: boolean;
+  focusMode: boolean;
+  dailySummary: boolean;
+  teamUpdates: boolean;
+  voiceCalls: boolean;
+}
+
+export interface AppSettings {
+  theme: Theme;
+  notifications: NotificationSettings;
+  voice: VoiceSettings;
+  privacy: PrivacySettings;
+}
+
+export interface PrivacySettings {
+  shareAnalytics: boolean;
+  allowTeamInvites: boolean;
+  publicProfile: boolean;
+}
+
 export type Theme = 'light' | 'dark';
 
 export interface AppState {
@@ -131,4 +163,29 @@ export interface AppState {
   focusSession: FocusSession | null;
   theme: Theme;
   isOnboarding: boolean;
+}
+
+// Component Props Types
+export interface HeaderProps {
+  currentView: string;
+  setCurrentView: (view: 'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics' | 'achievements' | 'scheduler') => void;
+}
+
+export interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export interface TaskItemProps {
+  task: Task;
+  onUpdate: (id: string, updates: Partial<Task>) => void;
+  onDelete: (id: string) => void;
+  onStartFocus: (taskId: string) => void;
+}
+
+export interface TeamCardProps {
+  team: Team;
+  isAdmin: boolean;
+  onJoin?: (teamId: string) => void;
+  onLeave?: (teamId: string) => void;
 }

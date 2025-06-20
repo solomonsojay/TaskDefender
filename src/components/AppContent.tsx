@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import Header from './Header';
+import Header from './common/Header';
 import Dashboard from './Dashboard';
 import TaskList from './TaskList';
 import FocusMode from './FocusMode';
@@ -11,8 +11,10 @@ import AchievementSystem from './achievements/AchievementSystem';
 import NotificationScheduler from './scheduler/NotificationScheduler';
 import BoltBadge from './common/BoltBadge';
 
+type ViewType = 'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics' | 'achievements' | 'scheduler';
+
 const AppContent: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics' | 'achievements' | 'scheduler'>('dashboard');
+  const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [isChatBotOpen, setIsChatBotOpen] = useState(false);
 
   return (
@@ -34,7 +36,7 @@ const AppContent: React.FC = () => {
             ].map(item => (
               <button
                 key={item.id}
-                onClick={() => setCurrentView(item.id as any)}
+                onClick={() => setCurrentView(item.id as ViewType)}
                 className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                   currentView === item.id
                     ? 'bg-orange-500 text-white shadow-sm'

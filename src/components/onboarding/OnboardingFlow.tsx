@@ -12,18 +12,34 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { User as UserType } from '../../types';
-import Logo from '../Logo';
+import Logo from '../common/Logo';
+
+interface FormData {
+  name: string;
+  email: string;
+  username: string;
+  role: 'user' | 'admin';
+  goals: string[];
+  workStyle: 'focused' | 'flexible' | 'collaborative';
+  organizationName: string;
+  organizationType: string;
+  organizationIndustry: string;
+  organizationSize: string;
+  userRoleInOrg: string;
+  organizationWebsite: string;
+  organizationDescription: string;
+}
 
 const OnboardingFlow: React.FC = () => {
   const { setUser, dispatch } = useApp();
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
     username: '',
-    role: 'user' as 'user' | 'admin',
-    goals: [] as string[],
-    workStyle: 'focused' as 'focused' | 'flexible' | 'collaborative',
+    role: 'user',
+    goals: [],
+    workStyle: 'focused',
     organizationName: '',
     organizationType: '',
     organizationIndustry: '',
@@ -76,7 +92,7 @@ const OnboardingFlow: React.FC = () => {
     dispatch({ type: 'COMPLETE_ONBOARDING' });
   };
 
-  const updateFormData = (updates: Partial<typeof formData>) => {
+  const updateFormData = (updates: Partial<FormData>) => {
     setFormData({ ...formData, ...updates });
   };
 
@@ -98,19 +114,19 @@ const OnboardingFlow: React.FC = () => {
 
   const workStyleOptions = [
     {
-      id: 'focused',
+      id: 'focused' as const,
       title: 'Deep Focus',
       description: 'Long, uninterrupted work sessions',
       icon: Target,
     },
     {
-      id: 'flexible',
+      id: 'flexible' as const,
       title: 'Flexible',
       description: 'Adaptable schedule with variety',
       icon: Clock,
     },
     {
-      id: 'collaborative',
+      id: 'collaborative' as const,
       title: 'Collaborative',
       description: 'Team-based work and accountability',
       icon: Users,
@@ -321,7 +337,7 @@ const OnboardingFlow: React.FC = () => {
                 {workStyleOptions.map((style) => (
                   <button
                     key={style.id}
-                    onClick={() => updateFormData({ workStyle: style.id as any })}
+                    onClick={() => updateFormData({ workStyle: style.id })}
                     className={`w-full p-4 rounded-xl border-2 text-left transition-all duration-200 ${
                       formData.workStyle === style.id
                         ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
