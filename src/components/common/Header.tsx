@@ -7,15 +7,16 @@ import {
   Users,
   Menu,
   X,
-  TrendingUp
+  TrendingUp,
+  Shield
 } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '../../context/AppContext';
 import Logo from './Logo';
 import SettingsModal from '../settings/SettingsModal';
 
 interface HeaderProps {
   currentView: string;
-  setCurrentView: (view: 'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics' | 'voice-calls') => void;
+  setCurrentView: (view: 'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics' | 'achievements' | 'scheduler') => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {

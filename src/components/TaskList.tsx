@@ -7,7 +7,8 @@ import {
   Play,
   Trash2,
   AlertTriangle,
-  Zap
+  Zap,
+  Shield
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
