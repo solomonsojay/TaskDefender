@@ -7,10 +7,12 @@ import {
   Sun,
   Save,
   Building,
-  PhoneCall
+  PhoneCall,
+  MessageCircle
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import VoiceCallSettings from './VoiceCallSettings';
+import SocialMediaSettings from './SocialMediaSettings';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -19,7 +21,7 @@ interface SettingsModalProps {
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const { user, theme, setTheme, updateProfile } = useApp();
-  const [activeTab, setActiveTab] = useState<'profile' | 'organization' | 'notifications' | 'voice-calls'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'organization' | 'notifications' | 'voice-calls' | 'social-media'>('profile');
   const [profileData, setProfileData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -51,6 +53,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     ...(user?.role === 'admin' ? [{ id: 'organization', label: 'Organization', icon: Building }] : []),
+    { id: 'social-media', label: 'Social Media', icon: MessageCircle },
     { id: 'voice-calls', label: 'Voice Calls', icon: PhoneCall },
     { id: 'notifications', label: 'Notifications', icon: Bell },
   ];
@@ -92,6 +95,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
+            {activeTab === 'social-media' && (
+              <SocialMediaSettings />
+            )}
+            
+            {activeTab === 'voice-calls' && (
+              <VoiceCallSettings />
+            )}
+            
             {activeTab === 'profile' && (
               <div className="space-y-6">
                 <div className="flex items-center space-x-4">
@@ -340,10 +351,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   <span>Save Changes</span>
                 </button>
               </div>
-            )}
-
-            {activeTab === 'voice-calls' && (
-              <VoiceCallSettings />
             )}
 
             {activeTab === 'notifications' && (

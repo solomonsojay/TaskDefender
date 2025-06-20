@@ -4,7 +4,7 @@ const BoltBadge: React.FC = () => {
   return (
     <div className="fixed bottom-4 left-4 z-50">
       <a
-        href="https://bolt.new/"
+        href="https://bolt.new/?rid=1z67ln"
         target="_blank"
         rel="noopener noreferrer"
         className="block transition-transform duration-200 hover:scale-110 hover:shadow-lg"
@@ -12,7 +12,7 @@ const BoltBadge: React.FC = () => {
       >
         <img
           src="/black_circle_360x360.png"
-          alt="Powered by Bolt.new - Made in Bolt.new"
+          alt="Powered by Bolt.new"
           className="w-16 h-16 rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200"
         />
       </a>

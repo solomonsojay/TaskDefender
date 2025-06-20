@@ -17,6 +17,14 @@ export interface User {
   organizationWebsite?: string;
   organizationDescription?: string;
   createdAt: Date;
+  socialAccounts?: SocialAccount[];
+}
+
+export interface SocialAccount {
+  platform: 'twitter' | 'linkedin' | 'facebook' | 'devto';
+  connected: boolean;
+  username?: string;
+  profileUrl?: string;
 }
 
 export interface Task {

@@ -9,6 +9,7 @@ import Analytics from './analytics/Analytics';
 import ChatBot from './chatbot/ChatBot';
 import AchievementSystem from './achievements/AchievementSystem';
 import NotificationScheduler from './scheduler/NotificationScheduler';
+import BoltBadge from './common/BoltBadge';
 
 const AppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics' | 'achievements' | 'scheduler'>('dashboard');
@@ -63,6 +64,9 @@ const AppContent: React.FC = () => {
         isOpen={isChatBotOpen} 
         onToggle={() => setIsChatBotOpen(!isChatBotOpen)} 
       />
+
+      {/* Bolt.new Badge */}
+      <BoltBadge />
     </div>
   );
 };

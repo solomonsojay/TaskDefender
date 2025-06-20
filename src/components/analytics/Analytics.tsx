@@ -9,13 +9,17 @@ import {
   Activity,
   Zap,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Share2,
+  Download
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import SocialShareModal from './SocialShareModal';
 
 const Analytics: React.FC = () => {
   const { user, tasks } = useApp();
   const [activeTab, setActiveTab] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const analyticsData = useMemo(() => {
     const now = new Date();
@@ -72,6 +76,45 @@ const Analytics: React.FC = () => {
     };
   }, [tasks, activeTab, user]);
 
+  const generateShareText = () => {
+    const data = analyticsData;
+    
+    switch (activeTab) {
+      case 'weekly':
+        return `📊 Weekly Productivity Report!\n\n✅ Tasks Completed: ${data.tasksCompleted}\n⏰ Focus Time: ${data.focusTime}h\n📈 Productivity: ${data.productivity}%\n🎯 Consistency: ${data.consistency}%\n🏆 Top Day: ${data.topDay}\n\n#WeeklyWins #ProductivityHabits #TaskDefender`;
+      
+      case 'monthly':
+        return `🚀 Monthly Productivity Milestone!\n\n✅ Tasks Completed: ${data.tasksCompleted}\n⏰ Total Focus Time: ${data.focusTime}h\n📈 Productivity: ${data.productivity}%\n📊 Growth: +${data.growth}%\n🏅 Achievements: ${data.achievements}\n\n#MonthlyGoals #ProductivityGrowth #TaskDefender`;
+      
+      case 'yearly':
+        return `🏆 Yearly Productivity Achievement!\n\n✅ Tasks Completed: ${data.tasksCompleted}\n⏰ Total Focus Time: ${data.focusTime}h\n📈 Productivity: ${data.productivity}%\n🚀 Growth: +${data.growth}%\n🎖️ Achievements: ${data.achievements}\n\n#YearlyReview #ProductivityJourney #TaskDefender`;
+      
+      default:
+        return '';
+    }
+  };
+
+  const exportData = () => {
+    const exportData = {
+      user: user?.name,
+      period: activeTab,
+      data: analyticsData,
+      generatedAt: new Date().toISOString(),
+      tasks: tasks.length,
+      integrityScore: user?.integrityScore
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `taskdefender-analytics-${activeTab}-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -88,6 +131,24 @@ const Analytics: React.FC = () => {
               Track your progress and celebrate your achievements
             </p>
           </div>
+        </div>
+        
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={exportData}
+            className="flex items-center space-x-2 px-4 py-2 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-colors duration-200"
+          >
+            <Download className="h-4 w-4" />
+            <span>Export</span>
+          </button>
+          
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors duration-200"
+          >
+            <Share2 className="h-4 w-4" />
+            <span>Share</span>
+          </button>
         </div>
       </div>
 
@@ -315,6 +376,16 @@ const Analytics: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Social Media Share Modal */}
+      {showShareModal && (
+        <SocialShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          shareText={generateShareText()}
+          period={activeTab}
+        />
+      )}
     </div>
   );
 };
