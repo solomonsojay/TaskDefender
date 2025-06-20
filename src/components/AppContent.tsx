@@ -61,13 +61,13 @@ const AppContent: React.FC = () => {
         </main>
       </div>
 
-      {/* ChatBot - RESTORED */}
+      {/* ChatBot */}
       <ChatBot 
         isOpen={isChatBotOpen} 
         onToggle={() => setIsChatBotOpen(!isChatBotOpen)} 
       />
 
-      {/* Bolt.new Badge - RESTORED */}
+      {/* Bolt.new Badge */}
       <BoltBadge />
     </div>
   );

@@ -136,17 +136,9 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
               {user && (
                 <div className="hidden lg:flex items-center space-x-3 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
                   <div className="w-8 h-8 rounded-full overflow-hidden bg-orange-500/20 flex items-center justify-center">
-                    {user.profilePicture ? (
-                      <img
-                        src={user.profilePicture}
-                        alt={user.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-sm font-medium text-orange-500">
-                        {user.name.charAt(0).toUpperCase()}
-                      </span>
-                    )}
+                    <span className="text-sm font-medium text-orange-500">
+                      {user.name.charAt(0).toUpperCase()}
+                    </span>
                   </div>
                   <div className="text-left">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -181,20 +173,12 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
               <div className="space-y-3">
                 {user && (
                   <>
-                    {/* User Info with Profile Picture - Mobile only */}
+                    {/* User Info - Mobile only */}
                     <div className="flex items-center space-x-3 py-2">
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-orange-500/20 flex items-center justify-center">
-                        {user.profilePicture ? (
-                          <img
-                            src={user.profilePicture}
-                            alt={user.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-lg font-medium text-orange-500">
-                            {user.name.charAt(0).toUpperCase()}
-                          </span>
-                        )}
+                        <span className="text-lg font-medium text-orange-500">
+                          {user.name.charAt(0).toUpperCase()}
+                        </span>
                       </div>
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">{user.name}</p>
