@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getStorage, connectStorageEmulator } from 'firebase/storage';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAC6djce4x6qRKYbhEfoUps40NKm1ubQ-g",
@@ -12,41 +12,27 @@ const firebaseConfig = {
   appId: "1:951571068570:web:97bc8a4d84e754e0199123"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app;
+let auth;
+let db;
+let storage;
 
-// Initialize Firebase services
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
-
-// Only connect to emulators in development and if not already connected
-if (process.env.NODE_ENV === 'development') {
-  try {
-    // Check if we're already connected to avoid multiple connections
-    if (!auth.config.emulator) {
-      connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-    }
-  } catch (error) {
-    // Emulator connection failed or already connected, continue with production
-    console.log('Using production Firebase Auth');
-  }
-
-  try {
-    if (!db._delegate._databaseId.projectId.includes('demo-')) {
-      connectFirestoreEmulator(db, 'localhost', 8080);
-    }
-  } catch (error) {
-    // Emulator connection failed or already connected, continue with production
-    console.log('Using production Firestore');
-  }
-
-  try {
-    connectStorageEmulator(storage, 'localhost', 9199);
-  } catch (error) {
-    // Emulator connection failed or already connected, continue with production
-    console.log('Using production Storage');
-  }
+try {
+  // Initialize Firebase
+  app = initializeApp(firebaseConfig);
+  
+  // Initialize Firebase services
+  auth = getAuth(app);
+  db = getFirestore(app);
+  storage = getStorage(app);
+  
+  console.log('✅ Firebase initialized successfully');
+} catch (error) {
+  console.error('❌ Firebase initialization error:', error);
+  
+  // Fallback for when Firebase is not available
+  console.warn('⚠️ Firebase not available, using localStorage fallback');
 }
 
+export { auth, db, storage };
 export default app;

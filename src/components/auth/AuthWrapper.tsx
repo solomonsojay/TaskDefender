@@ -18,46 +18,34 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
   useEffect(() => {
     let mounted = true;
 
-    const unsubscribe = AuthService.onAuthStateChanged(async (firebaseUser: FirebaseUser | null) => {
-      if (!mounted) return;
-
+    const initializeAuth = async () => {
       try {
-        if (firebaseUser) {
-          // User is signed in with Firebase
-          const userData = await AuthService.getCurrentUser();
-          if (userData && mounted) {
-            setUser(userData);
-            setShowAuth(false);
-            setAuthError(null);
-            
-            // Check if user needs onboarding based on missing required fields
-            const needsOnboarding = !userData.workStyle || !userData.role;
-            
-            if (needsOnboarding) {
-              // User exists in Firebase but hasn't completed our custom onboarding
-              console.log('User needs onboarding - missing workStyle or role');
-              dispatch({ type: 'START_ONBOARDING' });
-            } else {
-              // User has completed onboarding
-              dispatch({ type: 'COMPLETE_ONBOARDING' });
-            }
-          } else if (mounted) {
-            // Firebase user exists but no Firestore data - this shouldn't happen with our flow
-            console.warn('Firebase user exists but no Firestore data found');
-            setAuthError('User data not found. Please sign in again.');
-            setShowAuth(true);
-          }
-        } else {
-          // User is signed out
-          if (mounted) {
-            setUser(null);
-            setShowAuth(true);
-            setAuthError(null);
+        // First, try to get current user (works with both Firebase and localStorage)
+        const currentUser = await AuthService.getCurrentUser();
+        
+        if (currentUser && mounted) {
+          setUser(currentUser);
+          setShowAuth(false);
+          setAuthError(null);
+          
+          // Check if user needs onboarding
+          const needsOnboarding = !currentUser.workStyle || !currentUser.role;
+          
+          if (needsOnboarding) {
+            console.log('User needs onboarding - missing workStyle or role');
             dispatch({ type: 'START_ONBOARDING' });
+          } else {
+            dispatch({ type: 'COMPLETE_ONBOARDING' });
           }
+        } else if (mounted) {
+          // No user found
+          setUser(null);
+          setShowAuth(true);
+          setAuthError(null);
+          dispatch({ type: 'START_ONBOARDING' });
         }
       } catch (error: any) {
-        console.error('Auth state change error:', error);
+        console.error('Auth initialization error:', error);
         if (mounted) {
           setAuthError('Authentication error. Please try again.');
           setShowAuth(true);
@@ -67,15 +55,84 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
           setLoading(false);
         }
       }
+    };
+
+    // Set up auth state listener
+    const unsubscribe = AuthService.onAuthStateChanged(async (firebaseUser: FirebaseUser | null) => {
+      if (!mounted) return;
+
+      try {
+        if (firebaseUser) {
+          // User is signed in
+          const userData = await AuthService.getCurrentUser();
+          if (userData && mounted) {
+            setUser(userData);
+            setShowAuth(false);
+            setAuthError(null);
+            
+            const needsOnboarding = !userData.workStyle || !userData.role;
+            
+            if (needsOnboarding) {
+              dispatch({ type: 'START_ONBOARDING' });
+            } else {
+              dispatch({ type: 'COMPLETE_ONBOARDING' });
+            }
+          }
+        } else {
+          // User is signed out or no Firebase user
+          if (mounted) {
+            // Check localStorage fallback
+            const localUser = await AuthService.getCurrentUser();
+            if (localUser) {
+              setUser(localUser);
+              setShowAuth(false);
+              
+              const needsOnboarding = !localUser.workStyle || !localUser.role;
+              if (needsOnboarding) {
+                dispatch({ type: 'START_ONBOARDING' });
+              } else {
+                dispatch({ type: 'COMPLETE_ONBOARDING' });
+              }
+            } else {
+              setUser(null);
+              setShowAuth(true);
+              setAuthError(null);
+              dispatch({ type: 'START_ONBOARDING' });
+            }
+          }
+        }
+      } catch (error: any) {
+        console.error('Auth state change error:', error);
+        if (mounted) {
+          // Try localStorage fallback
+          try {
+            const localUser = await AuthService.getCurrentUser();
+            if (localUser) {
+              setUser(localUser);
+              setShowAuth(false);
+            } else {
+              setAuthError('Authentication error. Please try again.');
+              setShowAuth(true);
+            }
+          } catch (fallbackError) {
+            setAuthError('Authentication error. Please try again.');
+            setShowAuth(true);
+          }
+        }
+      }
     });
+
+    // Initialize auth
+    initializeAuth();
 
     return () => {
       mounted = false;
-      unsubscribe();
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
     };
   }, [setUser, dispatch]);
 
-  // Handle auth success - this is called after successful sign in/up
   const handleAuthSuccess = async () => {
     try {
       setLoading(true);
@@ -85,7 +142,6 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
         setShowAuth(false);
         setAuthError(null);
         
-        // Always check if user needs onboarding after auth success
         const needsOnboarding = !userData.workStyle || !userData.role;
         
         if (needsOnboarding) {
@@ -104,12 +160,10 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     }
   };
 
-  // Show loading spinner while checking auth state
   if (loading) {
     return <LoadingSpinner />;
   }
 
-  // Show auth flow if user is not authenticated or there's an error
   if (showAuth || !user) {
     return (
       <AuthFlow 
@@ -119,7 +173,6 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     );
   }
 
-  // User is authenticated, show the app (which will show onboarding if needed)
   return <>{children}</>;
 };
 
