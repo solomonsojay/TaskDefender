@@ -23,21 +23,26 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
 
       try {
         if (firebaseUser) {
-          // User is signed in
+          // User is signed in with Firebase
           const userData = await AuthService.getCurrentUser();
           if (userData && mounted) {
             setUser(userData);
             setShowAuth(false);
             setAuthError(null);
             
-            // Check if user needs onboarding
-            if (!userData.workStyle || !userData.role) {
+            // Check if user needs onboarding based on missing required fields
+            const needsOnboarding = !userData.workStyle || !userData.role;
+            
+            if (needsOnboarding) {
+              // User exists in Firebase but hasn't completed our custom onboarding
+              console.log('User needs onboarding - missing workStyle or role');
               dispatch({ type: 'START_ONBOARDING' });
             } else {
+              // User has completed onboarding
               dispatch({ type: 'COMPLETE_ONBOARDING' });
             }
           } else if (mounted) {
-            // Firebase user exists but no Firestore data
+            // Firebase user exists but no Firestore data - this shouldn't happen with our flow
             console.warn('Firebase user exists but no Firestore data found');
             setAuthError('User data not found. Please sign in again.');
             setShowAuth(true);
@@ -70,7 +75,7 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     };
   }, [setUser, dispatch]);
 
-  // Handle auth success
+  // Handle auth success - this is called after successful sign in/up
   const handleAuthSuccess = async () => {
     try {
       setLoading(true);
@@ -80,10 +85,14 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
         setShowAuth(false);
         setAuthError(null);
         
-        // Check if user needs onboarding
-        if (!userData.workStyle || !userData.role) {
+        // Always check if user needs onboarding after auth success
+        const needsOnboarding = !userData.workStyle || !userData.role;
+        
+        if (needsOnboarding) {
+          console.log('New user or incomplete profile - starting onboarding');
           dispatch({ type: 'START_ONBOARDING' });
         } else {
+          console.log('User has complete profile - skipping onboarding');
           dispatch({ type: 'COMPLETE_ONBOARDING' });
         }
       }
@@ -110,7 +119,7 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     );
   }
 
-  // User is authenticated, show the app
+  // User is authenticated, show the app (which will show onboarding if needed)
   return <>{children}</>;
 };
 

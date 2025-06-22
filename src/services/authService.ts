@@ -31,21 +31,29 @@ export class AuthService {
       // Reload user to get updated profile
       await reload(firebaseUser);
       
-      // Create user document in Firestore with server timestamp
+      // Create user document in Firestore with minimal data
+      // This ensures the user will go through onboarding to complete their profile
       const user: User = {
         ...userData,
         id: firebaseUser.uid,
         email: firebaseUser.email || email,
-        createdAt: new Date() // Will be converted to server timestamp
+        createdAt: new Date(),
+        // Intentionally leave workStyle and role undefined to trigger onboarding
+        workStyle: undefined as any,
+        role: undefined as any
       };
       
       await setDoc(doc(db, 'users', firebaseUser.uid), {
         ...user,
         createdAt: serverTimestamp(),
         lastLoginAt: serverTimestamp(),
-        emailVerified: firebaseUser.emailVerified
+        emailVerified: firebaseUser.emailVerified,
+        // These fields are intentionally undefined to trigger onboarding
+        workStyle: null,
+        role: null
       });
       
+      console.log('New user created with incomplete profile to trigger onboarding');
       return user;
     } catch (error: any) {
       console.error('Sign up error:', error);
@@ -68,13 +76,18 @@ export class AuthService {
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        return {
+        const user = {
           ...userData,
           id: firebaseUser.uid,
           email: firebaseUser.email || userData.email,
           createdAt: userData.createdAt?.toDate() || new Date(),
           emailVerified: firebaseUser.emailVerified
         } as User;
+        
+        console.log('User signed in:', user);
+        console.log('User workStyle:', user.workStyle, 'User role:', user.role);
+        
+        return user;
       } else {
         throw new Error('User data not found. Please contact support.');
       }
@@ -166,13 +179,18 @@ export class AuthService {
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        return {
+        const user = {
           ...userData,
           id: firebaseUser.uid,
           email: firebaseUser.email || userData.email,
           createdAt: userData.createdAt?.toDate() || new Date(),
           emailVerified: firebaseUser.emailVerified
         } as User;
+        
+        console.log('Current user loaded:', user);
+        console.log('User needs onboarding?', !user.workStyle || !user.role);
+        
+        return user;
       }
       return null;
     } catch (error) {
@@ -194,6 +212,8 @@ export class AuthService {
       // Add update timestamp
       updateData.updatedAt = serverTimestamp() as any;
       
+      console.log('Updating user with data:', updateData);
+      
       await updateDoc(userRef, updateData);
       
       // Update Firebase Auth profile if name changed
@@ -202,6 +222,8 @@ export class AuthService {
           displayName: updates.name
         });
       }
+      
+      console.log('User updated successfully');
     } catch (error: any) {
       console.error('Update user error:', error);
       throw new Error('Failed to update profile. Please try again.');

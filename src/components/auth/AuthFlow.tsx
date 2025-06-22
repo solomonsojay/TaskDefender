@@ -152,32 +152,35 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
       }
 
       if (mode === 'signup') {
+        // Create minimal user data for Firebase Auth - onboarding will collect the rest
         const userData = {
           name: formData.name.trim(),
           email: formData.email.trim().toLowerCase(),
           username: formData.username.toLowerCase().replace(/[^a-z0-9_]/g, ''),
-          role: 'user' as const,
+          role: 'user' as const, // Default role, will be updated in onboarding
           goals: [],
-          workStyle: 'focused' as const,
+          workStyle: 'focused' as const, // Default, will be updated in onboarding
           integrityScore: 100,
           streak: 0
+          // Note: workStyle and role will be properly set during onboarding
+          // This ensures the user goes through our custom onboarding flow
         };
 
-        const user = await AuthService.signUp(formData.email, formData.password, userData);
-        dispatch({ type: 'SET_USER', payload: user });
-        dispatch({ type: 'START_ONBOARDING' }); // New users need onboarding
-      } else {
-        const user = await AuthService.signIn(formData.email, formData.password);
-        dispatch({ type: 'SET_USER', payload: user });
+        // Create user but don't set workStyle/role properly so onboarding triggers
+        const user = await AuthService.signUp(formData.email, formData.password, {
+          ...userData,
+          workStyle: undefined as any, // Force onboarding
+          role: undefined as any // Force onboarding
+        });
         
-        // Check if user needs onboarding
-        if (!user.workStyle || !user.role) {
-          dispatch({ type: 'START_ONBOARDING' });
-        } else {
-          dispatch({ type: 'COMPLETE_ONBOARDING' });
-        }
+        console.log('New user created, will trigger onboarding');
+      } else {
+        // Sign in existing user
+        const user = await AuthService.signIn(formData.email, formData.password);
+        console.log('User signed in:', user);
       }
       
+      // Call success handler which will check if onboarding is needed
       onAuthSuccess();
     } catch (error: any) {
       setError(error.message);
@@ -219,10 +222,10 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
 
   const getSubtitle = () => {
     switch (mode) {
-      case 'signup': return 'Join the productivity revolution!';
+      case 'signup': return 'Join TaskDefender and start your productivity journey!';
       case 'forgot-password': return 'Enter your email to reset your password';
       case 'reset-password': return 'Enter your new password below';
-      default: return 'Sign in to continue your productivity journey';
+      default: return 'Sign in to continue defending against procrastination';
     }
   };
 
@@ -296,6 +299,23 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
                 <p className="text-blue-700 dark:text-blue-400 text-sm">
                   Resetting password for: <strong>{resetEmail}</strong>
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* Onboarding Notice for Signup */}
+          {mode === 'signup' && (
+            <div className="mb-6 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl">
+              <div className="flex items-start space-x-2">
+                <Shield className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-orange-700 dark:text-orange-400 text-sm font-medium mb-1">
+                    Custom Setup Process
+                  </p>
+                  <p className="text-orange-600 dark:text-orange-300 text-xs">
+                    After creating your account, you'll go through our personalized setup to configure TaskDefender based on whether you're an individual user or team admin.
+                  </p>
+                </div>
               </div>
             </div>
           )}
