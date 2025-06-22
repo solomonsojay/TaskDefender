@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getStorage, connectStorageEmulator } from 'firebase/storage';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAC6djce4x6qRKYbhEfoUps40NKm1ubQ-g",
@@ -20,6 +20,7 @@ let isFirebaseAvailable = false;
 
 try {
   // Initialize Firebase
+  console.log('🔥 Initializing Firebase...');
   app = initializeApp(firebaseConfig);
   
   // Initialize Firebase services

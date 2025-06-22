@@ -76,14 +76,15 @@ export class AuthService {
         // Reload user to get updated profile
         await reload(firebaseUser);
         
-        // Create user document in Firestore
+        // Create user document in Firestore with incomplete profile to trigger onboarding
         const user: User = {
           ...userData,
           id: firebaseUser.uid,
           email: firebaseUser.email || email,
           createdAt: new Date(),
-          workStyle: undefined as any, // Force onboarding
-          role: undefined as any // Force onboarding
+          // Set these to undefined to force onboarding
+          workStyle: undefined as any,
+          role: undefined as any
         };
         
         await setDoc(doc(db, 'users', firebaseUser.uid), {
@@ -91,14 +92,16 @@ export class AuthService {
           createdAt: serverTimestamp(),
           lastLoginAt: serverTimestamp(),
           emailVerified: firebaseUser.emailVerified,
+          // Explicitly set these as null to trigger onboarding
           workStyle: null,
-          role: null
+          role: null,
+          needsOnboarding: true
         });
         
         // Also save to localStorage as backup
         this.setLocalUser(user);
         
-        console.log('✅ Firebase sign up successful');
+        console.log('✅ Firebase sign up successful - user will need onboarding');
         return user;
       } catch (error: any) {
         console.error('❌ Firebase sign up error:', error);
@@ -113,6 +116,7 @@ export class AuthService {
       id: Date.now().toString(),
       email: email.toLowerCase(),
       createdAt: new Date(),
+      // Set these to undefined to force onboarding
       workStyle: undefined as any,
       role: undefined as any
     };
@@ -322,6 +326,11 @@ export class AuthService {
         }
         
         updateData.updatedAt = serverTimestamp() as any;
+        
+        // If completing onboarding, remove the needsOnboarding flag
+        if (updates.workStyle && updates.role) {
+          updateData.needsOnboarding = false;
+        }
         
         await updateDoc(userRef, updateData);
         
