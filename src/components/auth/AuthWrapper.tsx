@@ -20,10 +20,13 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
 
     const initializeAuth = async () => {
       try {
+        console.log('🔄 Initializing authentication...');
+        
         // First, try to get current user (works with both Firebase and localStorage)
         const currentUser = await AuthService.getCurrentUser();
         
         if (currentUser && mounted) {
+          console.log('✅ User found:', currentUser.email);
           setUser(currentUser);
           setShowAuth(false);
           setAuthError(null);
@@ -32,20 +35,22 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
           const needsOnboarding = !currentUser.workStyle || !currentUser.role;
           
           if (needsOnboarding) {
-            console.log('User needs onboarding - missing workStyle or role');
+            console.log('🎯 User needs onboarding - missing workStyle or role');
             dispatch({ type: 'START_ONBOARDING' });
           } else {
+            console.log('✅ User profile complete - skipping onboarding');
             dispatch({ type: 'COMPLETE_ONBOARDING' });
           }
         } else if (mounted) {
           // No user found
+          console.log('❌ No user found - showing auth flow');
           setUser(null);
           setShowAuth(true);
           setAuthError(null);
           dispatch({ type: 'START_ONBOARDING' });
         }
       } catch (error: any) {
-        console.error('Auth initialization error:', error);
+        console.error('❌ Auth initialization error:', error);
         if (mounted) {
           setAuthError('Authentication error. Please try again.');
           setShowAuth(true);
@@ -62,10 +67,13 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
       if (!mounted) return;
 
       try {
+        console.log('🔄 Auth state changed:', firebaseUser ? 'User signed in' : 'User signed out');
+        
         if (firebaseUser) {
           // User is signed in
           const userData = await AuthService.getCurrentUser();
           if (userData && mounted) {
+            console.log('✅ User data loaded from Firebase');
             setUser(userData);
             setShowAuth(false);
             setAuthError(null);
@@ -73,8 +81,10 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
             const needsOnboarding = !userData.workStyle || !userData.role;
             
             if (needsOnboarding) {
+              console.log('🎯 Firebase user needs onboarding');
               dispatch({ type: 'START_ONBOARDING' });
             } else {
+              console.log('✅ Firebase user profile complete');
               dispatch({ type: 'COMPLETE_ONBOARDING' });
             }
           }
@@ -84,6 +94,7 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
             // Check localStorage fallback
             const localUser = await AuthService.getCurrentUser();
             if (localUser) {
+              console.log('✅ User data loaded from localStorage fallback');
               setUser(localUser);
               setShowAuth(false);
               
@@ -94,6 +105,7 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
                 dispatch({ type: 'COMPLETE_ONBOARDING' });
               }
             } else {
+              console.log('❌ No user data found - showing auth');
               setUser(null);
               setShowAuth(true);
               setAuthError(null);
@@ -102,12 +114,13 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
           }
         }
       } catch (error: any) {
-        console.error('Auth state change error:', error);
+        console.error('❌ Auth state change error:', error);
         if (mounted) {
           // Try localStorage fallback
           try {
             const localUser = await AuthService.getCurrentUser();
             if (localUser) {
+              console.log('✅ Fallback to localStorage successful');
               setUser(localUser);
               setShowAuth(false);
             } else {
@@ -115,6 +128,7 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
               setShowAuth(true);
             }
           } catch (fallbackError) {
+            console.error('❌ Fallback also failed:', fallbackError);
             setAuthError('Authentication error. Please try again.');
             setShowAuth(true);
           }
@@ -136,8 +150,11 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
   const handleAuthSuccess = async () => {
     try {
       setLoading(true);
+      console.log('🎉 Auth success - loading user data...');
+      
       const userData = await AuthService.getCurrentUser();
       if (userData) {
+        console.log('✅ User data loaded after auth success');
         setUser(userData);
         setShowAuth(false);
         setAuthError(null);
@@ -145,15 +162,15 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
         const needsOnboarding = !userData.workStyle || !userData.role;
         
         if (needsOnboarding) {
-          console.log('New user or incomplete profile - starting onboarding');
+          console.log('🎯 New user or incomplete profile - starting onboarding');
           dispatch({ type: 'START_ONBOARDING' });
         } else {
-          console.log('User has complete profile - skipping onboarding');
+          console.log('✅ User has complete profile - skipping onboarding');
           dispatch({ type: 'COMPLETE_ONBOARDING' });
         }
       }
     } catch (error: any) {
-      console.error('Auth success handler error:', error);
+      console.error('❌ Auth success handler error:', error);
       setAuthError('Failed to load user data. Please try again.');
     } finally {
       setLoading(false);

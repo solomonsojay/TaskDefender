@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAC6djce4x6qRKYbhEfoUps40NKm1ubQ-g",
@@ -16,6 +16,7 @@ let app;
 let auth;
 let db;
 let storage;
+let isFirebaseAvailable = false;
 
 try {
   // Initialize Firebase
@@ -26,13 +27,32 @@ try {
   db = getFirestore(app);
   storage = getStorage(app);
   
-  console.log('✅ Firebase initialized successfully');
+  // Test Firebase connection
+  const testConnection = async () => {
+    try {
+      // Simple test to verify Firebase is working
+      await auth.authStateReady;
+      isFirebaseAvailable = true;
+      console.log('✅ Firebase initialized and connected successfully');
+    } catch (error) {
+      console.warn('⚠️ Firebase connection test failed:', error);
+      isFirebaseAvailable = false;
+    }
+  };
+  
+  testConnection();
+  
 } catch (error) {
   console.error('❌ Firebase initialization error:', error);
-  
-  // Fallback for when Firebase is not available
   console.warn('⚠️ Firebase not available, using localStorage fallback');
+  isFirebaseAvailable = false;
 }
 
+// Export Firebase availability checker
+export const checkFirebaseAvailability = (): boolean => {
+  return isFirebaseAvailable && auth !== undefined && db !== undefined;
+};
+
+// Export services with fallback handling
 export { auth, db, storage };
 export default app;

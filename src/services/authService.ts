@@ -13,13 +13,18 @@ import {
   reload
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
+import { auth, db, checkFirebaseAvailability } from '../config/firebase';
 import { User } from '../types';
 
 export class AuthService {
-  // Check if Firebase is available
+  // Check if Firebase is available and working
   private static isFirebaseAvailable(): boolean {
-    return auth !== undefined && db !== undefined;
+    try {
+      return checkFirebaseAvailability();
+    } catch (error) {
+      console.warn('Firebase availability check failed:', error);
+      return false;
+    }
   }
 
   // Fallback user management using localStorage
@@ -43,8 +48,10 @@ export class AuthService {
     try {
       if (user) {
         localStorage.setItem('taskdefender_current_user', JSON.stringify(user));
+        console.log('✅ User saved to localStorage');
       } else {
         localStorage.removeItem('taskdefender_current_user');
+        console.log('✅ User removed from localStorage');
       }
     } catch (error) {
       console.error('Error saving local user:', error);
@@ -52,127 +59,120 @@ export class AuthService {
   }
 
   static async signUp(email: string, password: string, userData: Omit<User, 'id' | 'createdAt'>) {
-    if (!this.isFirebaseAvailable()) {
-      // Fallback to localStorage
-      console.warn('Firebase not available, using localStorage fallback');
-      const user: User = {
-        ...userData,
-        id: Date.now().toString(),
-        email: email.toLowerCase(),
-        createdAt: new Date(),
-        workStyle: undefined as any, // Force onboarding
-        role: undefined as any // Force onboarding
-      };
-      this.setLocalUser(user);
-      return user;
+    // Always try Firebase first, then fallback to localStorage
+    if (this.isFirebaseAvailable()) {
+      try {
+        console.log('🔥 Attempting Firebase sign up...');
+        
+        // Create Firebase Auth user
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const firebaseUser = userCredential.user;
+        
+        // Update Firebase Auth profile
+        await updateProfile(firebaseUser, {
+          displayName: userData.name
+        });
+        
+        // Reload user to get updated profile
+        await reload(firebaseUser);
+        
+        // Create user document in Firestore
+        const user: User = {
+          ...userData,
+          id: firebaseUser.uid,
+          email: firebaseUser.email || email,
+          createdAt: new Date(),
+          workStyle: undefined as any, // Force onboarding
+          role: undefined as any // Force onboarding
+        };
+        
+        await setDoc(doc(db, 'users', firebaseUser.uid), {
+          ...user,
+          createdAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp(),
+          emailVerified: firebaseUser.emailVerified,
+          workStyle: null,
+          role: null
+        });
+        
+        // Also save to localStorage as backup
+        this.setLocalUser(user);
+        
+        console.log('✅ Firebase sign up successful');
+        return user;
+      } catch (error: any) {
+        console.error('❌ Firebase sign up error:', error);
+        console.warn('⚠️ Falling back to localStorage for user creation');
+      }
     }
-
-    try {
-      // Create Firebase Auth user
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const firebaseUser = userCredential.user;
-      
-      // Update Firebase Auth profile
-      await updateProfile(firebaseUser, {
-        displayName: userData.name
-      });
-      
-      // Reload user to get updated profile
-      await reload(firebaseUser);
-      
-      // Create user document in Firestore with minimal data
-      const user: User = {
-        ...userData,
-        id: firebaseUser.uid,
-        email: firebaseUser.email || email,
-        createdAt: new Date(),
-        workStyle: undefined as any, // Force onboarding
-        role: undefined as any // Force onboarding
-      };
-      
-      await setDoc(doc(db, 'users', firebaseUser.uid), {
-        ...user,
-        createdAt: serverTimestamp(),
-        lastLoginAt: serverTimestamp(),
-        emailVerified: firebaseUser.emailVerified,
-        workStyle: null,
-        role: null
-      });
-      
-      console.log('✅ New user created with Firebase');
-      return user;
-    } catch (error: any) {
-      console.error('❌ Firebase sign up error:', error);
-      
-      // Fallback to localStorage if Firebase fails
-      console.warn('⚠️ Falling back to localStorage for user creation');
-      const user: User = {
-        ...userData,
-        id: Date.now().toString(),
-        email: email.toLowerCase(),
-        createdAt: new Date(),
-        workStyle: undefined as any,
-        role: undefined as any
-      };
-      this.setLocalUser(user);
-      return user;
-    }
+    
+    // Fallback to localStorage
+    console.log('📱 Using localStorage fallback for sign up');
+    const user: User = {
+      ...userData,
+      id: Date.now().toString(),
+      email: email.toLowerCase(),
+      createdAt: new Date(),
+      workStyle: undefined as any,
+      role: undefined as any
+    };
+    this.setLocalUser(user);
+    return user;
   }
   
   static async signIn(email: string, password: string) {
-    if (!this.isFirebaseAvailable()) {
-      // Fallback to localStorage
-      console.warn('Firebase not available, checking localStorage');
-      const localUser = this.getLocalUser();
-      if (localUser && localUser.email === email.toLowerCase()) {
-        return localUser;
-      }
-      throw new Error('Invalid credentials or user not found');
-    }
-
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const firebaseUser = userCredential.user;
-      
-      // Update last login time
+    // Always try Firebase first, then fallback to localStorage
+    if (this.isFirebaseAvailable()) {
       try {
-        await updateDoc(doc(db, 'users', firebaseUser.uid), {
-          lastLoginAt: serverTimestamp(),
-          emailVerified: firebaseUser.emailVerified
-        });
-      } catch (updateError) {
-        console.warn('Failed to update last login time:', updateError);
-      }
-      
-      // Get user data from Firestore
-      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        const user = {
-          ...userData,
-          id: firebaseUser.uid,
-          email: firebaseUser.email || userData.email,
-          createdAt: userData.createdAt?.toDate() || new Date(),
-          emailVerified: firebaseUser.emailVerified
-        } as User;
+        console.log('🔥 Attempting Firebase sign in...');
         
-        console.log('✅ User signed in with Firebase');
-        return user;
-      } else {
-        throw new Error('User data not found. Please contact support.');
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const firebaseUser = userCredential.user;
+        
+        // Update last login time
+        try {
+          await updateDoc(doc(db, 'users', firebaseUser.uid), {
+            lastLoginAt: serverTimestamp(),
+            emailVerified: firebaseUser.emailVerified
+          });
+        } catch (updateError) {
+          console.warn('Failed to update last login time:', updateError);
+        }
+        
+        // Get user data from Firestore
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const user = {
+            ...userData,
+            id: firebaseUser.uid,
+            email: firebaseUser.email || userData.email,
+            createdAt: userData.createdAt?.toDate() || new Date(),
+            emailVerified: firebaseUser.emailVerified
+          } as User;
+          
+          // Save to localStorage as backup
+          this.setLocalUser(user);
+          
+          console.log('✅ Firebase sign in successful');
+          return user;
+        } else {
+          throw new Error('User data not found in Firestore');
+        }
+      } catch (error: any) {
+        console.error('❌ Firebase sign in error:', error);
+        console.warn('⚠️ Falling back to localStorage for sign in');
       }
-    } catch (error: any) {
-      console.error('❌ Firebase sign in error:', error);
-      
-      // Fallback to localStorage
-      console.warn('⚠️ Falling back to localStorage for sign in');
-      const localUser = this.getLocalUser();
-      if (localUser && localUser.email === email.toLowerCase()) {
-        return localUser;
-      }
-      
-      throw new Error(this.getErrorMessage(error.code));
     }
+    
+    // Fallback to localStorage
+    console.log('📱 Using localStorage fallback for sign in');
+    const localUser = this.getLocalUser();
+    if (localUser && localUser.email === email.toLowerCase()) {
+      return localUser;
+    }
+    
+    throw new Error('Invalid credentials or user not found');
   }
   
   static async resetPassword(email: string) {
@@ -186,6 +186,7 @@ export class AuthService {
         url: `${window.location.origin}`,
         handleCodeInApp: false
       });
+      console.log('✅ Password reset email sent');
     } catch (error: any) {
       console.error('Password reset error:', error);
       throw new Error(this.getErrorMessage(error.code));
@@ -199,6 +200,7 @@ export class AuthService {
 
     try {
       await confirmPasswordReset(auth, oobCode, newPassword);
+      console.log('✅ Password reset confirmed');
     } catch (error: any) {
       console.error('Password reset confirmation error:', error);
       throw new Error(this.getErrorMessage(error.code));
@@ -212,6 +214,7 @@ export class AuthService {
 
     try {
       const email = await verifyPasswordResetCode(auth, oobCode);
+      console.log('✅ Password reset code verified');
       return email;
     } catch (error: any) {
       console.error('Password reset code verification error:', error);
@@ -261,6 +264,7 @@ export class AuthService {
     try {
       if (this.isFirebaseAvailable()) {
         await signOut(auth);
+        console.log('✅ Firebase sign out successful');
       }
       // Always clear local storage
       this.setLocalUser(null);
@@ -273,120 +277,110 @@ export class AuthService {
   }
   
   static async getCurrentUser(): Promise<User | null> {
-    if (!this.isFirebaseAvailable()) {
-      return this.getLocalUser();
-    }
-
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) {
-      return this.getLocalUser(); // Fallback to localStorage
+    // Try Firebase first
+    if (this.isFirebaseAvailable()) {
+      const firebaseUser = auth.currentUser;
+      if (firebaseUser) {
+        try {
+          await reload(firebaseUser);
+          
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const user = {
+              ...userData,
+              id: firebaseUser.uid,
+              email: firebaseUser.email || userData.email,
+              createdAt: userData.createdAt?.toDate() || new Date(),
+              emailVerified: firebaseUser.emailVerified
+            } as User;
+            
+            // Update localStorage backup
+            this.setLocalUser(user);
+            
+            return user;
+          }
+        } catch (error) {
+          console.error('Error getting current user from Firebase:', error);
+        }
+      }
     }
     
-    try {
-      await reload(firebaseUser);
-      
-      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        const user = {
-          ...userData,
-          id: firebaseUser.uid,
-          email: firebaseUser.email || userData.email,
-          createdAt: userData.createdAt?.toDate() || new Date(),
-          emailVerified: firebaseUser.emailVerified
-        } as User;
-        
-        return user;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error getting current user from Firebase, trying localStorage:', error);
-      return this.getLocalUser();
-    }
+    // Fallback to localStorage
+    return this.getLocalUser();
   }
   
   static async updateUser(userId: string, updates: Partial<User>) {
-    if (!this.isFirebaseAvailable()) {
-      // Update localStorage
-      const currentUser = this.getLocalUser();
-      if (currentUser && currentUser.id === userId) {
-        const updatedUser = { ...currentUser, ...updates };
-        this.setLocalUser(updatedUser);
-        console.log('✅ User updated in localStorage');
-        return;
-      }
-      throw new Error('User not found in local storage');
-    }
-
-    try {
-      const userRef = doc(db, 'users', userId);
-      const updateData = { ...updates };
-      
-      if (updateData.createdAt) {
-        delete updateData.createdAt;
-      }
-      
-      updateData.updatedAt = serverTimestamp() as any;
-      
-      await updateDoc(userRef, updateData);
-      
-      if (updates.name && auth.currentUser) {
-        try {
-          await updateProfile(auth.currentUser, {
-            displayName: updates.name
-          });
-        } catch (profileError) {
-          console.warn('Failed to update Firebase Auth profile:', profileError);
+    // Try Firebase first
+    if (this.isFirebaseAvailable()) {
+      try {
+        const userRef = doc(db, 'users', userId);
+        const updateData = { ...updates };
+        
+        if (updateData.createdAt) {
+          delete updateData.createdAt;
         }
+        
+        updateData.updatedAt = serverTimestamp() as any;
+        
+        await updateDoc(userRef, updateData);
+        
+        if (updates.name && auth.currentUser) {
+          try {
+            await updateProfile(auth.currentUser, {
+              displayName: updates.name
+            });
+          } catch (profileError) {
+            console.warn('Failed to update Firebase Auth profile:', profileError);
+          }
+        }
+        
+        console.log('✅ User updated in Firebase');
+      } catch (error: any) {
+        console.error('❌ Update user error in Firebase:', error);
+        console.warn('⚠️ Falling back to localStorage update');
       }
-      
-      console.log('✅ User updated in Firebase');
-    } catch (error: any) {
-      console.error('❌ Update user error:', error);
-      
-      // Fallback to localStorage
-      const currentUser = this.getLocalUser();
-      if (currentUser && currentUser.id === userId) {
-        const updatedUser = { ...currentUser, ...updates };
-        this.setLocalUser(updatedUser);
-        console.log('⚠️ User updated in localStorage fallback');
-        return;
-      }
-      
-      throw new Error('Failed to update profile. Please try again.');
+    }
+    
+    // Always update localStorage (as backup or primary)
+    const currentUser = this.getLocalUser();
+    if (currentUser && currentUser.id === userId) {
+      const updatedUser = { ...currentUser, ...updates };
+      this.setLocalUser(updatedUser);
+      console.log('✅ User updated in localStorage');
+      return;
+    }
+    
+    if (!this.isFirebaseAvailable()) {
+      throw new Error('User not found in local storage');
     }
   }
   
   static onAuthStateChanged(callback: (user: FirebaseUser | null) => void) {
-    if (!this.isFirebaseAvailable()) {
-      // For localStorage fallback, simulate auth state
-      setTimeout(() => {
-        const localUser = this.getLocalUser();
-        callback(localUser ? { uid: localUser.id } as FirebaseUser : null);
-      }, 100);
-      
-      // Return a dummy unsubscribe function
-      return () => {};
+    if (this.isFirebaseAvailable()) {
+      return onAuthStateChanged(auth, callback);
     }
 
-    return onAuthStateChanged(auth, callback);
+    // For localStorage fallback, simulate auth state
+    setTimeout(() => {
+      const localUser = this.getLocalUser();
+      callback(localUser ? { uid: localUser.id } as FirebaseUser : null);
+    }, 100);
+    
+    // Return a dummy unsubscribe function
+    return () => {};
   }
   
   static async refreshUser() {
-    if (!this.isFirebaseAvailable()) {
-      return this.getLocalUser();
-    }
-
-    if (auth.currentUser) {
+    if (this.isFirebaseAvailable() && auth.currentUser) {
       try {
         await reload(auth.currentUser);
         return await this.getCurrentUser();
       } catch (error) {
         console.error('Error refreshing user:', error);
-        return this.getLocalUser();
       }
     }
-    return null;
+    return this.getLocalUser();
   }
   
   private static getErrorMessage(errorCode: string): string {
