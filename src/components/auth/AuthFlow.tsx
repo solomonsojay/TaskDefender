@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Mail, 
   Lock, 
@@ -9,7 +9,8 @@ import {
   ArrowRight,
   AlertCircle,
   ArrowLeft,
-  CheckCircle
+  CheckCircle,
+  RefreshCw
 } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { useApp } from '../../context/AppContext';
@@ -21,19 +22,49 @@ interface AuthFlowProps {
 
 const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
   const { dispatch } = useApp();
-  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot-password'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot-password' | 'reset-password'>('signin');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
+  const [oobCode, setOobCode] = useState('');
   
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     confirmPassword: '',
+    newPassword: '',
+    confirmNewPassword: '',
     name: '',
     username: ''
   });
+
+  // Check for password reset parameters in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode');
+    const oobCode = urlParams.get('oobCode');
+    
+    if (mode === 'resetPassword' && oobCode) {
+      handlePasswordResetFromEmail(oobCode);
+    }
+  }, []);
+
+  const handlePasswordResetFromEmail = async (code: string) => {
+    try {
+      setLoading(true);
+      const email = await AuthService.verifyPasswordResetCode(code);
+      setResetEmail(email);
+      setOobCode(code);
+      setMode('reset-password');
+      setSuccess(`Password reset verified for ${email}. Please enter your new password.`);
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +75,29 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
     try {
       if (mode === 'forgot-password') {
         await AuthService.resetPassword(formData.email);
-        setSuccess('Password reset email sent! Check your inbox and follow the instructions to reset your password.');
+        setSuccess(`Password reset email sent to ${formData.email}! Check your inbox and follow the instructions to reset your password.`);
+        setLoading(false);
+        return;
+      }
+
+      if (mode === 'reset-password') {
+        if (formData.newPassword !== formData.confirmNewPassword) {
+          throw new Error('Passwords do not match');
+        }
+        
+        if (formData.newPassword.length < 6) {
+          throw new Error('Password must be at least 6 characters');
+        }
+
+        await AuthService.confirmPasswordReset(oobCode, formData.newPassword);
+        setSuccess('Password reset successfully! You can now sign in with your new password.');
+        
+        // Clear URL parameters and redirect to sign in
+        window.history.replaceState({}, document.title, window.location.pathname);
+        setTimeout(() => {
+          setMode('signin');
+          resetForm();
+        }, 2000);
         setLoading(false);
         return;
       }
@@ -95,6 +148,8 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
       email: '',
       password: '',
       confirmPassword: '',
+      newPassword: '',
+      confirmNewPassword: '',
       name: '',
       username: ''
     });
@@ -106,6 +161,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
     switch (mode) {
       case 'signup': return 'Create Account';
       case 'forgot-password': return 'Reset Password';
+      case 'reset-password': return 'Set New Password';
       default: return 'Welcome Back';
     }
   };
@@ -114,7 +170,25 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
     switch (mode) {
       case 'signup': return 'Join the productivity revolution!';
       case 'forgot-password': return 'Enter your email to reset your password';
+      case 'reset-password': return 'Enter your new password below';
       default: return 'Sign in to continue your productivity journey';
+    }
+  };
+
+  const resendResetEmail = async () => {
+    if (!formData.email) {
+      setError('Please enter your email address first');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await AuthService.resetPassword(formData.email);
+      setSuccess('Password reset email sent again! Check your inbox.');
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -163,6 +237,18 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
             </div>
           )}
 
+          {/* Reset Email Info */}
+          {mode === 'reset-password' && resetEmail && (
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl">
+              <div className="flex items-center space-x-2">
+                <Mail className="h-5 w-5 text-blue-500" />
+                <p className="text-blue-700 dark:text-blue-400 text-sm">
+                  Resetting password for: <strong>{resetEmail}</strong>
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'signup' && (
@@ -207,24 +293,75 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
               </>
             )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => updateFormData({ email: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                  placeholder="Enter your email"
-                />
+            {mode !== 'reset-password' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => updateFormData({ email: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    placeholder="Enter your email"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
-            {mode !== 'forgot-password' && (
+            {mode === 'reset-password' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={formData.newPassword}
+                      onChange={(e) => updateFormData({ newPassword: e.target.value })}
+                      className="w-full pl-10 pr-12 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                      placeholder="Enter your new password"
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Must be at least 6 characters
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Confirm New Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={formData.confirmNewPassword}
+                      onChange={(e) => updateFormData({ confirmNewPassword: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                      placeholder="Confirm your new password"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {(mode === 'signin' || mode === 'signup') && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -289,13 +426,28 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
                   <span>
                     {mode === 'signin' ? 'Sign In' : 
                      mode === 'signup' ? 'Create Account' : 
-                     'Send Reset Email'}
+                     mode === 'forgot-password' ? 'Send Reset Email' :
+                     'Reset Password'}
                   </span>
                   <ArrowRight className="h-5 w-5" />
                 </>
               )}
             </button>
           </form>
+
+          {/* Resend Reset Email */}
+          {mode === 'forgot-password' && success && (
+            <div className="mt-4 text-center">
+              <button
+                onClick={resendResetEmail}
+                disabled={loading}
+                className="flex items-center justify-center space-x-2 text-orange-600 dark:text-orange-400 font-medium hover:underline text-sm mx-auto disabled:opacity-50"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>Resend Email</span>
+              </button>
+            </div>
+          )}
 
           {/* Forgot Password Link */}
           {mode === 'signin' && (
@@ -314,11 +466,13 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
 
           {/* Navigation Links */}
           <div className="mt-6 text-center space-y-2">
-            {mode === 'forgot-password' ? (
+            {(mode === 'forgot-password' || mode === 'reset-password') ? (
               <button
                 onClick={() => {
                   setMode('signin');
                   resetForm();
+                  // Clear URL parameters if coming from email reset
+                  window.history.replaceState({}, document.title, window.location.pathname);
                 }}
                 className="flex items-center justify-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200 mx-auto"
               >
