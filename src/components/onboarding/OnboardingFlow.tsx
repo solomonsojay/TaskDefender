@@ -13,16 +13,12 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { User as UserType } from '../../types';
+import { AuthService } from '../../services/authService';
 import Logo from '../common/Logo';
 
 interface FormData {
   // User type
   userType: 'single' | 'team-admin';
-  
-  // Basic personal information
-  name: string;
-  email: string;
-  username: string;
   
   // Session preference
   sessionType: 'focused' | 'flexible' | 'collaborative';
@@ -38,13 +34,11 @@ interface FormData {
 }
 
 const OnboardingFlow: React.FC = () => {
-  const { setUser, dispatch } = useApp();
+  const { user, setUser, dispatch } = useApp();
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     userType: 'single',
-    name: '',
-    email: '',
-    username: '',
     sessionType: 'focused',
     organizationName: '',
     organizationType: '',
@@ -55,7 +49,7 @@ const OnboardingFlow: React.FC = () => {
     organizationDescription: '',
   });
 
-  const totalSteps = formData.userType === 'team-admin' ? 4 : 3;
+  const totalSteps = formData.userType === 'team-admin' ? 3 : 2;
 
   const handleNext = () => {
     if (step < totalSteps) {
@@ -71,31 +65,40 @@ const OnboardingFlow: React.FC = () => {
     }
   };
 
-  const completeOnboarding = () => {
-    const user: UserType = {
-      id: Date.now().toString(),
-      name: formData.name,
-      email: formData.email,
-      username: formData.username,
-      role: formData.userType === 'team-admin' ? 'admin' : 'user',
-      goals: [], // Will be set later in app usage
-      workStyle: formData.sessionType,
-      integrityScore: 100,
-      streak: 0,
-      createdAt: new Date(),
-      ...(formData.userType === 'team-admin' && {
-        organizationName: formData.organizationName,
-        organizationType: formData.organizationType,
-        organizationIndustry: formData.organizationIndustry,
-        organizationSize: formData.organizationSize,
-        userRoleInOrg: formData.userRoleInOrg,
-        organizationWebsite: formData.organizationWebsite,
-        organizationDescription: formData.organizationDescription,
-      })
-    };
+  const completeOnboarding = async () => {
+    if (!user) return;
     
-    setUser(user);
-    dispatch({ type: 'COMPLETE_ONBOARDING' });
+    setLoading(true);
+    
+    try {
+      const updates: Partial<UserType> = {
+        role: formData.userType === 'team-admin' ? 'admin' : 'user',
+        workStyle: formData.sessionType,
+        ...(formData.userType === 'team-admin' && {
+          organizationName: formData.organizationName,
+          organizationType: formData.organizationType,
+          organizationIndustry: formData.organizationIndustry,
+          organizationSize: formData.organizationSize,
+          userRoleInOrg: formData.userRoleInOrg,
+          organizationWebsite: formData.organizationWebsite,
+          organizationDescription: formData.organizationDescription,
+        })
+      };
+      
+      // Update user in Firebase
+      await AuthService.updateUser(user.id, updates);
+      
+      // Update local state
+      const updatedUser = { ...user, ...updates };
+      setUser(updatedUser);
+      
+      // Complete onboarding
+      dispatch({ type: 'COMPLETE_ONBOARDING' });
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateFormData = (updates: Partial<FormData>) => {
@@ -128,10 +131,8 @@ const OnboardingFlow: React.FC = () => {
       case 1:
         return formData.userType;
       case 2:
-        return formData.name && formData.email && formData.username;
-      case 3:
         return formData.sessionType;
-      case 4:
+      case 3:
         return formData.userType !== 'team-admin' || (
           formData.organizationName &&
           formData.organizationType &&
@@ -143,6 +144,10 @@ const OnboardingFlow: React.FC = () => {
         return false;
     }
   };
+
+  if (!user) {
+    return null; // Should not happen as auth is required
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4 transition-colors duration-200">
@@ -169,13 +174,13 @@ const OnboardingFlow: React.FC = () => {
                 <Logo size="md" className="text-orange-500" />
               </div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                Welcome to TaskDefender
+                Welcome to TaskDefender, {user.name}!
               </h1>
               <p className="text-lg text-orange-600 dark:text-orange-400 font-medium mb-2">
                 Your Last Line of Defense Against Procrastination
               </p>
               <p className="text-gray-600 dark:text-gray-300 mb-8">
-                Choose how you want to use TaskDefender
+                Let's set up your productivity preferences
               </p>
               
               <div className="space-y-4 mb-8">
@@ -197,7 +202,7 @@ const OnboardingFlow: React.FC = () => {
                         <User className="h-8 w-8" />
                       </div>
                       <div className="text-left">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Single User</h3>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Individual User</h3>
                         <p className="text-gray-600 dark:text-gray-300">Personal productivity and task management</p>
                       </div>
                     </div>
@@ -231,80 +236,15 @@ const OnboardingFlow: React.FC = () => {
             </div>
           )}
 
-          {/* Step 2: Personal Information */}
+          {/* Step 2: Session Type Preference */}
           {step === 2 && (
-            <div>
-              <div className="text-center mb-6">
-                <div className="bg-blue-500/20 p-3 rounded-full w-16 h-16 mx-auto mb-4">
-                  <User className="h-10 w-10 text-blue-500 mx-auto" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                  Personal Information
-                </h2>
-                <p className="text-gray-600 dark:text-gray-300">
-                  Tell us about yourself to personalize your experience
-                </p>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => updateFormData({ name: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                    placeholder="Enter your full name"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => updateFormData({ email: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                    placeholder="Enter your email address"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Username *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.username}
-                    onChange={(e) => updateFormData({ username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                    placeholder="Choose a unique username"
-                    maxLength={20}
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Only lowercase letters, numbers, and underscores allowed
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Session Type Preference */}
-          {step === 3 && (
             <div>
               <div className="text-center mb-6">
                 <div className="bg-green-500/20 p-3 rounded-full w-16 h-16 mx-auto mb-4">
                   <Shield className="h-10 w-10 text-green-500 mx-auto" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                  Session Preference
+                  Work Style Preference
                 </h2>
                 <p className="text-gray-600 dark:text-gray-300">
                   How do you prefer to work and defend against procrastination?
@@ -341,8 +281,8 @@ const OnboardingFlow: React.FC = () => {
             </div>
           )}
 
-          {/* Step 4: Organization Details (Team Admin Only) */}
-          {step === 4 && formData.userType === 'team-admin' && (
+          {/* Step 3: Organization Details (Team Admin Only) */}
+          {step === 3 && formData.userType === 'team-admin' && (
             <div>
               <div className="text-center mb-6">
                 <div className="bg-purple-500/20 p-3 rounded-full w-16 h-16 mx-auto mb-4">
@@ -492,14 +432,20 @@ const OnboardingFlow: React.FC = () => {
 
             <button
               onClick={handleNext}
-              disabled={!canProceed()}
+              disabled={!canProceed() || loading}
               className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span>{step === totalSteps ? 'Complete Setup' : 'Continue'}</span>
-              {step === totalSteps ? (
-                <CheckCircle className="h-5 w-5" />
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                <ArrowRight className="h-5 w-5" />
+                <>
+                  <span>{step === totalSteps ? 'Complete Setup' : 'Continue'}</span>
+                  {step === totalSteps ? (
+                    <CheckCircle className="h-5 w-5" />
+                  ) : (
+                    <ArrowRight className="h-5 w-5" />
+                  )}
+                </>
               )}
             </button>
           </div>
