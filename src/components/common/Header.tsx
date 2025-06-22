@@ -8,7 +8,8 @@ import {
   Menu,
   X,
   TrendingUp,
-  Shield
+  Shield,
+  LogOut
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Logo from './Logo';
@@ -20,7 +21,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
-  const { user, theme, setTheme } = useApp();
+  const { user, theme, setTheme, signOut } = useApp();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -41,6 +42,14 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
   const handleLogoClick = () => {
     setCurrentView('dashboard');
     setIsMenuOpen(false);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   return (
@@ -132,6 +141,17 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
                 </button>
               )}
 
+              {/* Sign Out Button - Always visible when user exists */}
+              {user && (
+                <button 
+                  onClick={handleSignOut}
+                  className="p-2 rounded-lg bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/30 transition-colors duration-200"
+                  title="Sign Out"
+                >
+                  <LogOut className="h-5 w-5" />
+                </button>
+              )}
+
               {/* User Profile Picture & Info - Always visible on lg+ */}
               {user && (
                 <div className="hidden lg:flex items-center space-x-3 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
@@ -168,57 +188,62 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
           </div>
 
           {/* Mobile Menu - Only for small screens */}
-          {isMenuOpen && (
+          {isMenuOpen && user && (
             <div className="lg:hidden py-4 border-t border-gray-200 dark:border-gray-700">
               <div className="space-y-3">
-                {user && (
-                  <>
-                    {/* User Info - Mobile only */}
-                    <div className="flex items-center space-x-3 py-2">
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-orange-500/20 flex items-center justify-center">
-                        <span className="text-lg font-medium text-orange-500">
-                          {user.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{user.name}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">@{user.username}</p>
-                      </div>
-                    </div>
+                {/* User Info - Mobile only */}
+                <div className="flex items-center space-x-3 py-2">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-orange-500/20 flex items-center justify-center">
+                    <span className="text-lg font-medium text-orange-500">
+                      {user.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">{user.name}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">@{user.username}</p>
+                  </div>
+                </div>
 
-                    {/* Stats - Mobile only */}
-                    <div className="grid grid-cols-2 gap-3 py-2">
-                      <div className="bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <Shield className="h-4 w-4 text-green-500" />
-                          <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                            {user.integrityScore}% Integrity
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-orange-50 dark:bg-orange-900/20 px-3 py-2 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <TrendingUp className="h-4 w-4 text-orange-500" />
-                          <span className="text-sm font-medium text-orange-700 dark:text-orange-400">
-                            🔥 {user.streak} days
-                          </span>
-                        </div>
-                      </div>
+                {/* Stats - Mobile only */}
+                <div className="grid grid-cols-2 gap-3 py-2">
+                  <div className="bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Shield className="h-4 w-4 text-green-500" />
+                      <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                        {user.integrityScore}% Integrity
+                      </span>
                     </div>
+                  </div>
+                  
+                  <div className="bg-orange-50 dark:bg-orange-900/20 px-3 py-2 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <TrendingUp className="h-4 w-4 text-orange-500" />
+                      <span className="text-sm font-medium text-orange-700 dark:text-orange-400">
+                        🔥 {user.streak} days
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-                    {/* Teams for Admin - Mobile only */}
-                    {user.role === 'admin' && (
-                      <button
-                        onClick={handleTeamsClick}
-                        className="flex items-center justify-between w-full py-2"
-                      >
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Team Management</span>
-                        <Users className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                      </button>
-                    )}
-                  </>
+                {/* Teams for Admin - Mobile only */}
+                {user.role === 'admin' && (
+                  <button
+                    onClick={handleTeamsClick}
+                    className="flex items-center justify-between w-full py-2"
+                  >
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Team Management</span>
+                    <Users className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                  </button>
                 )}
+
+                {/* Sign Out - Mobile only */}
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center justify-between w-full py-2 text-red-600 dark:text-red-400"
+                >
+                  <span className="text-sm">Sign Out</span>
+                  <LogOut className="h-4 w-4" />
+                </button>
               </div>
             </div>
           )}

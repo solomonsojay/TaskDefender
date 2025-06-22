@@ -1,5 +1,6 @@
 import React from 'react';
 import { AppProvider } from './context/AppContext';
+import AuthWrapper from './components/auth/AuthWrapper';
 import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import AppContent from './components/AppContent';
 import { useApp } from './context/AppContext';
@@ -17,7 +18,9 @@ function AppInner() {
 function App() {
   return (
     <AppProvider>
-      <AppInner />
+      <AuthWrapper>
+        <AppInner />
+      </AuthWrapper>
     </AppProvider>
   );
 }
