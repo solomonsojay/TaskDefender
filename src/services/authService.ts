@@ -9,15 +9,17 @@ import {
   confirmPasswordReset,
   verifyPasswordResetCode,
   applyActionCode,
-  checkActionCode
+  checkActionCode,
+  reload
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { User } from '../types';
 
 export class AuthService {
   static async signUp(email: string, password: string, userData: Omit<User, 'id' | 'createdAt'>) {
     try {
+      // Create Firebase Auth user
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
       
@@ -26,20 +28,27 @@ export class AuthService {
         displayName: userData.name
       });
       
-      // Create user document in Firestore
+      // Reload user to get updated profile
+      await reload(firebaseUser);
+      
+      // Create user document in Firestore with server timestamp
       const user: User = {
         ...userData,
         id: firebaseUser.uid,
-        createdAt: new Date()
+        email: firebaseUser.email || email,
+        createdAt: new Date() // Will be converted to server timestamp
       };
       
       await setDoc(doc(db, 'users', firebaseUser.uid), {
         ...user,
-        createdAt: user.createdAt.toISOString()
+        createdAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp(),
+        emailVerified: firebaseUser.emailVerified
       });
       
       return user;
     } catch (error: any) {
+      console.error('Sign up error:', error);
       throw new Error(this.getErrorMessage(error.code));
     }
   }
@@ -49,6 +58,12 @@ export class AuthService {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
       
+      // Update last login time
+      await updateDoc(doc(db, 'users', firebaseUser.uid), {
+        lastLoginAt: serverTimestamp(),
+        emailVerified: firebaseUser.emailVerified
+      });
+      
       // Get user data from Firestore
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
       if (userDoc.exists()) {
@@ -56,12 +71,15 @@ export class AuthService {
         return {
           ...userData,
           id: firebaseUser.uid,
-          createdAt: new Date(userData.createdAt)
+          email: firebaseUser.email || userData.email,
+          createdAt: userData.createdAt?.toDate() || new Date(),
+          emailVerified: firebaseUser.emailVerified
         } as User;
       } else {
-        throw new Error('User data not found');
+        throw new Error('User data not found. Please contact support.');
       }
     } catch (error: any) {
+      console.error('Sign in error:', error);
       throw new Error(this.getErrorMessage(error.code));
     }
   }
@@ -69,10 +87,11 @@ export class AuthService {
   static async resetPassword(email: string) {
     try {
       await sendPasswordResetEmail(auth, email, {
-        url: window.location.origin + '/auth', // Redirect back to auth page after reset
+        url: `${window.location.origin}/auth?mode=signin`,
         handleCodeInApp: false
       });
     } catch (error: any) {
+      console.error('Password reset error:', error);
       throw new Error(this.getErrorMessage(error.code));
     }
   }
@@ -81,6 +100,7 @@ export class AuthService {
     try {
       await confirmPasswordReset(auth, oobCode, newPassword);
     } catch (error: any) {
+      console.error('Password reset confirmation error:', error);
       throw new Error(this.getErrorMessage(error.code));
     }
   }
@@ -90,6 +110,7 @@ export class AuthService {
       const email = await verifyPasswordResetCode(auth, oobCode);
       return email;
     } catch (error: any) {
+      console.error('Password reset code verification error:', error);
       throw new Error(this.getErrorMessage(error.code));
     }
   }
@@ -98,17 +119,21 @@ export class AuthService {
     try {
       switch (mode) {
         case 'resetPassword':
-          // Verify the code is valid
           const email = await verifyPasswordResetCode(auth, oobCode);
           return { mode, email, oobCode };
         
         case 'verifyEmail':
-          // Apply the email verification code
           await applyActionCode(auth, oobCode);
+          // Update user's email verification status in Firestore
+          if (auth.currentUser) {
+            await reload(auth.currentUser);
+            await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+              emailVerified: auth.currentUser.emailVerified
+            });
+          }
           return { mode, success: true };
         
         case 'recoverEmail':
-          // Check the action code
           const info = await checkActionCode(auth, oobCode);
           return { mode, info };
         
@@ -116,6 +141,7 @@ export class AuthService {
           throw new Error('Invalid action mode');
       }
     } catch (error: any) {
+      console.error('Auth action error:', error);
       throw new Error(this.getErrorMessage(error.code));
     }
   }
@@ -124,7 +150,8 @@ export class AuthService {
     try {
       await signOut(auth);
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error('Sign out error:', error);
+      throw new Error('Failed to sign out. Please try again.');
     }
   }
   
@@ -133,13 +160,18 @@ export class AuthService {
     if (!firebaseUser) return null;
     
     try {
+      // Ensure we have the latest user data
+      await reload(firebaseUser);
+      
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
         return {
           ...userData,
           id: firebaseUser.uid,
-          createdAt: new Date(userData.createdAt)
+          email: firebaseUser.email || userData.email,
+          createdAt: userData.createdAt?.toDate() || new Date(),
+          emailVerified: firebaseUser.emailVerified
         } as User;
       }
       return null;
@@ -154,19 +186,43 @@ export class AuthService {
       const userRef = doc(db, 'users', userId);
       const updateData = { ...updates };
       
-      // Convert dates to ISO strings for Firestore
+      // Convert dates to server timestamps for Firestore
       if (updateData.createdAt) {
-        updateData.createdAt = updateData.createdAt.toISOString() as any;
+        delete updateData.createdAt; // Don't update creation date
       }
       
+      // Add update timestamp
+      updateData.updatedAt = serverTimestamp() as any;
+      
       await updateDoc(userRef, updateData);
+      
+      // Update Firebase Auth profile if name changed
+      if (updates.name && auth.currentUser) {
+        await updateProfile(auth.currentUser, {
+          displayName: updates.name
+        });
+      }
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error('Update user error:', error);
+      throw new Error('Failed to update profile. Please try again.');
     }
   }
   
   static onAuthStateChanged(callback: (user: FirebaseUser | null) => void) {
     return onAuthStateChanged(auth, callback);
+  }
+  
+  static async refreshUser() {
+    if (auth.currentUser) {
+      try {
+        await reload(auth.currentUser);
+        return await this.getCurrentUser();
+      } catch (error) {
+        console.error('Error refreshing user:', error);
+        return null;
+      }
+    }
+    return null;
   }
   
   // Helper method to convert Firebase error codes to user-friendly messages
@@ -183,21 +239,26 @@ export class AuthService {
       case 'auth/invalid-email':
         return 'Please enter a valid email address.';
       case 'auth/user-disabled':
-        return 'This account has been disabled.';
+        return 'This account has been disabled. Please contact support.';
       case 'auth/too-many-requests':
         return 'Too many failed attempts. Please try again later.';
       case 'auth/network-request-failed':
-        return 'Network error. Please check your connection.';
+        return 'Network error. Please check your internet connection.';
       case 'auth/invalid-action-code':
-        return 'The password reset link is invalid or has expired.';
+        return 'The action link is invalid or has expired.';
       case 'auth/expired-action-code':
-        return 'The password reset link has expired. Please request a new one.';
+        return 'The action link has expired. Please request a new one.';
       case 'auth/invalid-continue-uri':
         return 'Invalid redirect URL.';
       case 'auth/missing-continue-uri':
         return 'Missing redirect URL.';
+      case 'auth/operation-not-allowed':
+        return 'This operation is not allowed. Please contact support.';
+      case 'auth/requires-recent-login':
+        return 'Please sign out and sign in again to perform this action.';
       default:
-        return 'An error occurred. Please try again.';
+        console.error('Unhandled auth error:', errorCode);
+        return 'An unexpected error occurred. Please try again.';
     }
   }
 }

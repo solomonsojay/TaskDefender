@@ -18,14 +18,15 @@ import Logo from '../common/Logo';
 
 interface AuthFlowProps {
   onAuthSuccess: () => void;
+  initialError?: string | null;
 }
 
-const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
+const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
   const { dispatch } = useApp();
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot-password' | 'reset-password'>('signin');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(initialError || '');
   const [success, setSuccess] = useState('');
   const [resetEmail, setResetEmail] = useState('');
   const [oobCode, setOobCode] = useState('');
@@ -40,20 +41,28 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
     username: ''
   });
 
+  // Clear initial error when mode changes
+  useEffect(() => {
+    if (initialError) {
+      setError(initialError);
+    }
+  }, [initialError]);
+
   // Check for password reset parameters in URL
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const mode = urlParams.get('mode');
-    const oobCode = urlParams.get('oobCode');
+    const urlMode = urlParams.get('mode');
+    const urlOobCode = urlParams.get('oobCode');
     
-    if (mode === 'resetPassword' && oobCode) {
-      handlePasswordResetFromEmail(oobCode);
+    if (urlMode === 'resetPassword' && urlOobCode) {
+      handlePasswordResetFromEmail(urlOobCode);
     }
   }, []);
 
   const handlePasswordResetFromEmail = async (code: string) => {
     try {
       setLoading(true);
+      setError('');
       const email = await AuthService.verifyPasswordResetCode(code);
       setResetEmail(email);
       setOobCode(code);
@@ -61,34 +70,75 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
       setSuccess(`Password reset verified for ${email}. Please enter your new password.`);
     } catch (error: any) {
       setError(error.message);
+      setMode('signin');
     } finally {
       setLoading(false);
     }
+  };
+
+  const validateForm = (): boolean => {
+    if (mode === 'signup') {
+      if (!formData.name.trim()) {
+        setError('Please enter your full name');
+        return false;
+      }
+      if (!formData.username.trim()) {
+        setError('Please enter a username');
+        return false;
+      }
+      if (formData.username.length < 3) {
+        setError('Username must be at least 3 characters');
+        return false;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        setError('Passwords do not match');
+        return false;
+      }
+    }
+    
+    if (mode === 'reset-password') {
+      if (formData.newPassword !== formData.confirmNewPassword) {
+        setError('Passwords do not match');
+        return false;
+      }
+      if (formData.newPassword.length < 6) {
+        setError('Password must be at least 6 characters');
+        return false;
+      }
+    }
+    
+    if ((mode === 'signin' || mode === 'signup') && formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return false;
+    }
+    
+    if (!formData.email.trim() && mode !== 'reset-password') {
+      setError('Please enter your email address');
+      return false;
+    }
+    
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     setLoading(true);
 
     try {
       if (mode === 'forgot-password') {
         await AuthService.resetPassword(formData.email);
         setSuccess(`Password reset email sent to ${formData.email}! Check your inbox and follow the instructions to reset your password.`);
-        setLoading(false);
         return;
       }
 
       if (mode === 'reset-password') {
-        if (formData.newPassword !== formData.confirmNewPassword) {
-          throw new Error('Passwords do not match');
-        }
-        
-        if (formData.newPassword.length < 6) {
-          throw new Error('Password must be at least 6 characters');
-        }
-
         await AuthService.confirmPasswordReset(oobCode, formData.newPassword);
         setSuccess('Password reset successfully! You can now sign in with your new password.');
         
@@ -98,22 +148,13 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
           setMode('signin');
           resetForm();
         }, 2000);
-        setLoading(false);
         return;
       }
 
       if (mode === 'signup') {
-        if (formData.password !== formData.confirmPassword) {
-          throw new Error('Passwords do not match');
-        }
-        
-        if (formData.password.length < 6) {
-          throw new Error('Password must be at least 6 characters');
-        }
-
         const userData = {
-          name: formData.name,
-          email: formData.email,
+          name: formData.name.trim(),
+          email: formData.email.trim().toLowerCase(),
           username: formData.username.toLowerCase().replace(/[^a-z0-9_]/g, ''),
           role: 'user' as const,
           goals: [],
@@ -124,11 +165,17 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
 
         const user = await AuthService.signUp(formData.email, formData.password, userData);
         dispatch({ type: 'SET_USER', payload: user });
-        dispatch({ type: 'COMPLETE_ONBOARDING' });
+        dispatch({ type: 'START_ONBOARDING' }); // New users need onboarding
       } else {
         const user = await AuthService.signIn(formData.email, formData.password);
         dispatch({ type: 'SET_USER', payload: user });
-        dispatch({ type: 'COMPLETE_ONBOARDING' });
+        
+        // Check if user needs onboarding
+        if (!user.workStyle || !user.role) {
+          dispatch({ type: 'START_ONBOARDING' });
+        } else {
+          dispatch({ type: 'COMPLETE_ONBOARDING' });
+        }
       }
       
       onAuthSuccess();
@@ -141,6 +188,10 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
 
   const updateFormData = (updates: Partial<typeof formData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
+    // Clear errors when user starts typing
+    if (error) {
+      setError('');
+    }
   };
 
   const resetForm = () => {
@@ -255,7 +306,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Full Name
+                    Full Name *
                   </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -272,7 +323,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Username
+                    Username *
                   </label>
                   <div className="relative">
                     <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -284,10 +335,11 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
                       className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
                       placeholder="Choose a username"
                       maxLength={20}
+                      minLength={3}
                     />
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Only lowercase letters, numbers, and underscores
+                    Only lowercase letters, numbers, and underscores (min 3 characters)
                   </p>
                 </div>
               </>
@@ -296,7 +348,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
             {mode !== 'reset-password' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Email Address
+                  Email Address *
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -316,7 +368,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    New Password
+                    New Password *
                   </label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -344,7 +396,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Confirm New Password
+                    Confirm New Password *
                   </label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -365,7 +417,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Password
+                    Password *
                   </label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -396,7 +448,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
                 {mode === 'signup' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Confirm Password
+                      Confirm Password *
                     </label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />

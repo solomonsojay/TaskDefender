@@ -10,7 +10,9 @@ import {
   where, 
   orderBy,
   onSnapshot,
-  Timestamp
+  Timestamp,
+  serverTimestamp,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Task, Team, FocusSession } from '../types';
@@ -22,7 +24,8 @@ export class FirestoreService {
       const taskData = {
         ...task,
         userId,
-        createdAt: Timestamp.fromDate(task.createdAt),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
         dueDate: task.dueDate ? Timestamp.fromDate(task.dueDate) : null,
         completedAt: task.completedAt ? Timestamp.fromDate(task.completedAt) : null,
         expectedCompletionTime: task.expectedCompletionTime ? Timestamp.fromDate(task.expectedCompletionTime) : null,
@@ -32,7 +35,8 @@ export class FirestoreService {
       const docRef = await addDoc(collection(db, 'tasks'), taskData);
       return docRef.id;
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error('Add task error:', error);
+      throw new Error('Failed to add task. Please try again.');
     }
   }
   
@@ -55,9 +59,13 @@ export class FirestoreService {
         updateData.scheduledTime = Timestamp.fromDate(updateData.scheduledTime) as any;
       }
       
+      // Add update timestamp
+      updateData.updatedAt = serverTimestamp() as any;
+      
       await updateDoc(taskRef, updateData);
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error('Update task error:', error);
+      throw new Error('Failed to update task. Please try again.');
     }
   }
   
@@ -65,7 +73,8 @@ export class FirestoreService {
     try {
       await deleteDoc(doc(db, 'tasks', taskId));
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error('Delete task error:', error);
+      throw new Error('Failed to delete task. Please try again.');
     }
   }
   
@@ -84,6 +93,7 @@ export class FirestoreService {
           ...data,
           id: doc.id,
           createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
           dueDate: data.dueDate?.toDate() || undefined,
           completedAt: data.completedAt?.toDate() || undefined,
           expectedCompletionTime: data.expectedCompletionTime?.toDate() || undefined,
@@ -91,7 +101,8 @@ export class FirestoreService {
         } as Task;
       });
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error('Get user tasks error:', error);
+      throw new Error('Failed to load tasks. Please try again.');
     }
   }
   
@@ -102,21 +113,29 @@ export class FirestoreService {
       orderBy('createdAt', 'desc')
     );
     
-    return onSnapshot(q, (querySnapshot) => {
-      const tasks = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          ...data,
-          id: doc.id,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          dueDate: data.dueDate?.toDate() || undefined,
-          completedAt: data.completedAt?.toDate() || undefined,
-          expectedCompletionTime: data.expectedCompletionTime?.toDate() || undefined,
-          scheduledTime: data.scheduledTime?.toDate() || undefined
-        } as Task;
-      });
-      callback(tasks);
-    });
+    return onSnapshot(q, 
+      (querySnapshot) => {
+        const tasks = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            ...data,
+            id: doc.id,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date(),
+            dueDate: data.dueDate?.toDate() || undefined,
+            completedAt: data.completedAt?.toDate() || undefined,
+            expectedCompletionTime: data.expectedCompletionTime?.toDate() || undefined,
+            scheduledTime: data.scheduledTime?.toDate() || undefined
+          } as Task;
+        });
+        callback(tasks);
+      },
+      (error) => {
+        console.error('Tasks subscription error:', error);
+        // Optionally call callback with empty array or handle error
+        callback([]);
+      }
+    );
   }
   
   // Teams
@@ -124,7 +143,8 @@ export class FirestoreService {
     try {
       const teamData = {
         ...team,
-        createdAt: Timestamp.fromDate(team.createdAt),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
         members: team.members.map(member => ({
           ...member,
           joinedAt: Timestamp.fromDate(member.joinedAt)
@@ -134,32 +154,38 @@ export class FirestoreService {
       const docRef = await addDoc(collection(db, 'teams'), teamData);
       return docRef.id;
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error('Create team error:', error);
+      throw new Error('Failed to create team. Please try again.');
     }
   }
   
   static async getUserTeams(userId: string): Promise<Team[]> {
     try {
+      // Query teams where user is admin or member
       const q = query(
         collection(db, 'teams'),
-        where('members', 'array-contains-any', [{ userId }])
+        where('adminId', '==', userId)
       );
       const querySnapshot = await getDocs(q);
       
-      return querySnapshot.docs.map(doc => {
+      const teams = querySnapshot.docs.map(doc => {
         const data = doc.data();
         return {
           ...data,
           id: doc.id,
           createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
           members: data.members?.map((member: any) => ({
             ...member,
             joinedAt: member.joinedAt?.toDate() || new Date()
           })) || []
         } as Team;
       });
+      
+      return teams;
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error('Get user teams error:', error);
+      throw new Error('Failed to load teams. Please try again.');
     }
   }
   
@@ -168,13 +194,30 @@ export class FirestoreService {
     try {
       const sessionData = {
         ...session,
-        createdAt: Timestamp.fromDate(session.createdAt)
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
       
       const docRef = await addDoc(collection(db, 'focusSessions'), sessionData);
       return docRef.id;
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error('Add focus session error:', error);
+      throw new Error('Failed to start focus session. Please try again.');
+    }
+  }
+  
+  static async updateFocusSession(sessionId: string, updates: Partial<FocusSession>) {
+    try {
+      const sessionRef = doc(db, 'focusSessions', sessionId);
+      const updateData = {
+        ...updates,
+        updatedAt: serverTimestamp()
+      };
+      
+      await updateDoc(sessionRef, updateData);
+    } catch (error: any) {
+      console.error('Update focus session error:', error);
+      throw new Error('Failed to update focus session. Please try again.');
     }
   }
   
@@ -192,11 +235,40 @@ export class FirestoreService {
         return {
           ...data,
           id: doc.id,
-          createdAt: data.createdAt?.toDate() || new Date()
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
         } as FocusSession;
       });
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error('Get user focus sessions error:', error);
+      throw new Error('Failed to load focus sessions. Please try again.');
+    }
+  }
+  
+  // Batch operations
+  static async batchUpdateTasks(updates: Array<{ id: string; data: Partial<Task> }>) {
+    try {
+      const batch = writeBatch(db);
+      
+      updates.forEach(({ id, data }) => {
+        const taskRef = doc(db, 'tasks', id);
+        const updateData = { ...data, updatedAt: serverTimestamp() };
+        
+        // Convert dates to Timestamps
+        if (updateData.dueDate) {
+          updateData.dueDate = Timestamp.fromDate(updateData.dueDate) as any;
+        }
+        if (updateData.completedAt) {
+          updateData.completedAt = Timestamp.fromDate(updateData.completedAt) as any;
+        }
+        
+        batch.update(taskRef, updateData);
+      });
+      
+      await batch.commit();
+    } catch (error: any) {
+      console.error('Batch update tasks error:', error);
+      throw new Error('Failed to update tasks. Please try again.');
     }
   }
 }
