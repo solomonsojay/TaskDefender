@@ -31,11 +31,16 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
           setShowAuth(false);
           setAuthError(null);
           
-          // Check if user needs onboarding
-          const needsOnboarding = !currentUser.workStyle || !currentUser.role;
+          // Check if user needs onboarding - more comprehensive check
+          const needsOnboarding = !currentUser.workStyle || 
+                                 !currentUser.role || 
+                                 currentUser.workStyle === null || 
+                                 currentUser.role === null ||
+                                 currentUser.workStyle === undefined ||
+                                 currentUser.role === undefined;
           
           if (needsOnboarding) {
-            console.log('🎯 User needs onboarding - missing workStyle or role');
+            console.log('🎯 User needs onboarding - missing or null workStyle/role');
             dispatch({ type: 'START_ONBOARDING' });
           } else {
             console.log('✅ User profile complete - skipping onboarding');
@@ -78,7 +83,13 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
             setShowAuth(false);
             setAuthError(null);
             
-            const needsOnboarding = !userData.workStyle || !userData.role;
+            // More comprehensive onboarding check
+            const needsOnboarding = !userData.workStyle || 
+                                   !userData.role || 
+                                   userData.workStyle === null || 
+                                   userData.role === null ||
+                                   userData.workStyle === undefined ||
+                                   userData.role === undefined;
             
             if (needsOnboarding) {
               console.log('🎯 Firebase user needs onboarding');
@@ -98,7 +109,13 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
               setUser(localUser);
               setShowAuth(false);
               
-              const needsOnboarding = !localUser.workStyle || !localUser.role;
+              const needsOnboarding = !localUser.workStyle || 
+                                     !localUser.role || 
+                                     localUser.workStyle === null || 
+                                     localUser.role === null ||
+                                     localUser.workStyle === undefined ||
+                                     localUser.role === undefined;
+              
               if (needsOnboarding) {
                 dispatch({ type: 'START_ONBOARDING' });
               } else {
@@ -159,7 +176,13 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
         setShowAuth(false);
         setAuthError(null);
         
-        const needsOnboarding = !userData.workStyle || !userData.role;
+        // Comprehensive onboarding check
+        const needsOnboarding = !userData.workStyle || 
+                               !userData.role || 
+                               userData.workStyle === null || 
+                               userData.role === null ||
+                               userData.workStyle === undefined ||
+                               userData.role === undefined;
         
         if (needsOnboarding) {
           console.log('🎯 New user or incomplete profile - starting onboarding');

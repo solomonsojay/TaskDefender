@@ -152,32 +152,26 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
       }
 
       if (mode === 'signup') {
-        // Create minimal user data for Firebase Auth - onboarding will collect the rest
+        // Create user data for signup - IMPORTANT: Set workStyle and role to undefined to force onboarding
         const userData = {
           name: formData.name.trim(),
           email: formData.email.trim().toLowerCase(),
           username: formData.username.toLowerCase().replace(/[^a-z0-9_]/g, ''),
-          role: 'user' as const, // Default role, will be updated in onboarding
+          role: undefined as any, // This will force onboarding
           goals: [],
-          workStyle: 'focused' as const, // Default, will be updated in onboarding
+          workStyle: undefined as any, // This will force onboarding
           integrityScore: 100,
           streak: 0
-          // Note: workStyle and role will be properly set during onboarding
-          // This ensures the user goes through our custom onboarding flow
         };
 
-        // Create user but don't set workStyle/role properly so onboarding triggers
-        const user = await AuthService.signUp(formData.email, formData.password, {
-          ...userData,
-          workStyle: undefined as any, // Force onboarding
-          role: undefined as any // Force onboarding
-        });
+        console.log('🎯 Creating new user - will trigger onboarding due to undefined workStyle/role');
         
-        console.log('New user created, will trigger onboarding');
+        const user = await AuthService.signUp(formData.email, formData.password, userData);
+        console.log('✅ New user created, onboarding will be triggered');
       } else {
         // Sign in existing user
         const user = await AuthService.signIn(formData.email, formData.password);
-        console.log('User signed in:', user);
+        console.log('✅ User signed in:', user);
       }
       
       // Call success handler which will check if onboarding is needed
