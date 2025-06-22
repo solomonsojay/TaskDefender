@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { AppState, Task, User, Theme, FocusSession, Team, TaskDefenseSystem } from '../types';
 import { taskDefenseService } from '../services/TaskDefenseService';
-import { FirestoreService } from '../services/firestoreService';
-import { AuthService } from '../services/authService';
 
 interface AppContextType extends AppState {
   dispatch: React.Dispatch<AppAction>;
@@ -136,41 +134,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [state.theme]);
 
-  // Subscribe to user's tasks when user changes
+  // Load tasks from localStorage when user changes (fallback for when Firebase is not available)
   useEffect(() => {
     if (state.user) {
-      const unsubscribe = FirestoreService.subscribeToUserTasks(
-        state.user.id,
-        (tasks) => {
+      const savedTasks = localStorage.getItem(`taskdefender_tasks_${state.user.id}`);
+      if (savedTasks) {
+        try {
+          const tasks = JSON.parse(savedTasks).map((task: any) => ({
+            ...task,
+            createdAt: new Date(task.createdAt),
+            dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+            completedAt: task.completedAt ? new Date(task.completedAt) : undefined,
+            expectedCompletionTime: task.expectedCompletionTime ? new Date(task.expectedCompletionTime) : undefined,
+            scheduledTime: task.scheduledTime ? new Date(task.scheduledTime) : undefined
+          }));
           dispatch({ type: 'SET_TASKS', payload: tasks });
+        } catch (error) {
+          console.error('Failed to load tasks from localStorage:', error);
         }
-      );
-
-      return () => unsubscribe();
+      }
     } else {
       dispatch({ type: 'SET_TASKS', payload: [] });
     }
   }, [state.user]);
 
-  // Load user's teams
+  // Save tasks to localStorage
   useEffect(() => {
-    if (state.user) {
-      FirestoreService.getUserTeams(state.user.id)
-        .then(teams => {
-          dispatch({ type: 'SET_TEAMS', payload: teams });
-        })
-        .catch(error => {
-          console.error('Error loading teams:', error);
-        });
+    if (state.user && state.tasks.length > 0) {
+      localStorage.setItem(`taskdefender_tasks_${state.user.id}`, JSON.stringify(state.tasks));
     }
-  }, [state.user]);
+  }, [state.tasks, state.user]);
 
-  const addTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'userId'>) => {
+  const addTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'userId'>) => {
     if (!state.user) return;
 
     const task: Task = {
       ...taskData,
-      id: '', // Will be set by Firestore
+      id: Date.now().toString(),
       createdAt: new Date(),
       userId: state.user.id,
       isDefenseActive: true,
@@ -179,57 +179,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       procrastinationCount: 0
     };
 
-    try {
-      const taskId = await FirestoreService.addTask(task, state.user.id);
-      const newTask = { ...task, id: taskId };
-      dispatch({ type: 'ADD_TASK', payload: newTask });
-    } catch (error) {
-      console.error('Error adding task:', error);
-    }
+    dispatch({ type: 'ADD_TASK', payload: task });
   };
 
-  const updateTask = async (id: string, updates: Partial<Task>) => {
-    try {
-      await FirestoreService.updateTask(id, updates);
-      dispatch({ type: 'UPDATE_TASK', payload: { id, updates } });
+  const updateTask = (id: string, updates: Partial<Task>) => {
+    dispatch({ type: 'UPDATE_TASK', payload: { id, updates } });
+    
+    // Update integrity score if task was completed
+    if (updates.status === 'done' && state.user) {
+      const completedTasks = state.tasks.filter(t => t.status === 'done').length + 1;
+      const honestTasks = state.tasks.filter(t => t.status === 'done' && t.honestlyCompleted !== false).length + (updates.honestlyCompleted !== false ? 1 : 0);
+      const integrityScore = Math.round((honestTasks / completedTasks) * 100);
       
-      // Update integrity score if task was completed
-      if (updates.status === 'done' && state.user) {
-        const completedTasks = state.tasks.filter(t => t.status === 'done').length + 1;
-        const honestTasks = state.tasks.filter(t => t.status === 'done' && t.honestlyCompleted !== false).length + (updates.honestlyCompleted !== false ? 1 : 0);
-        const integrityScore = Math.round((honestTasks / completedTasks) * 100);
-        
-        // Update streak if this is the first task completed today
-        const today = new Date().toDateString();
-        const completedToday = state.tasks.some(t => 
-          t.status === 'done' && 
-          t.completedAt && 
-          new Date(t.completedAt).toDateString() === today
-        );
-        
-        const streak = completedToday ? state.user.streak : state.user.streak + 1;
-        
-        const updatedUser = { 
-          ...state.user, 
-          integrityScore,
-          streak
-        };
-        
-        await AuthService.updateUser(state.user.id, { integrityScore, streak });
-        dispatch({ type: 'SET_USER', payload: updatedUser });
-      }
-    } catch (error) {
-      console.error('Error updating task:', error);
+      // Update streak if this is the first task completed today
+      const today = new Date().toDateString();
+      const completedToday = state.tasks.some(t => 
+        t.status === 'done' && 
+        t.completedAt && 
+        new Date(t.completedAt).toDateString() === today
+      );
+      
+      const streak = completedToday ? state.user.streak : state.user.streak + 1;
+      
+      const updatedUser = { 
+        ...state.user, 
+        integrityScore,
+        streak
+      };
+      
+      dispatch({ type: 'SET_USER', payload: updatedUser });
     }
   };
 
-  const deleteTask = async (id: string) => {
-    try {
-      await FirestoreService.deleteTask(id);
-      dispatch({ type: 'DELETE_TASK', payload: id });
-    } catch (error) {
-      console.error('Error deleting task:', error);
-    }
+  const deleteTask = (id: string) => {
+    dispatch({ type: 'DELETE_TASK', payload: id });
   };
 
   const setUser = (user: User | null) => {
@@ -240,11 +223,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     dispatch({ type: 'SET_THEME', payload: theme });
   };
 
-  const startFocusSession = async (taskId: string) => {
+  const startFocusSession = (taskId: string) => {
     if (!state.user) return;
 
     const session: FocusSession = {
-      id: '', // Will be set by Firestore
+      id: Date.now().toString(),
       taskId,
       duration: 0,
       completed: false,
@@ -255,40 +238,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       interventionCount: 0
     };
 
-    try {
-      const sessionId = await FirestoreService.addFocusSession(session);
-      const newSession = { ...session, id: sessionId };
-      dispatch({ type: 'START_FOCUS_SESSION', payload: newSession });
-    } catch (error) {
-      console.error('Error starting focus session:', error);
-    }
+    dispatch({ type: 'START_FOCUS_SESSION', payload: session });
   };
 
   const endFocusSession = () => {
     dispatch({ type: 'END_FOCUS_SESSION' });
   };
 
-  const createTeam = async (teamData: Omit<Team, 'id' | 'createdAt' | 'inviteCode'>) => {
-    if (!state.user) return;
-
+  const createTeam = (teamData: Omit<Team, 'id' | 'createdAt' | 'inviteCode'>) => {
     const team: Team = {
       ...teamData,
-      id: '', // Will be set by Firestore
+      id: Date.now().toString(),
       createdAt: new Date(),
       inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
     };
-
-    try {
-      const teamId = await FirestoreService.createTeam(team);
-      const newTeam = { ...team, id: teamId };
-      dispatch({ type: 'CREATE_TEAM', payload: newTeam });
-    } catch (error) {
-      console.error('Error creating team:', error);
-    }
+    dispatch({ type: 'CREATE_TEAM', payload: team });
   };
 
   const joinTeam = (inviteCode: string) => {
-    // Mock team joining - would need proper implementation
+    // Mock team joining
     const mockTeam: Team = {
       id: Date.now().toString(),
       name: 'Sample Team',
@@ -301,15 +269,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     dispatch({ type: 'JOIN_TEAM', payload: mockTeam });
   };
 
-  const updateProfile = async (updates: Partial<User>) => {
+  const updateProfile = (updates: Partial<User>) => {
     if (state.user) {
-      try {
-        await AuthService.updateUser(state.user.id, updates);
-        const updatedUser = { ...state.user, ...updates };
-        dispatch({ type: 'SET_USER', payload: updatedUser });
-      } catch (error) {
-        console.error('Error updating profile:', error);
-      }
+      const updatedUser = { ...state.user, ...updates };
+      dispatch({ type: 'SET_USER', payload: updatedUser });
     }
   };
 
@@ -319,6 +282,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const signOut = async () => {
     try {
+      // Import AuthService dynamically to avoid circular dependencies
+      const { AuthService } = await import('../services/authService');
       await AuthService.signOut();
       dispatch({ type: 'SET_USER', payload: null });
       dispatch({ type: 'SET_TASKS', payload: [] });

@@ -67,10 +67,15 @@ export class AuthService {
       const firebaseUser = userCredential.user;
       
       // Update last login time
-      await updateDoc(doc(db, 'users', firebaseUser.uid), {
-        lastLoginAt: serverTimestamp(),
-        emailVerified: firebaseUser.emailVerified
-      });
+      try {
+        await updateDoc(doc(db, 'users', firebaseUser.uid), {
+          lastLoginAt: serverTimestamp(),
+          emailVerified: firebaseUser.emailVerified
+        });
+      } catch (updateError) {
+        console.warn('Failed to update last login time:', updateError);
+        // Don't fail the sign in for this
+      }
       
       // Get user data from Firestore
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
@@ -100,7 +105,7 @@ export class AuthService {
   static async resetPassword(email: string) {
     try {
       await sendPasswordResetEmail(auth, email, {
-        url: `${window.location.origin}/auth?mode=signin`,
+        url: `${window.location.origin}`,
         handleCodeInApp: false
       });
     } catch (error: any) {
@@ -140,9 +145,13 @@ export class AuthService {
           // Update user's email verification status in Firestore
           if (auth.currentUser) {
             await reload(auth.currentUser);
-            await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-              emailVerified: auth.currentUser.emailVerified
-            });
+            try {
+              await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                emailVerified: auth.currentUser.emailVerified
+              });
+            } catch (updateError) {
+              console.warn('Failed to update email verification status:', updateError);
+            }
           }
           return { mode, success: true };
         
@@ -218,9 +227,14 @@ export class AuthService {
       
       // Update Firebase Auth profile if name changed
       if (updates.name && auth.currentUser) {
-        await updateProfile(auth.currentUser, {
-          displayName: updates.name
-        });
+        try {
+          await updateProfile(auth.currentUser, {
+            displayName: updates.name
+          });
+        } catch (profileError) {
+          console.warn('Failed to update Firebase Auth profile:', profileError);
+          // Don't fail the entire update for this
+        }
       }
       
       console.log('User updated successfully');
