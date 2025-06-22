@@ -4,7 +4,8 @@ import {
   signOut, 
   onAuthStateChanged,
   User as FirebaseUser,
-  updateProfile
+  updateProfile,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
@@ -56,6 +57,14 @@ export class AuthService {
       } else {
         throw new Error('User data not found');
       }
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  
+  static async resetPassword(email: string) {
+    try {
+      await sendPasswordResetEmail(auth, email);
     } catch (error: any) {
       throw new Error(error.message);
     }

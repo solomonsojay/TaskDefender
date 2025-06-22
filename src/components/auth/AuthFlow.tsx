@@ -7,7 +7,9 @@ import {
   EyeOff,
   Shield,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle
 } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { useApp } from '../../context/AppContext';
@@ -19,10 +21,11 @@ interface AuthFlowProps {
 
 const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
   const { dispatch } = useApp();
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot-password'>('signin');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   
   const [formData, setFormData] = useState({
     email: '',
@@ -35,9 +38,17 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
 
     try {
+      if (mode === 'forgot-password') {
+        await AuthService.resetPassword(formData.email);
+        setSuccess('Password reset email sent! Check your inbox and follow the instructions to reset your password.');
+        setLoading(false);
+        return;
+      }
+
       if (mode === 'signup') {
         if (formData.password !== formData.confirmPassword) {
           throw new Error('Passwords do not match');
@@ -79,6 +90,34 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
     setFormData(prev => ({ ...prev, ...updates }));
   };
 
+  const resetForm = () => {
+    setFormData({
+      email: '',
+      password: '',
+      confirmPassword: '',
+      name: '',
+      username: ''
+    });
+    setError('');
+    setSuccess('');
+  };
+
+  const getTitle = () => {
+    switch (mode) {
+      case 'signup': return 'Create Account';
+      case 'forgot-password': return 'Reset Password';
+      default: return 'Welcome Back';
+    }
+  };
+
+  const getSubtitle = () => {
+    switch (mode) {
+      case 'signup': return 'Join the productivity revolution!';
+      case 'forgot-password': return 'Enter your email to reset your password';
+      default: return 'Sign in to continue your productivity journey';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
@@ -94,10 +133,25 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
             <p className="text-lg text-orange-600 dark:text-orange-400 font-medium mb-2">
               Your Last Line of Defense Against Procrastination
             </p>
-            <p className="text-gray-600 dark:text-gray-300">
-              {mode === 'signin' ? 'Welcome back!' : 'Join the productivity revolution!'}
-            </p>
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                {getTitle()}
+              </h2>
+              <p className="text-gray-600 dark:text-gray-300">
+                {getSubtitle()}
+              </p>
+            </div>
           </div>
+
+          {/* Success Message */}
+          {success && (
+            <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl">
+              <div className="flex items-start space-x-2">
+                <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                <p className="text-green-700 dark:text-green-400 text-sm">{success}</p>
+              </div>
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (
@@ -170,53 +224,57 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={formData.password}
-                  onChange={(e) => updateFormData({ password: e.target.value })}
-                  className="w-full pl-10 pr-12 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                  placeholder="Enter your password"
-                  minLength={6}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              </div>
-              {mode === 'signup' && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Must be at least 6 characters
-                </p>
-              )}
-            </div>
-
-            {mode === 'signup' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={formData.confirmPassword}
-                    onChange={(e) => updateFormData({ confirmPassword: e.target.value })}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                    placeholder="Confirm your password"
-                  />
+            {mode !== 'forgot-password' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={formData.password}
+                      onChange={(e) => updateFormData({ password: e.target.value })}
+                      className="w-full pl-10 pr-12 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                      placeholder="Enter your password"
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                  {mode === 'signup' && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Must be at least 6 characters
+                    </p>
+                  )}
                 </div>
-              </div>
+
+                {mode === 'signup' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Confirm Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={formData.confirmPassword}
+                        onChange={(e) => updateFormData({ confirmPassword: e.target.value })}
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                        placeholder="Confirm your password"
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             <button
@@ -228,34 +286,59 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess }) => {
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
-                  <span>{mode === 'signin' ? 'Sign In' : 'Create Account'}</span>
+                  <span>
+                    {mode === 'signin' ? 'Sign In' : 
+                     mode === 'signup' ? 'Create Account' : 
+                     'Send Reset Email'}
+                  </span>
                   <ArrowRight className="h-5 w-5" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Toggle Mode */}
-          <div className="mt-6 text-center">
-            <p className="text-gray-600 dark:text-gray-400">
-              {mode === 'signin' ? "Don't have an account?" : "Already have an account?"}
+          {/* Forgot Password Link */}
+          {mode === 'signin' && (
+            <div className="mt-4 text-center">
               <button
                 onClick={() => {
-                  setMode(mode === 'signin' ? 'signup' : 'signin');
-                  setError('');
-                  setFormData({
-                    email: '',
-                    password: '',
-                    confirmPassword: '',
-                    name: '',
-                    username: ''
-                  });
+                  setMode('forgot-password');
+                  resetForm();
                 }}
-                className="ml-2 text-orange-600 dark:text-orange-400 font-medium hover:underline"
+                className="text-orange-600 dark:text-orange-400 font-medium hover:underline text-sm"
               >
-                {mode === 'signin' ? 'Sign up' : 'Sign in'}
+                Forgot your password?
               </button>
-            </p>
+            </div>
+          )}
+
+          {/* Navigation Links */}
+          <div className="mt-6 text-center space-y-2">
+            {mode === 'forgot-password' ? (
+              <button
+                onClick={() => {
+                  setMode('signin');
+                  resetForm();
+                }}
+                className="flex items-center justify-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200 mx-auto"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back to Sign In</span>
+              </button>
+            ) : (
+              <p className="text-gray-600 dark:text-gray-400">
+                {mode === 'signin' ? "Don't have an account?" : "Already have an account?"}
+                <button
+                  onClick={() => {
+                    setMode(mode === 'signin' ? 'signup' : 'signin');
+                    resetForm();
+                  }}
+                  className="ml-2 text-orange-600 dark:text-orange-400 font-medium hover:underline"
+                >
+                  {mode === 'signin' ? 'Sign up' : 'Sign in'}
+                </button>
+              </p>
+            )}
           </div>
 
           {/* Privacy Notice */}
