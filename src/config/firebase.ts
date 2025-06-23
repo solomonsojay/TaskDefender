@@ -20,7 +20,11 @@ let isFirebaseAvailable = false;
 
 try {
   // Initialize Firebase
-  console.log('🔥 Initializing Firebase...');
+  console.log('🔥 Initializing Firebase with config:', {
+    projectId: firebaseConfig.projectId,
+    authDomain: firebaseConfig.authDomain
+  });
+  
   app = initializeApp(firebaseConfig);
   
   // Initialize Firebase services
@@ -51,7 +55,12 @@ try {
 
 // Export Firebase availability checker
 export const checkFirebaseAvailability = (): boolean => {
-  return isFirebaseAvailable && auth !== undefined && db !== undefined;
+  try {
+    return isFirebaseAvailable && auth !== undefined && db !== undefined;
+  } catch (error) {
+    console.warn('Firebase availability check failed:', error);
+    return false;
+  }
 };
 
 // Export services with fallback handling

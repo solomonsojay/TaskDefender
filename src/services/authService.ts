@@ -69,6 +69,8 @@ export class AuthService {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
         
+        console.log('✅ Firebase Auth user created:', firebaseUser.uid);
+        
         // Update Firebase Auth profile
         await updateProfile(firebaseUser, {
           displayName: userData.name
@@ -86,12 +88,31 @@ export class AuthService {
           emailVerified: firebaseUser.emailVerified
         };
         
+        console.log('📝 Creating Firestore user document...');
+        
+        // Use setDoc to create the document
         await setDoc(doc(db, 'users', firebaseUser.uid), {
-          ...user,
+          name: user.name,
+          email: user.email,
+          username: user.username,
+          role: user.role,
+          goals: user.goals || [],
+          workStyle: user.workStyle,
+          integrityScore: user.integrityScore || 100,
+          streak: user.streak || 0,
+          organizationName: user.organizationName || null,
+          organizationType: user.organizationType || null,
+          organizationIndustry: user.organizationIndustry || null,
+          organizationSize: user.organizationSize || null,
+          userRoleInOrg: user.userRoleInOrg || null,
+          organizationWebsite: user.organizationWebsite || null,
+          organizationDescription: user.organizationDescription || null,
           createdAt: serverTimestamp(),
           lastLoginAt: serverTimestamp(),
           emailVerified: firebaseUser.emailVerified
         });
+        
+        console.log('✅ Firestore user document created');
         
         // Also save to localStorage as backup
         this.setLocalUser(user);
@@ -110,13 +131,16 @@ export class AuthService {
           throw new Error('Please enter a valid email address.');
         } else if (error.code === 'permission-denied') {
           throw new Error('Database permission denied. Please check Firestore security rules.');
+        } else if (error.code === 'auth/network-request-failed') {
+          throw new Error('Network error. Please check your internet connection and try again.');
         }
         
         console.warn('⚠️ Falling back to localStorage for user creation');
+        throw error; // Re-throw the error instead of falling back for signup
       }
     }
     
-    // Fallback to localStorage
+    // Fallback to localStorage only if Firebase is completely unavailable
     console.log('📱 Using localStorage fallback for sign up');
     const user: User = {
       ...userData,
@@ -141,6 +165,8 @@ export class AuthService {
         throw new Error('No user is currently signed in');
       }
 
+      console.log('📧 Sending email verification...');
+      
       await firebaseSendEmailVerification(user, {
         url: `${window.location.origin}`,
         handleCodeInApp: false
@@ -154,16 +180,19 @@ export class AuthService {
   }
 
   static async verifyEmailWithCode(oobCode: string) {
-    if (!this.isFirebaseAvailable()) {
+    if (!this.isFirebaseAvailability()) {
       throw new Error('Email verification is not available in offline mode.');
     }
 
     try {
+      console.log('🔍 Verifying email with code...');
       await applyActionCode(auth, oobCode);
       
       // Reload the current user to get updated email verification status
       if (auth.currentUser) {
         await reload(auth.currentUser);
+        
+        console.log('📝 Updating email verification status in Firestore...');
         
         // Update Firestore with verification status
         try {
@@ -192,6 +221,8 @@ export class AuthService {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
         
+        console.log('✅ Firebase Auth sign in successful');
+        
         // Update last login time
         try {
           await updateDoc(doc(db, 'users', firebaseUser.uid), {
@@ -203,6 +234,7 @@ export class AuthService {
         }
         
         // Get user data from Firestore
+        console.log('📖 Loading user data from Firestore...');
         const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
@@ -220,7 +252,7 @@ export class AuthService {
           console.log('✅ Firebase sign in successful');
           return user;
         } else {
-          throw new Error('User data not found in Firestore');
+          throw new Error('User data not found in Firestore. Please contact support.');
         }
       } catch (error: any) {
         console.error('❌ Firebase sign in error:', error);
@@ -234,11 +266,20 @@ export class AuthService {
           throw new Error('Please enter a valid email address.');
         } else if (error.code === 'auth/user-disabled') {
           throw new Error('This account has been disabled. Please contact support.');
+        } else if (error.code === 'auth/too-many-requests') {
+          throw new Error('Too many failed attempts. Please try again later.');
         } else if (error.code === 'permission-denied') {
           throw new Error('Database permission denied. Please check Firestore security rules.');
+        } else if (error.code === 'auth/network-request-failed') {
+          throw new Error('Network error. Please check your internet connection.');
         }
         
-        console.warn('⚠️ Falling back to localStorage for sign in');
+        // Only fallback for specific errors, not authentication failures
+        if (error.code === 'auth/network-request-failed' || error.code === 'permission-denied') {
+          console.warn('⚠️ Falling back to localStorage for sign in');
+        } else {
+          throw error; // Re-throw authentication errors
+        }
       }
     }
     
