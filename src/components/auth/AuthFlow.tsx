@@ -10,7 +10,9 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle,
-  RefreshCw
+  RefreshCw,
+  Crown,
+  Building
 } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { useApp } from '../../context/AppContext';
@@ -23,22 +25,37 @@ interface AuthFlowProps {
 
 const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
   const { dispatch } = useApp();
-  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot-password' | 'reset-password'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot-password' | 'reset-password' | 'email-verification'>('signin');
+  const [signupStep, setSignupStep] = useState<'user-type' | 'details' | 'verification'>('user-type');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(initialError || '');
   const [success, setSuccess] = useState('');
   const [resetEmail, setResetEmail] = useState('');
   const [oobCode, setOobCode] = useState('');
+  const [verificationEmail, setVerificationEmail] = useState('');
   
   const [formData, setFormData] = useState({
+    // User type selection
+    userType: 'single' as 'single' | 'team-admin',
+    
+    // Basic details
     email: '',
     password: '',
     confirmPassword: '',
     newPassword: '',
     confirmNewPassword: '',
     name: '',
-    username: ''
+    username: '',
+    
+    // Organization details (for team admin)
+    organizationName: '',
+    organizationType: '',
+    organizationIndustry: '',
+    organizationSize: '',
+    userRoleInOrg: '',
+    organizationWebsite: '',
+    organizationDescription: ''
   });
 
   // Clear initial error when mode changes
@@ -56,6 +73,8 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
     
     if (urlMode === 'resetPassword' && urlOobCode) {
       handlePasswordResetFromEmail(urlOobCode);
+    } else if (urlMode === 'verifyEmail' && urlOobCode) {
+      handleEmailVerificationFromLink(urlOobCode);
     }
   }, []);
 
@@ -76,8 +95,29 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
     }
   };
 
-  const validateForm = (): boolean => {
-    if (mode === 'signup') {
+  const handleEmailVerificationFromLink = async (code: string) => {
+    try {
+      setLoading(true);
+      setError('');
+      await AuthService.verifyEmailWithCode(code);
+      setSuccess('Email verified successfully! You can now access your workspace.');
+      setTimeout(() => {
+        onAuthSuccess();
+      }, 2000);
+    } catch (error: any) {
+      setError(error.message);
+      setMode('signin');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const validateSignupStep = (): boolean => {
+    if (signupStep === 'user-type') {
+      return formData.userType !== '';
+    }
+    
+    if (signupStep === 'details') {
       if (!formData.name.trim()) {
         setError('Please enter your full name');
         return false;
@@ -90,12 +130,48 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
         setError('Username must be at least 3 characters');
         return false;
       }
+      if (!formData.email.trim()) {
+        setError('Please enter your email address');
+        return false;
+      }
+      if (formData.password.length < 6) {
+        setError('Password must be at least 6 characters');
+        return false;
+      }
       if (formData.password !== formData.confirmPassword) {
         setError('Passwords do not match');
         return false;
       }
+      
+      // Additional validation for team admin
+      if (formData.userType === 'team-admin') {
+        if (!formData.organizationName.trim()) {
+          setError('Please enter your organization name');
+          return false;
+        }
+        if (!formData.organizationType) {
+          setError('Please select your organization type');
+          return false;
+        }
+        if (!formData.organizationIndustry) {
+          setError('Please select your industry');
+          return false;
+        }
+        if (!formData.organizationSize) {
+          setError('Please select your organization size');
+          return false;
+        }
+        if (!formData.userRoleInOrg.trim()) {
+          setError('Please enter your role in the organization');
+          return false;
+        }
+      }
     }
     
+    return true;
+  };
+
+  const validateForm = (): boolean => {
     if (mode === 'reset-password') {
       if (formData.newPassword !== formData.confirmNewPassword) {
         setError('Passwords do not match');
@@ -107,14 +183,15 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
       }
     }
     
-    if ((mode === 'signin' || mode === 'signup') && formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return false;
-    }
-    
-    if (!formData.email.trim() && mode !== 'reset-password') {
-      setError('Please enter your email address');
-      return false;
+    if (mode === 'signin') {
+      if (!formData.email.trim()) {
+        setError('Please enter your email address');
+        return false;
+      }
+      if (formData.password.length < 6) {
+        setError('Password must be at least 6 characters');
+        return false;
+      }
     }
     
     return true;
@@ -125,6 +202,63 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
     setError('');
     setSuccess('');
     
+    if (mode === 'signup') {
+      if (!validateSignupStep()) {
+        return;
+      }
+      
+      if (signupStep === 'user-type') {
+        setSignupStep('details');
+        return;
+      }
+      
+      if (signupStep === 'details') {
+        // Proceed to create account and send verification email
+        setLoading(true);
+        
+        try {
+          // Create user data for signup
+          const userData = {
+            name: formData.name.trim(),
+            email: formData.email.trim().toLowerCase(),
+            username: formData.username.toLowerCase().replace(/[^a-z0-9_]/g, ''),
+            role: formData.userType === 'team-admin' ? 'admin' as const : 'user' as const,
+            goals: [],
+            workStyle: 'focused' as const, // Default, will be set in onboarding
+            integrityScore: 100,
+            streak: 0,
+            // Organization details for team admin
+            ...(formData.userType === 'team-admin' && {
+              organizationName: formData.organizationName,
+              organizationType: formData.organizationType,
+              organizationIndustry: formData.organizationIndustry,
+              organizationSize: formData.organizationSize,
+              userRoleInOrg: formData.userRoleInOrg,
+              organizationWebsite: formData.organizationWebsite,
+              organizationDescription: formData.organizationDescription,
+            })
+          };
+
+          console.log('🎯 Creating new user account...');
+          
+          await AuthService.signUp(formData.email, formData.password, userData);
+          
+          // Send email verification
+          await AuthService.sendEmailVerification();
+          
+          setVerificationEmail(formData.email);
+          setSignupStep('verification');
+          setSuccess(`Account created! Please check ${formData.email} for a verification link before proceeding.`);
+          
+        } catch (error: any) {
+          setError(error.message);
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -151,31 +285,32 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
         return;
       }
 
-      if (mode === 'signup') {
-        // Create user data for signup - IMPORTANT: Set workStyle and role to undefined to force onboarding
-        const userData = {
-          name: formData.name.trim(),
-          email: formData.email.trim().toLowerCase(),
-          username: formData.username.toLowerCase().replace(/[^a-z0-9_]/g, ''),
-          role: undefined as any, // This will force onboarding
-          goals: [],
-          workStyle: undefined as any, // This will force onboarding
-          integrityScore: 100,
-          streak: 0
-        };
-
-        console.log('🎯 Creating new user - will trigger onboarding due to undefined workStyle/role');
-        
-        const user = await AuthService.signUp(formData.email, formData.password, userData);
-        console.log('✅ New user created, onboarding will be triggered');
-      } else {
+      if (mode === 'signin') {
         // Sign in existing user
         const user = await AuthService.signIn(formData.email, formData.password);
+        
+        // Check if email is verified
+        if (!user.emailVerified) {
+          setError('Please verify your email address before signing in. Check your inbox for a verification link.');
+          return;
+        }
+        
         console.log('✅ User signed in:', user);
+        onAuthSuccess();
       }
       
-      // Call success handler which will check if onboarding is needed
-      onAuthSuccess();
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    try {
+      setLoading(true);
+      await AuthService.sendEmailVerification();
+      setSuccess('Verification email sent again! Check your inbox.');
     } catch (error: any) {
       setError(error.message);
     } finally {
@@ -193,32 +328,51 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
 
   const resetForm = () => {
     setFormData({
+      userType: 'single',
       email: '',
       password: '',
       confirmPassword: '',
       newPassword: '',
       confirmNewPassword: '',
       name: '',
-      username: ''
+      username: '',
+      organizationName: '',
+      organizationType: '',
+      organizationIndustry: '',
+      organizationSize: '',
+      userRoleInOrg: '',
+      organizationWebsite: '',
+      organizationDescription: ''
     });
     setError('');
     setSuccess('');
+    setSignupStep('user-type');
   };
 
   const getTitle = () => {
     switch (mode) {
-      case 'signup': return 'Create Account';
+      case 'signup':
+        if (signupStep === 'user-type') return 'Choose Your Path';
+        if (signupStep === 'details') return 'Create Your Account';
+        if (signupStep === 'verification') return 'Verify Your Email';
+        return 'Create Account';
       case 'forgot-password': return 'Reset Password';
       case 'reset-password': return 'Set New Password';
+      case 'email-verification': return 'Email Verification';
       default: return 'Welcome Back';
     }
   };
 
   const getSubtitle = () => {
     switch (mode) {
-      case 'signup': return 'Join TaskDefender and start your productivity journey!';
+      case 'signup':
+        if (signupStep === 'user-type') return 'Are you managing tasks for yourself or a team?';
+        if (signupStep === 'details') return 'Tell us about yourself to get started';
+        if (signupStep === 'verification') return 'Check your email to verify your account';
+        return 'Join TaskDefender and start your productivity journey!';
       case 'forgot-password': return 'Enter your email to reset your password';
       case 'reset-password': return 'Enter your new password below';
+      case 'email-verification': return 'Verifying your email address...';
       default: return 'Sign in to continue defending against procrastination';
     }
   };
@@ -297,27 +451,68 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
             </div>
           )}
 
-          {/* Onboarding Notice for Signup */}
-          {mode === 'signup' && (
-            <div className="mb-6 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl">
-              <div className="flex items-start space-x-2">
-                <Shield className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-orange-700 dark:text-orange-400 text-sm font-medium mb-1">
-                    Custom Setup Process
-                  </p>
-                  <p className="text-orange-600 dark:text-orange-300 text-xs">
-                    After creating your account, you'll go through our personalized setup to configure TaskDefender based on whether you're an individual user or team admin.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === 'signup' && (
-              <>
+            {/* Signup: User Type Selection */}
+            {mode === 'signup' && signupStep === 'user-type' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => updateFormData({ userType: 'single' })}
+                    className={`p-6 rounded-xl border-2 transition-all duration-200 text-left ${
+                      formData.userType === 'single'
+                        ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 shadow-lg'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-orange-300 dark:hover:border-orange-600'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className={`p-3 rounded-lg ${
+                        formData.userType === 'single'
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                      }`}>
+                        <User className="h-8 w-8" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Individual User</h3>
+                        <p className="text-gray-600 dark:text-gray-300">Personal productivity and task management</p>
+                      </div>
+                    </div>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => updateFormData({ userType: 'team-admin' })}
+                    className={`p-6 rounded-xl border-2 transition-all duration-200 text-left ${
+                      formData.userType === 'team-admin'
+                        ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 shadow-lg'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-orange-300 dark:hover:border-orange-600'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className={`p-3 rounded-lg ${
+                        formData.userType === 'team-admin'
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                      }`}>
+                        <Crown className="h-8 w-8" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Team Admin</h3>
+                        <p className="text-gray-600 dark:text-gray-300">Manage teams and organization productivity</p>
+                        <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">Can create and manage teams</p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Signup: Details Collection */}
+            {mode === 'signup' && signupStep === 'details' && (
+              <div className="space-y-4">
+                {/* Personal Information */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Full Name *
@@ -356,28 +551,243 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
                     Only lowercase letters, numbers, and underscores (min 3 characters)
                   </p>
                 </div>
-              </>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Email Address *
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) => updateFormData({ email: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                      placeholder="Enter your email"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Password *
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={formData.password}
+                      onChange={(e) => updateFormData({ password: e.target.value })}
+                      className="w-full pl-10 pr-12 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                      placeholder="Enter your password"
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Must be at least 6 characters
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Confirm Password *
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={formData.confirmPassword}
+                      onChange={(e) => updateFormData({ confirmPassword: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                      placeholder="Confirm your password"
+                    />
+                  </div>
+                </div>
+
+                {/* Organization Details for Team Admin */}
+                {formData.userType === 'team-admin' && (
+                  <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                    <h4 className="font-semibold text-gray-900 dark:text-white flex items-center space-x-2">
+                      <Building className="h-5 w-5 text-orange-500" />
+                      <span>Organization Details</span>
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Organization Name *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={formData.organizationName}
+                          onChange={(e) => updateFormData({ organizationName: e.target.value })}
+                          className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                          placeholder="Enter organization name"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Organization Type *
+                        </label>
+                        <select
+                          required
+                          value={formData.organizationType}
+                          onChange={(e) => updateFormData({ organizationType: e.target.value })}
+                          className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                        >
+                          <option value="">Select type</option>
+                          <option value="startup">Startup</option>
+                          <option value="sme">Small/Medium Enterprise</option>
+                          <option value="enterprise">Large Enterprise</option>
+                          <option value="non-profit">Non-Profit</option>
+                          <option value="government">Government</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Industry *
+                        </label>
+                        <select
+                          required
+                          value={formData.organizationIndustry}
+                          onChange={(e) => updateFormData({ organizationIndustry: e.target.value })}
+                          className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                        >
+                          <option value="">Select industry</option>
+                          <option value="technology">Technology</option>
+                          <option value="healthcare">Healthcare</option>
+                          <option value="education">Education</option>
+                          <option value="finance">Finance</option>
+                          <option value="manufacturing">Manufacturing</option>
+                          <option value="retail">Retail</option>
+                          <option value="consulting">Consulting</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Organization Size *
+                        </label>
+                        <select
+                          required
+                          value={formData.organizationSize}
+                          onChange={(e) => updateFormData({ organizationSize: e.target.value })}
+                          className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                        >
+                          <option value="">Select size</option>
+                          <option value="1-10">1-10 employees</option>
+                          <option value="11-50">11-50 employees</option>
+                          <option value="51-200">51-200 employees</option>
+                          <option value="201-1000">201-1000 employees</option>
+                          <option value="1000+">1000+ employees</option>
+                        </select>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Your Role in Organization *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={formData.userRoleInOrg}
+                          onChange={(e) => updateFormData({ userRoleInOrg: e.target.value })}
+                          className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                          placeholder="e.g., CEO, Manager, Team Lead"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Website <span className="text-gray-500">(Optional)</span>
+                        </label>
+                        <input
+                          type="url"
+                          value={formData.organizationWebsite}
+                          onChange={(e) => updateFormData({ organizationWebsite: e.target.value })}
+                          className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                          placeholder="https://www.example.com"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Description <span className="text-gray-500">(Optional)</span>
+                        </label>
+                        <textarea
+                          value={formData.organizationDescription}
+                          onChange={(e) => updateFormData({ organizationDescription: e.target.value })}
+                          className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200 resize-none"
+                          rows={3}
+                          placeholder="Brief description of your organization"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
-            {mode !== 'reset-password' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Email Address *
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => updateFormData({ email: e.target.value })}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                    placeholder="Enter your email"
-                  />
+            {/* Signup: Email Verification */}
+            {mode === 'signup' && signupStep === 'verification' && (
+              <div className="text-center space-y-6">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl">
+                  <Mail className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    Check Your Email
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">
+                    We've sent a verification link to:
+                  </p>
+                  <p className="font-medium text-blue-600 dark:text-blue-400 mb-4">
+                    {verificationEmail}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Click the link in the email to verify your account and access your workspace.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-xl hover:bg-blue-200 dark:hover:bg-blue-900/30 transition-colors duration-200 disabled:opacity-50"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    <span>Resend Verification Email</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('signin');
+                      resetForm();
+                    }}
+                    className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                  >
+                    Back to Sign In
+                  </button>
                 </div>
               </div>
             )}
 
+            {/* Reset Password Form */}
             {mode === 'reset-password' && (
               <>
                 <div>
@@ -427,8 +837,26 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
               </>
             )}
 
-            {(mode === 'signin' || mode === 'signup') && (
+            {/* Sign In Form */}
+            {mode === 'signin' && (
               <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Email Address *
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) => updateFormData({ email: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                      placeholder="Enter your email"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Password *
@@ -452,54 +880,67 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                  {mode === 'signup' && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Must be at least 6 characters
-                    </p>
-                  )}
                 </div>
-
-                {mode === 'signup' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Confirm Password *
-                    </label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        value={formData.confirmPassword}
-                        onChange={(e) => updateFormData({ confirmPassword: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                        placeholder="Confirm your password"
-                      />
-                    </div>
-                  </div>
-                )}
               </>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <span>
-                    {mode === 'signin' ? 'Sign In' : 
-                     mode === 'signup' ? 'Create Account' : 
-                     mode === 'forgot-password' ? 'Send Reset Email' :
-                     'Reset Password'}
-                  </span>
-                  <ArrowRight className="h-5 w-5" />
-                </>
-              )}
-            </button>
+            {/* Forgot Password Form */}
+            {mode === 'forgot-password' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Email Address *
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => updateFormData({ email: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    placeholder="Enter your email"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            {mode !== 'signup' || signupStep !== 'verification' ? (
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span>
+                      {mode === 'signin' ? 'Sign In' : 
+                       mode === 'signup' && signupStep === 'user-type' ? 'Continue' :
+                       mode === 'signup' && signupStep === 'details' ? 'Create Account & Send Verification' :
+                       mode === 'forgot-password' ? 'Send Reset Email' :
+                       'Reset Password'}
+                    </span>
+                    <ArrowRight className="h-5 w-5" />
+                  </>
+                )}
+              </button>
+            ) : null}
           </form>
+
+          {/* Back Button for Signup Steps */}
+          {mode === 'signup' && signupStep === 'details' && (
+            <div className="mt-4">
+              <button
+                onClick={() => setSignupStep('user-type')}
+                className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back to User Type</span>
+              </button>
+            </div>
+          )}
 
           {/* Resend Reset Email */}
           {mode === 'forgot-password' && success && (
@@ -545,7 +986,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
                 <ArrowLeft className="h-4 w-4" />
                 <span>Back to Sign In</span>
               </button>
-            ) : (
+            ) : mode !== 'signup' || signupStep === 'verification' ? (
               <p className="text-gray-600 dark:text-gray-400">
                 {mode === 'signin' ? "Don't have an account?" : "Already have an account?"}
                 <button
@@ -558,7 +999,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
                   {mode === 'signin' ? 'Sign up' : 'Sign in'}
                 </button>
               </p>
-            )}
+            ) : null}
           </div>
 
           {/* Privacy Notice */}

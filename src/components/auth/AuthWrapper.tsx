@@ -27,24 +27,34 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
         
         if (currentUser && mounted) {
           console.log('✅ User found:', currentUser.email);
-          setUser(currentUser);
-          setShowAuth(false);
-          setAuthError(null);
           
-          // Check if user needs onboarding - more comprehensive check
-          const needsOnboarding = !currentUser.workStyle || 
-                                 !currentUser.role || 
-                                 currentUser.workStyle === null || 
-                                 currentUser.role === null ||
-                                 currentUser.workStyle === undefined ||
-                                 currentUser.role === undefined;
-          
-          if (needsOnboarding) {
-            console.log('🎯 User needs onboarding - missing or null workStyle/role');
-            dispatch({ type: 'START_ONBOARDING' });
+          // Check email verification for Firebase users
+          if (currentUser.emailVerified === false) {
+            console.log('⚠️ User email not verified - showing auth flow');
+            setAuthError('Please verify your email address before accessing your workspace. Check your inbox for a verification link.');
+            setShowAuth(true);
+            setUser(null);
           } else {
-            console.log('✅ User profile complete - skipping onboarding');
-            dispatch({ type: 'COMPLETE_ONBOARDING' });
+            console.log('✅ User email verified or using localStorage');
+            setUser(currentUser);
+            setShowAuth(false);
+            setAuthError(null);
+            
+            // Check if user needs onboarding - comprehensive check
+            const needsOnboarding = !currentUser.workStyle || 
+                                   !currentUser.role || 
+                                   currentUser.workStyle === null || 
+                                   currentUser.role === null ||
+                                   currentUser.workStyle === undefined ||
+                                   currentUser.role === undefined;
+            
+            if (needsOnboarding) {
+              console.log('🎯 User needs onboarding - missing or null workStyle/role');
+              dispatch({ type: 'START_ONBOARDING' });
+            } else {
+              console.log('✅ User profile complete - skipping onboarding');
+              dispatch({ type: 'COMPLETE_ONBOARDING' });
+            }
           }
         } else if (mounted) {
           // No user found
@@ -79,24 +89,34 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
           const userData = await AuthService.getCurrentUser();
           if (userData && mounted) {
             console.log('✅ User data loaded from Firebase');
-            setUser(userData);
-            setShowAuth(false);
-            setAuthError(null);
             
-            // More comprehensive onboarding check
-            const needsOnboarding = !userData.workStyle || 
-                                   !userData.role || 
-                                   userData.workStyle === null || 
-                                   userData.role === null ||
-                                   userData.workStyle === undefined ||
-                                   userData.role === undefined;
-            
-            if (needsOnboarding) {
-              console.log('🎯 Firebase user needs onboarding');
-              dispatch({ type: 'START_ONBOARDING' });
+            // Check email verification
+            if (userData.emailVerified === false) {
+              console.log('⚠️ Firebase user email not verified');
+              setAuthError('Please verify your email address before accessing your workspace. Check your inbox for a verification link.');
+              setShowAuth(true);
+              setUser(null);
             } else {
-              console.log('✅ Firebase user profile complete');
-              dispatch({ type: 'COMPLETE_ONBOARDING' });
+              console.log('✅ Firebase user email verified');
+              setUser(userData);
+              setShowAuth(false);
+              setAuthError(null);
+              
+              // More comprehensive onboarding check
+              const needsOnboarding = !userData.workStyle || 
+                                     !userData.role || 
+                                     userData.workStyle === null || 
+                                     userData.role === null ||
+                                     userData.workStyle === undefined ||
+                                     userData.role === undefined;
+              
+              if (needsOnboarding) {
+                console.log('🎯 Firebase user needs onboarding');
+                dispatch({ type: 'START_ONBOARDING' });
+              } else {
+                console.log('✅ Firebase user profile complete');
+                dispatch({ type: 'COMPLETE_ONBOARDING' });
+              }
             }
           }
         } else {
@@ -172,6 +192,16 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
       const userData = await AuthService.getCurrentUser();
       if (userData) {
         console.log('✅ User data loaded after auth success');
+        
+        // Check email verification
+        if (userData.emailVerified === false) {
+          console.log('⚠️ User email not verified after auth success');
+          setAuthError('Please verify your email address before accessing your workspace. Check your inbox for a verification link.');
+          setShowAuth(true);
+          setUser(null);
+          return;
+        }
+        
         setUser(userData);
         setShowAuth(false);
         setAuthError(null);

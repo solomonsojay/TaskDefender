@@ -10,7 +10,8 @@ import {
   verifyPasswordResetCode,
   applyActionCode,
   checkActionCode,
-  reload
+  reload,
+  sendEmailVerification as firebaseSendEmailVerification
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, checkFirebaseAvailability } from '../config/firebase';
@@ -76,32 +77,25 @@ export class AuthService {
         // Reload user to get updated profile
         await reload(firebaseUser);
         
-        // Create user document in Firestore with incomplete profile to trigger onboarding
+        // Create user document in Firestore
         const user: User = {
           ...userData,
           id: firebaseUser.uid,
           email: firebaseUser.email || email,
-          createdAt: new Date(),
-          // Set these to undefined to force onboarding
-          workStyle: undefined as any,
-          role: undefined as any
+          createdAt: new Date()
         };
         
         await setDoc(doc(db, 'users', firebaseUser.uid), {
           ...user,
           createdAt: serverTimestamp(),
           lastLoginAt: serverTimestamp(),
-          emailVerified: firebaseUser.emailVerified,
-          // Explicitly set these as null to trigger onboarding
-          workStyle: null,
-          role: null,
-          needsOnboarding: true
+          emailVerified: firebaseUser.emailVerified
         });
         
         // Also save to localStorage as backup
         this.setLocalUser(user);
         
-        console.log('✅ Firebase sign up successful - user will need onboarding');
+        console.log('✅ Firebase sign up successful');
         return user;
       } catch (error: any) {
         console.error('❌ Firebase sign up error:', error);
@@ -115,13 +109,64 @@ export class AuthService {
       ...userData,
       id: Date.now().toString(),
       email: email.toLowerCase(),
-      createdAt: new Date(),
-      // Set these to undefined to force onboarding
-      workStyle: undefined as any,
-      role: undefined as any
+      createdAt: new Date()
     };
     this.setLocalUser(user);
     return user;
+  }
+
+  static async sendEmailVerification() {
+    if (!this.isFirebaseAvailable()) {
+      console.warn('Firebase not available, email verification not supported in fallback mode');
+      throw new Error('Email verification is not available in offline mode. Please try again when connected.');
+    }
+
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('No user is currently signed in');
+      }
+
+      await firebaseSendEmailVerification(user, {
+        url: `${window.location.origin}`,
+        handleCodeInApp: false
+      });
+      
+      console.log('✅ Email verification sent');
+    } catch (error: any) {
+      console.error('Email verification error:', error);
+      throw new Error(this.getErrorMessage(error.code));
+    }
+  }
+
+  static async verifyEmailWithCode(oobCode: string) {
+    if (!this.isFirebaseAvailable()) {
+      throw new Error('Email verification is not available in offline mode.');
+    }
+
+    try {
+      await applyActionCode(auth, oobCode);
+      
+      // Reload the current user to get updated email verification status
+      if (auth.currentUser) {
+        await reload(auth.currentUser);
+        
+        // Update Firestore with verification status
+        try {
+          await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+            emailVerified: auth.currentUser.emailVerified,
+            emailVerifiedAt: serverTimestamp()
+          });
+        } catch (updateError) {
+          console.warn('Failed to update email verification status in Firestore:', updateError);
+        }
+      }
+      
+      console.log('✅ Email verified successfully');
+    } catch (error: any) {
+      console.error('Email verification error:', error);
+      throw new Error(this.getErrorMessage(error.code));
+    }
   }
   
   static async signIn(email: string, password: string) {
@@ -243,7 +288,8 @@ export class AuthService {
             await reload(auth.currentUser);
             try {
               await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-                emailVerified: auth.currentUser.emailVerified
+                emailVerified: auth.currentUser.emailVerified,
+                emailVerifiedAt: serverTimestamp()
               });
             } catch (updateError) {
               console.warn('Failed to update email verification status:', updateError);
@@ -326,11 +372,6 @@ export class AuthService {
         }
         
         updateData.updatedAt = serverTimestamp() as any;
-        
-        // If completing onboarding, remove the needsOnboarding flag
-        if (updates.workStyle && updates.role) {
-          updateData.needsOnboarding = false;
-        }
         
         await updateDoc(userRef, updateData);
         

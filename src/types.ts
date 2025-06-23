@@ -19,6 +19,7 @@ export interface User {
   createdAt: Date;
   socialAccounts?: SocialAccount[];
   profilePicture?: string | null; // Base64 encoded image or URL
+  emailVerified?: boolean; // Firebase email verification status
 }
 
 export interface SocialAccount {
