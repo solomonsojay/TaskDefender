@@ -82,7 +82,8 @@ export class AuthService {
           ...userData,
           id: firebaseUser.uid,
           email: firebaseUser.email || email,
-          createdAt: new Date()
+          createdAt: new Date(),
+          emailVerified: firebaseUser.emailVerified
         };
         
         await setDoc(doc(db, 'users', firebaseUser.uid), {
@@ -99,6 +100,18 @@ export class AuthService {
         return user;
       } catch (error: any) {
         console.error('❌ Firebase sign up error:', error);
+        
+        // Provide specific error messages for common issues
+        if (error.code === 'auth/email-already-in-use') {
+          throw new Error('An account with this email already exists. Please sign in instead.');
+        } else if (error.code === 'auth/weak-password') {
+          throw new Error('Password should be at least 6 characters long.');
+        } else if (error.code === 'auth/invalid-email') {
+          throw new Error('Please enter a valid email address.');
+        } else if (error.code === 'permission-denied') {
+          throw new Error('Database permission denied. Please check Firestore security rules.');
+        }
+        
         console.warn('⚠️ Falling back to localStorage for user creation');
       }
     }
@@ -109,7 +122,8 @@ export class AuthService {
       ...userData,
       id: Date.now().toString(),
       email: email.toLowerCase(),
-      createdAt: new Date()
+      createdAt: new Date(),
+      emailVerified: true // Assume verified in fallback mode
     };
     this.setLocalUser(user);
     return user;
@@ -210,6 +224,20 @@ export class AuthService {
         }
       } catch (error: any) {
         console.error('❌ Firebase sign in error:', error);
+        
+        // Provide specific error messages
+        if (error.code === 'auth/user-not-found') {
+          throw new Error('No account found with this email address.');
+        } else if (error.code === 'auth/wrong-password') {
+          throw new Error('Incorrect password. Please try again.');
+        } else if (error.code === 'auth/invalid-email') {
+          throw new Error('Please enter a valid email address.');
+        } else if (error.code === 'auth/user-disabled') {
+          throw new Error('This account has been disabled. Please contact support.');
+        } else if (error.code === 'permission-denied') {
+          throw new Error('Database permission denied. Please check Firestore security rules.');
+        }
+        
         console.warn('⚠️ Falling back to localStorage for sign in');
       }
     }
@@ -463,6 +491,8 @@ export class AuthService {
         return 'This operation is not allowed. Please contact support.';
       case 'auth/requires-recent-login':
         return 'Please sign out and sign in again to perform this action.';
+      case 'permission-denied':
+        return 'Database permission denied. Please check your Firestore security rules.';
       default:
         console.error('Unhandled auth error:', errorCode);
         return 'An unexpected error occurred. Please try again.';
