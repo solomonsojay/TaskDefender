@@ -90,7 +90,7 @@ export class AuthService {
         
         console.log('📝 Creating Firestore user document...');
         
-        // Use setDoc to create the document
+        // Use setDoc to create the document with proper field mapping
         await setDoc(doc(db, 'users', firebaseUser.uid), {
           name: user.name,
           email: user.email,
@@ -180,7 +180,7 @@ export class AuthService {
   }
 
   static async verifyEmailWithCode(oobCode: string) {
-    if (!this.isFirebaseAvailability()) {
+    if (!this.isFirebaseAvailable()) {
       throw new Error('Email verification is not available in offline mode.');
     }
 
