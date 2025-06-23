@@ -36,10 +36,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
   const [verificationEmail, setVerificationEmail] = useState('');
   
   const [formData, setFormData] = useState({
-    // User type selection
     userType: 'single' as 'single' | 'team-admin',
-    
-    // Basic details
     email: '',
     password: '',
     confirmPassword: '',
@@ -47,8 +44,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
     confirmNewPassword: '',
     name: '',
     username: '',
-    
-    // Organization details (for team admin)
     organizationName: '',
     organizationType: '',
     organizationIndustry: '',
@@ -58,14 +53,12 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
     organizationDescription: ''
   });
 
-  // Clear initial error when mode changes
   useEffect(() => {
     if (initialError) {
       setError(initialError);
     }
   }, [initialError]);
 
-  // Check for password reset parameters in URL
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const urlMode = urlParams.get('mode');
@@ -100,7 +93,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
       setLoading(true);
       setError('');
       await AuthService.verifyEmailWithCode(code);
-      setSuccess('Email verified successfully! You can now access your workspace.');
+      setSuccess('Email verified successfully! You can now access your TaskDefender workspace.');
       setTimeout(() => {
         onAuthSuccess();
       }, 2000);
@@ -143,7 +136,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
         return false;
       }
       
-      // Additional validation for team admin
       if (formData.userType === 'team-admin') {
         if (!formData.organizationName.trim()) {
           setError('Please enter your organization name');
@@ -213,21 +205,18 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
       }
       
       if (signupStep === 'details') {
-        // Proceed to create account and send verification email
         setLoading(true);
         
         try {
-          // Create user data for signup
           const userData = {
             name: formData.name.trim(),
             email: formData.email.trim().toLowerCase(),
             username: formData.username.toLowerCase().replace(/[^a-z0-9_]/g, ''),
             role: formData.userType === 'team-admin' ? 'admin' as const : 'user' as const,
             goals: [],
-            workStyle: 'focused' as const, // Default, will be set in onboarding
+            workStyle: 'focused' as const,
             integrityScore: 100,
             streak: 0,
-            // Organization details for team admin
             ...(formData.userType === 'team-admin' && {
               organizationName: formData.organizationName,
               organizationType: formData.organizationType,
@@ -239,16 +228,15 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
             })
           };
 
-          console.log('🎯 Creating new user account...');
+          console.log('🎯 Creating new TaskDefender account...');
           
           await AuthService.signUp(formData.email, formData.password, userData);
           
-          // Send email verification
           await AuthService.sendEmailVerification();
           
           setVerificationEmail(formData.email);
           setSignupStep('verification');
-          setSuccess(`Account created! Please check ${formData.email} for a verification link before proceeding.`);
+          setSuccess(`TaskDefender account created! Please check ${formData.email} for a verification link before proceeding.`);
           
         } catch (error: any) {
           setError(error.message);
@@ -276,7 +264,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
         await AuthService.confirmPasswordReset(oobCode, formData.newPassword);
         setSuccess('Password reset successfully! You can now sign in with your new password.');
         
-        // Clear URL parameters and redirect to sign in
         window.history.replaceState({}, document.title, window.location.pathname);
         setTimeout(() => {
           setMode('signin');
@@ -286,10 +273,8 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
       }
 
       if (mode === 'signin') {
-        // Sign in existing user
         const user = await AuthService.signIn(formData.email, formData.password);
         
-        // Check if email is verified
         if (!user.emailVerified) {
           setError('Please verify your email address before signing in. Check your inbox for a verification link.');
           return;
@@ -320,7 +305,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
 
   const updateFormData = (updates: Partial<typeof formData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
-    // Clear errors when user starts typing
     if (error) {
       setError('');
     }
@@ -398,7 +382,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-          {/* Header */}
           <div className="text-center mb-8">
             <div className="bg-orange-500/20 p-4 rounded-full w-20 h-20 mx-auto mb-6 shadow-lg flex items-center justify-center">
               <Logo size="md" className="text-orange-500" />
@@ -419,7 +402,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
             </div>
           </div>
 
-          {/* Success Message */}
           {success && (
             <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl">
               <div className="flex items-start space-x-2">
@@ -429,7 +411,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
             </div>
           )}
 
-          {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl">
               <div className="flex items-center space-x-2">
@@ -439,7 +420,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
             </div>
           )}
 
-          {/* Reset Email Info */}
           {mode === 'reset-password' && resetEmail && (
             <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl">
               <div className="flex items-center space-x-2">
@@ -451,9 +431,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Signup: User Type Selection */}
             {mode === 'signup' && signupStep === 'user-type' && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4">
@@ -509,10 +487,8 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
               </div>
             )}
 
-            {/* Signup: Details Collection */}
             {mode === 'signup' && signupStep === 'details' && (
               <div className="space-y-4">
-                {/* Personal Information */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Full Name *
@@ -614,7 +590,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
                   </div>
                 </div>
 
-                {/* Organization Details for Team Admin */}
                 {formData.userType === 'team-admin' && (
                   <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-600">
                     <h4 className="font-semibold text-gray-900 dark:text-white flex items-center space-x-2">
@@ -743,7 +718,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
               </div>
             )}
 
-            {/* Signup: Email Verification */}
             {mode === 'signup' && signupStep === 'verification' && (
               <div className="text-center space-y-6">
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl">
@@ -758,7 +732,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
                     {verificationEmail}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Click the link in the email to verify your account and access your workspace.
+                    Click the link in the email to verify your account and access your TaskDefender workspace.
                   </p>
                 </div>
 
@@ -787,7 +761,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
               </div>
             )}
 
-            {/* Reset Password Form */}
             {mode === 'reset-password' && (
               <>
                 <div>
@@ -837,7 +810,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
               </>
             )}
 
-            {/* Sign In Form */}
             {mode === 'signin' && (
               <>
                 <div>
@@ -884,7 +856,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
               </>
             )}
 
-            {/* Forgot Password Form */}
             {mode === 'forgot-password' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -904,7 +875,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
               </div>
             )}
 
-            {/* Submit Button */}
             {mode !== 'signup' || signupStep !== 'verification' ? (
               <button
                 type="submit"
@@ -929,7 +899,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
             ) : null}
           </form>
 
-          {/* Back Button for Signup Steps */}
           {mode === 'signup' && signupStep === 'details' && (
             <div className="mt-4">
               <button
@@ -942,7 +911,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
             </div>
           )}
 
-          {/* Resend Reset Email */}
           {mode === 'forgot-password' && success && (
             <div className="mt-4 text-center">
               <button
@@ -956,7 +924,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
             </div>
           )}
 
-          {/* Forgot Password Link */}
           {mode === 'signin' && (
             <div className="mt-4 text-center">
               <button
@@ -971,14 +938,12 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
             </div>
           )}
 
-          {/* Navigation Links */}
           <div className="mt-6 text-center space-y-2">
             {(mode === 'forgot-password' || mode === 'reset-password') ? (
               <button
                 onClick={() => {
                   setMode('signin');
                   resetForm();
-                  // Clear URL parameters if coming from email reset
                   window.history.replaceState({}, document.title, window.location.pathname);
                 }}
                 className="flex items-center justify-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200 mx-auto"
@@ -1002,7 +967,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onAuthSuccess, initialError }) => {
             ) : null}
           </div>
 
-          {/* Privacy Notice */}
           <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl">
             <p className="text-xs text-blue-600 dark:text-blue-300 text-center">
               🔒 Your data is securely stored and encrypted. TaskDefender respects your privacy and never shares your personal information.

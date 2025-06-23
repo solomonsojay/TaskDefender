@@ -18,8 +18,8 @@ export interface User {
   organizationDescription?: string;
   createdAt: Date;
   socialAccounts?: SocialAccount[];
-  profilePicture?: string | null; // Base64 encoded image or URL
-  emailVerified?: boolean; // Firebase email verification status
+  profilePicture?: string | null;
+  emailVerified?: boolean;
 }
 
 export interface SocialAccount {
@@ -98,8 +98,8 @@ export interface VoiceSettings {
   customPrompts: string[];
   customVoiceBlob: Blob | null;
   callInterval: number;
-  defenseMode: boolean;
-  emergencyCallThreshold: number;
+  defenseMode?: boolean;
+  emergencyCallThreshold?: number;
 }
 
 export interface ScheduledNotification {
