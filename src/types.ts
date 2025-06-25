@@ -1,3 +1,5 @@
+import { ComponentType } from 'react';
+
 export interface User {
   id: string;
   name: string;
@@ -17,7 +19,7 @@ export interface User {
   organizationWebsite?: string;
   organizationDescription?: string;
   createdAt: Date;
-  updatedAt?: Date;
+  updatedAt?: Date; // Fixed Error #2: Added missing updatedAt property
   socialAccounts?: SocialAccount[];
   profilePicture?: string | null;
   emailVerified?: boolean;
@@ -28,6 +30,8 @@ export interface SocialAccount {
   connected: boolean;
   username?: string;
   profileUrl?: string;
+  accessToken?: string;
+  refreshToken?: string;
 }
 
 export interface Task {
@@ -91,16 +95,26 @@ export interface ChatMessage {
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
+  actions?: QuickAction[];
 }
 
+export interface QuickAction {
+  id: string;
+  label: string;
+  message: string;
+  icon: ComponentType<any>;
+  category: 'help' | 'action' | 'navigation';
+}
+
+// Fixed Error #3: Complete VoiceSettings interface
 export interface VoiceSettings {
-  selectedVoice: string;
   enableCalls: boolean;
   callFrequency: 'low' | 'normal' | 'high';
   selectedCharacter: string;
   customCharacterName: string;
   customPrompts: string[];
   customVoiceBlob: Blob | null;
+  selectedVoice: string;
   callInterval: number;
   defenseMode?: boolean;
   emergencyCallThreshold?: number;
@@ -152,6 +166,39 @@ export interface TaskDefenseSystem {
   successRate: number;
 }
 
+export interface AnalyticsData {
+  tasksCompleted: number;
+  totalTasks: number;
+  focusTime: number;
+  productivity: number;
+  consistency: number;
+  growth: number;
+  topDay: string;
+  achievements: number;
+}
+
+export interface NotificationSettings {
+  taskReminders: boolean;
+  focusMode: boolean;
+  dailySummary: boolean;
+  teamUpdates: boolean;
+  voiceCalls: boolean;
+  defenseSystem: boolean;
+}
+
+export interface AppSettings {
+  theme: Theme;
+  notifications: NotificationSettings;
+  voice: VoiceSettings;
+  privacy: PrivacySettings;
+}
+
+export interface PrivacySettings {
+  shareAnalytics: boolean;
+  allowTeamInvites: boolean;
+  publicProfile: boolean;
+}
+
 export type Theme = 'light' | 'dark';
 
 export interface AppState {
@@ -163,4 +210,44 @@ export interface AppState {
   theme: Theme;
   isOnboarding: boolean;
   defenseSystem: TaskDefenseSystem;
+}
+
+// Component Props Types
+export interface HeaderProps {
+  currentView: string;
+  setCurrentView: (view: 'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics' | 'achievements' | 'scheduler') => void;
+}
+
+export interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export interface TaskItemProps {
+  task: Task;
+  onUpdate: (id: string, updates: Partial<Task>) => void;
+  onDelete: (id: string) => void;
+  onStartFocus: (taskId: string) => void;
+}
+
+export interface TeamCardProps {
+  team: Team;
+  isAdmin: boolean;
+  onJoin?: (teamId: string) => void;
+  onLeave?: (teamId: string) => void;
+}
+
+// Validation schemas
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+// Error handling types
+export interface AppError {
+  id: string;
+  type: 'validation' | 'network' | 'storage' | 'auth' | 'unknown';
+  message: string;
+  timestamp: Date;
+  context?: any;
 }
