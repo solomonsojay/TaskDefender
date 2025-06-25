@@ -102,35 +102,43 @@ const SocialMediaSettings: React.FC = () => {
   }, []);
 
   const loadConnectedAccounts = () => {
-    const saved = localStorage.getItem('taskdefender_social_accounts');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('taskdefender_social_accounts');
+      if (saved) {
         setAccounts(JSON.parse(saved));
-      } catch (error) {
-        console.error('Failed to load social accounts:', error);
       }
+    } catch (error) {
+      console.error('Failed to load social accounts:', error);
     }
   };
 
   const loadApiKeys = () => {
-    const saved = localStorage.getItem('taskdefender_api_keys');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('taskdefender_api_keys');
+      if (saved) {
         setApiKeys(JSON.parse(saved));
-      } catch (error) {
-        console.error('Failed to load API keys:', error);
       }
+    } catch (error) {
+      console.error('Failed to load API keys:', error);
     }
   };
 
   const saveAccounts = (newAccounts: SocialAccount[]) => {
-    setAccounts(newAccounts);
-    localStorage.setItem('taskdefender_social_accounts', JSON.stringify(newAccounts));
+    try {
+      setAccounts(newAccounts);
+      localStorage.setItem('taskdefender_social_accounts', JSON.stringify(newAccounts));
+    } catch (error) {
+      console.error('Failed to save social accounts:', error);
+    }
   };
 
   const saveApiKeys = (newKeys: typeof apiKeys) => {
-    setApiKeys(newKeys);
-    localStorage.setItem('taskdefender_api_keys', JSON.stringify(newKeys));
+    try {
+      setApiKeys(newKeys);
+      localStorage.setItem('taskdefender_api_keys', JSON.stringify(newKeys));
+    } catch (error) {
+      console.error('Failed to save API keys:', error);
+    }
   };
 
   const connectAccount = async (platform: 'twitter' | 'linkedin' | 'facebook' | 'devto') => {
@@ -333,16 +341,16 @@ const SocialMediaSettings: React.FC = () => {
                   </p>
                   <ul className="text-sm text-yellow-600 dark:text-yellow-300 mt-2 space-y-1">
                     <li>
-                      • <strong>Twitter:</strong> Create app at <a href="https://developer.twitter.com" target=\"_blank" rel="noopener noreferrer\" className="underline">developer.twitter.com</a>
+                      • <strong>Twitter:</strong> Create app at <a href="https://developer.twitter.com" target="_blank" rel="noopener noreferrer" className="underline">developer.twitter.com</a>
                     </li>
                     <li>
-                      • <strong>LinkedIn:</strong> Create app at <a href="https://www.linkedin.com/developers" target=\"_blank" rel="noopener noreferrer\" className="underline">linkedin.com/developers</a>
+                      • <strong>LinkedIn:</strong> Create app at <a href="https://www.linkedin.com/developers" target="_blank" rel="noopener noreferrer" className="underline">linkedin.com/developers</a>
                     </li>
                     <li>
-                      • <strong>Facebook:</strong> Create app at <a href="https://developers.facebook.com" target=\"_blank" rel="noopener noreferrer\" className="underline">developers.facebook.com</a>
+                      • <strong>Facebook:</strong> Create app at <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="underline">developers.facebook.com</a>
                     </li>
                     <li>
-                      • <strong>Dev.to:</strong> Get API key from <a href="https://dev.to/settings/account" target=\"_blank" rel="noopener noreferrer\" className="underline">dev.to/settings/account</a>
+                      • <strong>Dev.to:</strong> Get API key from <a href="https://dev.to/settings/account" target="_blank" rel="noopener noreferrer" className="underline">dev.to/settings/account</a>
                     </li>
                   </ul>
                 </div>

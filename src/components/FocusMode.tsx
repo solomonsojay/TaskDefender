@@ -62,7 +62,7 @@ const FocusMode: React.FC = () => {
     }
   };
 
-  const endSession = () => {
+  const endSession = async () => {
     setIsActive(false);
     
     if (focusSession) {
@@ -71,7 +71,7 @@ const FocusMode: React.FC = () => {
       
       // Update the task with focus session data
       if (currentTask) {
-        updateTask(currentTask.id, {
+        await updateTask(currentTask.id, {
           actualTime: (currentTask.actualTime || 0) + Math.round(finalStats.focusTime / 60), // Add minutes
         });
       }

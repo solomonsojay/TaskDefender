@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Plus, 
@@ -8,12 +8,16 @@ import {
   Crown,
   Mail,
   Settings,
-  Link
+  Link,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { generateSecureId, validateTeamData } from '../../utils/validation';
+import LoadingSpinner from '../common/LoadingSpinner';
 
 const TeamManagement: React.FC = () => {
-  const { user, teams, createTeam, joinTeam } = useApp();
+  const { user, teams, createTeam, joinTeam, isLoading } = useApp();
   const [activeTab, setActiveTab] = useState<'my-teams' | 'create' | 'join'>('my-teams');
   const [newTeam, setNewTeam] = useState({
     name: '',
@@ -21,45 +25,92 @@ const TeamManagement: React.FC = () => {
   });
   const [inviteCode, setInviteCode] = useState('');
   const [memberEmail, setMemberEmail] = useState('');
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
 
-  const handleCreateTeam = (e: React.FormEvent) => {
+  // Clear errors when switching tabs
+  useEffect(() => {
+    setErrors([]);
+  }, [activeTab]);
+
+  const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTeam.name.trim() || !user) return;
 
-    createTeam({
-      name: newTeam.name,
-      description: newTeam.description,
-      adminId: user.id,
-      members: [{
-        userId: user.id,
-        name: user.name,
-        email: user.email,
-        role: 'admin',
-        joinedAt: new Date(),
-      }],
-    });
+    try {
+      setErrors([]);
+      
+      // Validate team data
+      const teamData = {
+        name: newTeam.name.trim(),
+        description: newTeam.description.trim(),
+        adminId: user.id,
+        members: [{
+          userId: user.id,
+          name: user.name,
+          email: user.email,
+          role: 'admin' as const,
+          joinedAt: new Date(),
+        }],
+      };
 
-    setNewTeam({ name: '', description: '' });
-    setActiveTab('my-teams');
+      const validation = validateTeamData(teamData);
+      if (!validation.isValid) {
+        setErrors(validation.errors);
+        return;
+      }
+
+      await createTeam(teamData);
+
+      setNewTeam({ name: '', description: '' });
+      setActiveTab('my-teams');
+    } catch (error) {
+      console.error('Error creating team:', error);
+      setErrors(['Failed to create team. Please try again.']);
+    }
   };
 
-  const handleJoinTeam = (e: React.FormEvent) => {
+  const handleJoinTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteCode.trim()) return;
 
-    joinTeam(inviteCode);
-    setInviteCode('');
-    setActiveTab('my-teams');
+    try {
+      setErrors([]);
+      
+      if (inviteCode.length < 6) {
+        setErrors(['Invite code must be at least 6 characters long']);
+        return;
+      }
+
+      await joinTeam(inviteCode.toUpperCase());
+      setInviteCode('');
+      setActiveTab('my-teams');
+    } catch (error) {
+      console.error('Error joining team:', error);
+      setErrors(['Failed to join team. Please check the invite code and try again.']);
+    }
   };
 
   const copyInviteCode = (code: string) => {
     navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  const sendInvitation = () => {
-    // Mock email invitation
-    console.log('Sending invitation to:', memberEmail);
-    setMemberEmail('');
+  const sendInvitation = async () => {
+    if (!memberEmail.trim()) return;
+    
+    try {
+      // Mock email invitation - in a real app this would send an actual email
+      console.log('Sending invitation to:', memberEmail);
+      
+      // Show success message
+      alert(`Invitation sent to ${memberEmail}! They can use the invite code to join your team.`);
+      setMemberEmail('');
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      setErrors(['Failed to send invitation. Please try again.']);
+    }
   };
 
   if (user?.role !== 'admin') {
@@ -76,6 +127,10 @@ const TeamManagement: React.FC = () => {
         </p>
       </div>
     );
+  }
+
+  if (isLoading) {
+    return <LoadingSpinner message="Loading team management..." />;
   }
 
   return (
@@ -97,6 +152,25 @@ const TeamManagement: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Error Display */}
+        {errors.length > 0 && (
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl p-4">
+              <div className="flex items-start space-x-3">
+                <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-red-700 dark:text-red-400">Error</h4>
+                  <ul className="text-sm text-red-600 dark:text-red-300 mt-1">
+                    {errors.map((error, index) => (
+                      <li key={index}>• {error}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-700">
@@ -194,7 +268,11 @@ const TeamManagement: React.FC = () => {
                               className="p-2 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors duration-200"
                               title="Copy invite code"
                             >
-                              <Copy className="h-4 w-4" />
+                              {copiedCode === team.inviteCode ? (
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
                             </button>
                           </div>
                           
@@ -208,7 +286,7 @@ const TeamManagement: React.FC = () => {
                             />
                             <button
                               onClick={sendInvitation}
-                              disabled={!memberEmail}
+                              disabled={!memberEmail.trim()}
                               className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <Send className="h-4 w-4" />
@@ -261,7 +339,7 @@ const TeamManagement: React.FC = () => {
             <form onSubmit={handleCreateTeam} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Team Name
+                  Team Name *
                 </label>
                 <input
                   type="text"
@@ -270,6 +348,7 @@ const TeamManagement: React.FC = () => {
                   onChange={(e) => setNewTeam(prev => ({ ...prev, name: e.target.value }))}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
                   placeholder="Enter team name"
+                  maxLength={100}
                 />
               </div>
 
@@ -283,14 +362,16 @@ const TeamManagement: React.FC = () => {
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200 resize-none"
                   rows={4}
                   placeholder="Describe your team's purpose"
+                  maxLength={500}
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
+                disabled={!newTeam.name.trim() || isLoading}
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Create Team
+                {isLoading ? 'Creating Team...' : 'Create Team'}
               </button>
             </form>
           )}
@@ -311,7 +392,7 @@ const TeamManagement: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Invitation Code
+                  Invitation Code *
                 </label>
                 <input
                   type="text"
@@ -320,15 +401,16 @@ const TeamManagement: React.FC = () => {
                   onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200 text-center font-mono text-lg"
                   placeholder="ABCD12"
-                  maxLength={6}
+                  maxLength={8}
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-200"
+                disabled={!inviteCode.trim() || isLoading}
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Join Team
+                {isLoading ? 'Joining Team...' : 'Join Team'}
               </button>
             </form>
           )}

@@ -1,4 +1,5 @@
 import { User } from '../types';
+import { generateSecureId, validateUserData } from '../utils/validation';
 
 export class AuthService {
   private static getLocalUser(): User | null {
@@ -8,7 +9,8 @@ export class AuthService {
         const user = JSON.parse(userData);
         return {
           ...user,
-          createdAt: new Date(user.createdAt)
+          createdAt: new Date(user.createdAt),
+          updatedAt: user.updatedAt ? new Date(user.updatedAt) : undefined
         };
       }
     } catch (error) {
@@ -20,6 +22,13 @@ export class AuthService {
   private static setLocalUser(user: User | null): void {
     try {
       if (user) {
+        // Validate user data before saving
+        const validation = validateUserData(user);
+        if (!validation.isValid) {
+          console.error('Invalid user data:', validation.errors);
+          throw new Error(`Invalid user data: ${validation.errors.join(', ')}`);
+        }
+        
         localStorage.setItem('taskdefender_current_user', JSON.stringify(user));
         console.log('✅ User saved to localStorage');
       } else {
@@ -28,20 +37,36 @@ export class AuthService {
       }
     } catch (error) {
       console.error('Error saving local user:', error);
+      throw error;
     }
   }
 
   static async signUp(email: string, password: string, userData: Omit<User, 'id' | 'createdAt'>) {
-    console.log('📱 Creating TaskDefender account locally...');
-    const user: User = {
-      ...userData,
-      id: Date.now().toString(),
-      email: email.toLowerCase(),
-      createdAt: new Date(),
-      emailVerified: true
-    };
-    this.setLocalUser(user);
-    return user;
+    try {
+      console.log('📱 Creating TaskDefender account locally...');
+      
+      // Validate input
+      if (!email || !password || password.length < 6) {
+        throw new Error('Email and password (min 6 characters) are required');
+      }
+      
+      const user: User = {
+        ...userData,
+        id: generateSecureId(),
+        email: email.toLowerCase().trim(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        emailVerified: true,
+        integrityScore: userData.integrityScore || 100,
+        streak: userData.streak || 0
+      };
+      
+      this.setLocalUser(user);
+      return user;
+    } catch (error) {
+      console.error('Sign up error:', error);
+      throw error;
+    }
   }
 
   static async sendEmailVerification() {
@@ -55,13 +80,23 @@ export class AuthService {
   }
   
   static async signIn(email: string, password: string) {
-    console.log('📱 Signing into TaskDefender locally...');
-    const localUser = this.getLocalUser();
-    if (localUser && localUser.email === email.toLowerCase()) {
-      return localUser;
+    try {
+      console.log('📱 Signing into TaskDefender locally...');
+      
+      if (!email || !password) {
+        throw new Error('Email and password are required');
+      }
+      
+      const localUser = this.getLocalUser();
+      if (localUser && localUser.email === email.toLowerCase().trim()) {
+        return localUser;
+      }
+      
+      throw new Error('Invalid credentials or user not found');
+    } catch (error) {
+      console.error('Sign in error:', error);
+      throw error;
     }
-    
-    throw new Error('Invalid credentials or user not found');
   }
   
   static async resetPassword(email: string) {
@@ -87,7 +122,13 @@ export class AuthService {
       console.log('✅ TaskDefender user signed out');
     } catch (error: any) {
       console.error('TaskDefender sign out error:', error);
-      this.setLocalUser(null);
+      // Force clear even on error
+      try {
+        localStorage.removeItem('taskdefender_current_user');
+      } catch (clearError) {
+        console.error('Failed to clear user data:', clearError);
+      }
+      throw error;
     }
   }
   
@@ -96,15 +137,25 @@ export class AuthService {
   }
   
   static async updateUser(userId: string, updates: Partial<User>) {
-    const currentUser = this.getLocalUser();
-    if (currentUser && currentUser.id === userId) {
-      const updatedUser = { ...currentUser, ...updates, updatedAt: new Date() };
-      this.setLocalUser(updatedUser);
-      console.log('✅ TaskDefender user updated in localStorage');
-      return;
+    try {
+      const currentUser = this.getLocalUser();
+      if (currentUser && currentUser.id === userId) {
+        const updatedUser = { 
+          ...currentUser, 
+          ...updates, 
+          updatedAt: new Date() 
+        };
+        
+        this.setLocalUser(updatedUser);
+        console.log('✅ TaskDefender user updated in localStorage');
+        return updatedUser;
+      }
+      
+      throw new Error('User not found in local storage');
+    } catch (error) {
+      console.error('Update user error:', error);
+      throw error;
     }
-    
-    throw new Error('User not found in local storage');
   }
   
   static onAuthStateChanged(callback: (user: any) => void) {
@@ -118,5 +169,30 @@ export class AuthService {
   
   static async refreshUser() {
     return this.getLocalUser();
+  }
+
+  // Additional utility methods
+  static async checkEmailExists(email: string): Promise<boolean> {
+    try {
+      const localUser = this.getLocalUser();
+      return localUser?.email === email.toLowerCase().trim();
+    } catch (error) {
+      console.error('Error checking email:', error);
+      return false;
+    }
+  }
+
+  static async validateSession(): Promise<boolean> {
+    try {
+      const user = this.getLocalUser();
+      if (!user) return false;
+      
+      // Validate user data integrity
+      const validation = validateUserData(user);
+      return validation.isValid;
+    } catch (error) {
+      console.error('Session validation error:', error);
+      return false;
+    }
   }
 }
