@@ -19,7 +19,7 @@ export interface User {
   organizationWebsite?: string;
   organizationDescription?: string;
   createdAt: Date;
-  updatedAt?: Date; // Fixed Error #2: Added missing updatedAt property
+  updatedAt?: Date;
   socialAccounts?: SocialAccount[];
   profilePicture?: string | null;
   emailVerified?: boolean;
@@ -106,7 +106,6 @@ export interface QuickAction {
   category: 'help' | 'action' | 'navigation';
 }
 
-// Fixed Error #3: Complete VoiceSettings interface
 export interface VoiceSettings {
   enableCalls: boolean;
   callFrequency: 'low' | 'normal' | 'high';
@@ -212,7 +211,6 @@ export interface AppState {
   defenseSystem: TaskDefenseSystem;
 }
 
-// Component Props Types
 export interface HeaderProps {
   currentView: string;
   setCurrentView: (view: 'dashboard' | 'tasks' | 'focus' | 'teams' | 'analytics' | 'achievements' | 'scheduler') => void;
@@ -237,13 +235,11 @@ export interface TeamCardProps {
   onLeave?: (teamId: string) => void;
 }
 
-// Validation schemas
 export interface ValidationResult {
   isValid: boolean;
   errors: string[];
 }
 
-// Error handling types
 export interface AppError {
   id: string;
   type: 'validation' | 'network' | 'storage' | 'auth' | 'unknown';

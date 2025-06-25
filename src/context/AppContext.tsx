@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { AppState, Task, User, Theme, FocusSession, Team, TaskDefenseSystem, AppError } from '../types';
+import { AppState, Task, User, Theme, FocusSession, Team, TeamMember, TaskDefenseSystem, AppError } from '../types';
 import { smartInterventionService } from '../services/SmartInterventionService';
 import { generateSecureId, validateUserData, validateTaskData } from '../utils/validation';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
@@ -15,7 +15,7 @@ interface AppContextType extends AppState {
   endFocusSession: () => void;
   createTeam: (team: Omit<Team, 'id' | 'createdAt' | 'inviteCode'>) => Promise<void>;
   joinTeam: (inviteCode: string) => Promise<void>;
-  updateProfile: (updates: Partial<User>) => Promise<void>; // Fixed Error #4
+  updateProfile: (updates: Partial<User>) => Promise<void>;
   triggerDefense: (taskId: string, severity?: 'low' | 'medium' | 'high' | 'critical') => void;
   signOut: () => Promise<void>;
   errors: AppError[];
@@ -133,25 +133,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     errors: [], 
     isLoading: false 
   });
-
-  // Fixed Error #21: Memoize context value to prevent unnecessary re-renders
-  const contextValue = React.useMemo(() => ({
-    ...state,
-    dispatch,
-    addTask,
-    updateTask,
-    deleteTask,
-    setUser,
-    setTheme,
-    startFocusSession,
-    endFocusSession,
-    createTeam,
-    joinTeam,
-    updateProfile,
-    triggerDefense,
-    signOut,
-    clearError,
-  }), [state]);
 
   // Error handling helper
   const addError = (type: AppError['type'], message: string, context?: any) => {
@@ -436,7 +417,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Fixed Error #5: Proper team joining implementation
   const joinTeam = async (inviteCode: string) => {
     if (!state.user) {
       addError('auth', 'User must be logged in to join teams');
@@ -485,7 +465,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Fixed Error #4: Proper updateProfile implementation with persistence
   const updateProfile = async (updates: Partial<User>) => {
     if (!state.user) {
       addError('auth', 'User must be logged in to update profile');
@@ -543,6 +522,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = React.useMemo(() => ({
+    ...state,
+    dispatch,
+    addTask,
+    updateTask,
+    deleteTask,
+    setUser,
+    setTheme,
+    startFocusSession,
+    endFocusSession,
+    createTeam,
+    joinTeam,
+    updateProfile,
+    triggerDefense,
+    signOut,
+    clearError,
+  }), [state]);
 
   return (
     <AppContext.Provider value={contextValue}>
