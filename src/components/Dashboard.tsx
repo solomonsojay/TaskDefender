@@ -23,30 +23,32 @@ const Dashboard: React.FC = () => {
   const inProgressTasks = tasks.filter(task => task.status === 'in-progress');
   const todoTasks = tasks.filter(task => task.status === 'todo');
   
-  // Find critical tasks (80% close to deadline)
+  // Find critical tasks (50% close to deadline)
   const criticalTasks = tasks.filter(task => {
     if (!task.dueDate || task.status === 'done') return false;
     const now = new Date();
     const dueDate = new Date(task.dueDate);
     const createdDate = new Date(task.createdAt);
     const totalTimespan = dueDate.getTime() - createdDate.getTime();
-    const timeLeft = dueDate.getTime() - now.getTime();
+    const elapsedTime = now.getTime() - createdDate.getTime();
+    const timeProgress = elapsedTime / totalTimespan;
     
-    // If less than 20% of time remains, it's critical
-    return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.2;
+    // Critical if 50% or more time has passed
+    return timeProgress >= 0.5 && timeProgress < 0.85;
   });
 
-  // Find at-risk tasks (90% close to deadline)
+  // Find at-risk tasks (85% close to deadline)
   const atRiskTasks = tasks.filter(task => {
     if (!task.dueDate || task.status === 'done') return false;
     const now = new Date();
     const dueDate = new Date(task.dueDate);
     const createdDate = new Date(task.createdAt);
     const totalTimespan = dueDate.getTime() - createdDate.getTime();
-    const timeLeft = dueDate.getTime() - now.getTime();
+    const elapsedTime = now.getTime() - createdDate.getTime();
+    const timeProgress = elapsedTime / totalTimespan;
     
-    // If less than 10% of time remains, it's at risk
-    return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.1;
+    // At risk if 85% or more time has passed
+    return timeProgress >= 0.85;
   });
 
   // Find overdue tasks
@@ -76,6 +78,29 @@ const Dashboard: React.FC = () => {
   const recentTasks = tasks
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
+
+  const getTaskProgress = (task: any) => {
+    if (!task.dueDate || task.status === 'done') return 0;
+    const now = new Date();
+    const dueDate = new Date(task.dueDate);
+    const createdDate = new Date(task.createdAt);
+    const totalTime = dueDate.getTime() - createdDate.getTime();
+    const elapsedTime = now.getTime() - createdDate.getTime();
+    return Math.min(100, Math.max(0, (elapsedTime / totalTime) * 100));
+  };
+
+  const isOverdue = (task: any) => {
+    if (!task.dueDate || task.status === 'done') return false;
+    return new Date(task.dueDate) < new Date();
+  };
+
+  const isCritical = (task: any) => {
+    return criticalTasks.includes(task);
+  };
+
+  const isAtRisk = (task: any) => {
+    return atRiskTasks.includes(task);
+  };
 
   return (
     <div className="space-y-8">
@@ -248,40 +273,21 @@ const Dashboard: React.FC = () => {
             <div className="text-center py-8">
               <Target className="h-12 w-12 text-gray-400 mx-auto mb-3" />
               <p className="text-gray-500 dark:text-gray-400">
-                No tasks yet. Add one to get started!
+                No tasks yet. Add one to get started with TaskDefender protection!
               </p>
             </div>
           ) : (
             recentTasks.map(task => {
-              // Check if task is critical or at risk
-              const now = new Date();
-              const dueDate = task.dueDate ? new Date(task.dueDate) : null;
-              const createdDate = new Date(task.createdAt);
-              
-              let isCritical = false;
-              let isAtRisk = false;
-              
-              if (dueDate && task.status !== 'done') {
-                const totalTimespan = dueDate.getTime() - createdDate.getTime();
-                const timeLeft = dueDate.getTime() - now.getTime();
-                
-                if (timeLeft > 0) {
-                  const timeRatio = timeLeft / totalTimespan;
-                  isAtRisk = timeRatio <= 0.1;
-                  isCritical = timeRatio <= 0.2 && !isAtRisk;
-                }
-              }
-              
-              const isOverdue = dueDate && now > dueDate && task.status !== 'done';
+              const progress = getTaskProgress(task);
               
               return (
                 <div key={task.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
                   <div className={`w-3 h-3 rounded-full ${
                     task.status === 'done' ? 'bg-green-500' :
                     task.status === 'in-progress' ? 'bg-orange-500' :
-                    isOverdue ? 'bg-red-500' :
-                    isAtRisk ? 'bg-yellow-500' :
-                    isCritical ? 'bg-red-400' :
+                    isOverdue(task) ? 'bg-red-500' :
+                    isAtRisk(task) ? 'bg-yellow-500' :
+                    isCritical(task) ? 'bg-red-400' :
                     'bg-gray-400'
                   }`} />
                   <div className="flex-1 min-w-0">
@@ -291,19 +297,40 @@ const Dashboard: React.FC = () => {
                         : 'text-gray-900 dark:text-white'
                     }`}>
                       {task.title}
+                      {task.isDefenseActive && (
+                        <span title="Defense Active" className="ml-2">
+                          <Shield className="inline h-3 w-3 text-orange-500" />
+                        </span>
+                      )}
                     </p>
                     {task.dueDate && (
                       <div className={`flex items-center space-x-1 text-xs ${
-                        isOverdue ? 'text-red-500' :
-                        isAtRisk ? 'text-yellow-500' :
-                        isCritical ? 'text-red-400' :
+                        isOverdue(task) ? 'text-red-500' :
+                        isAtRisk(task) ? 'text-yellow-500' :
+                        isCritical(task) ? 'text-red-400' :
                         'text-gray-500 dark:text-gray-400'
                       }`}>
                         <Calendar className="h-3 w-3" />
                         <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                        {isOverdue && <span className="text-red-500 font-medium">Overdue!</span>}
-                        {isAtRisk && <span className="text-yellow-500 font-medium">At Risk!</span>}
-                        {isCritical && <span className="text-red-400 font-medium">Critical!</span>}
+                        {isOverdue(task) && <span className="text-red-500 font-medium">Overdue!</span>}
+                        {isAtRisk(task) && <span className="text-yellow-500 font-medium">At Risk!</span>}
+                        {isCritical(task) && !isAtRisk(task) && <span className="text-red-400 font-medium">Critical!</span>}
+                      </div>
+                    )}
+                    
+                    {/* Progress Bar for Active Tasks */}
+                    {task.status !== 'done' && task.dueDate && (
+                      <div className="mt-1">
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1">
+                          <div 
+                            className={`h-1 rounded-full transition-all duration-300 ${
+                              progress >= 85 ? 'bg-red-500' :
+                              progress >= 50 ? 'bg-yellow-500' :
+                              'bg-green-500'
+                            }`}
+                            style={{ width: `${Math.min(100, progress)}%` }}
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
