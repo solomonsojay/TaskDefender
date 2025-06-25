@@ -143,6 +143,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const tasks = JSON.parse(savedTasks).map((task: any) => ({
             ...task,
             createdAt: new Date(task.createdAt),
+            updatedAt: task.updatedAt ? new Date(task.updatedAt) : undefined,
             dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
             completedAt: task.completedAt ? new Date(task.completedAt) : undefined,
             expectedCompletionTime: task.expectedCompletionTime ? new Date(task.expectedCompletionTime) : undefined,

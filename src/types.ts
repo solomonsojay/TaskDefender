@@ -17,6 +17,7 @@ export interface User {
   organizationWebsite?: string;
   organizationDescription?: string;
   createdAt: Date;
+  updatedAt?: Date;
   socialAccounts?: SocialAccount[];
   profilePicture?: string | null;
   emailVerified?: boolean;
@@ -40,6 +41,7 @@ export interface Task {
   actualTime?: number;
   tags: string[];
   createdAt: Date;
+  updatedAt?: Date;
   completedAt?: Date;
   userId: string;
   teamId?: string;
@@ -60,6 +62,7 @@ export interface Team {
   members: TeamMember[];
   inviteCode: string;
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 export interface TeamMember {
@@ -78,6 +81,7 @@ export interface FocusSession {
   distractions: number;
   userId: string;
   createdAt: Date;
+  updatedAt?: Date;
   defenseTriggered?: boolean;
   interventionCount?: number;
 }
