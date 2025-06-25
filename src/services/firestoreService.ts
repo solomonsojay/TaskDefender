@@ -93,7 +93,7 @@ export class FirestoreService {
           ...data,
           id: doc.id,
           createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || undefined,
           dueDate: data.dueDate?.toDate() || undefined,
           completedAt: data.completedAt?.toDate() || undefined,
           expectedCompletionTime: data.expectedCompletionTime?.toDate() || undefined,
@@ -121,7 +121,7 @@ export class FirestoreService {
             ...data,
             id: doc.id,
             createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || undefined,
             dueDate: data.dueDate?.toDate() || undefined,
             completedAt: data.completedAt?.toDate() || undefined,
             expectedCompletionTime: data.expectedCompletionTime?.toDate() || undefined,
@@ -174,7 +174,7 @@ export class FirestoreService {
           ...data,
           id: doc.id,
           createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || undefined,
           members: data.members?.map((member: any) => ({
             ...member,
             joinedAt: member.joinedAt?.toDate() || new Date()
@@ -236,7 +236,7 @@ export class FirestoreService {
           ...data,
           id: doc.id,
           createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date()
+          updatedAt: data.updatedAt?.toDate() || undefined
         } as FocusSession;
       });
     } catch (error: any) {
