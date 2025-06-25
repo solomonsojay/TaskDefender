@@ -341,16 +341,16 @@ const SocialMediaSettings: React.FC = () => {
                   </p>
                   <ul className="text-sm text-yellow-600 dark:text-yellow-300 mt-2 space-y-1">
                     <li>
-                      • <strong>Twitter:</strong> Create app at <a href="https://developer.twitter.com" target="_blank" rel="noopener noreferrer" className="underline">developer.twitter.com</a>
+                      • <strong>Twitter:</strong> Create app at <a href="https://developer.twitter.com" target=\"_blank" rel="noopener noreferrer\" className="underline">developer.twitter.com</a>
                     </li>
                     <li>
-                      • <strong>LinkedIn:</strong> Create app at <a href="https://www.linkedin.com/developers" target="_blank" rel="noopener noreferrer" className="underline">linkedin.com/developers</a>
+                      • <strong>LinkedIn:</strong> Create app at <a href="https://www.linkedin.com/developers" target=\"_blank" rel="noopener noreferrer\" className="underline">linkedin.com/developers</a>
                     </li>
                     <li>
-                      • <strong>Facebook:</strong> Create app at <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="underline">developers.facebook.com</a>
+                      • <strong>Facebook:</strong> Create app at <a href="https://developers.facebook.com" target=\"_blank" rel="noopener noreferrer\" className="underline">developers.facebook.com</a>
                     </li>
                     <li>
-                      • <strong>Dev.to:</strong> Get API key from <a href="https://dev.to/settings/account" target="_blank" rel="noopener noreferrer" className="underline">dev.to/settings/account</a>
+                      • <strong>Dev.to:</strong> Get API key from <a href="https://dev.to/settings/account" target=\"_blank" rel="noopener noreferrer\" className="underline">dev.to/settings/account</a>
                     </li>
                   </ul>
                 </div>
