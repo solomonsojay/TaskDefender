@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, Square, RotateCcw, Target } from 'lucide-react';
+import { Play, Pause, Square, RotateCcw, Target, Eye, EyeOff } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { focusTrackingService } from '../services/FocusTrackingService';
 
 const FocusMode: React.FC = () => {
-  const { focusSession, endFocusSession, tasks } = useApp();
+  const { focusSession, endFocusSession, tasks, updateTask } = useApp();
   const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes in seconds
   const [isActive, setIsActive] = useState(false);
   const [sessionType, setSessionType] = useState<'work' | 'break'>('work');
+  const [focusStats, setFocusStats] = useState({ duration: 0, distractions: 0, focusTime: 0, isPaused: false });
 
   const currentTask = focusSession ? tasks.find(t => t.id === focusSession.taskId) : null;
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
-    if (isActive && timeLeft > 0) {
+    if (isActive && timeLeft > 0 && !focusStats.isPaused) {
       interval = setInterval(() => {
         setTimeLeft(time => time - 1);
       }, 1000);
@@ -30,22 +32,56 @@ const FocusMode: React.FC = () => {
     }
 
     return () => clearInterval(interval);
-  }, [isActive, timeLeft, sessionType]);
+  }, [isActive, timeLeft, sessionType, focusStats.isPaused]);
+
+  // Update focus stats every second
+  useEffect(() => {
+    if (isActive && focusSession) {
+      const interval = setInterval(() => {
+        const stats = focusTrackingService.getCurrentStats();
+        setFocusStats(stats);
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [isActive, focusSession]);
 
   const toggleTimer = () => {
+    if (!isActive && focusSession) {
+      // Start focus tracking
+      focusTrackingService.startTracking(focusSession.id);
+    }
     setIsActive(!isActive);
   };
 
   const resetTimer = () => {
     setIsActive(false);
     setTimeLeft(sessionType === 'work' ? 25 * 60 : 5 * 60);
+    if (focusSession) {
+      focusTrackingService.stopTracking();
+    }
   };
 
   const endSession = () => {
     setIsActive(false);
-    endFocusSession();
+    
+    if (focusSession) {
+      // Get final focus stats
+      const finalStats = focusTrackingService.stopTracking();
+      
+      // Update the task with focus session data
+      if (currentTask) {
+        updateTask(currentTask.id, {
+          actualTime: (currentTask.actualTime || 0) + Math.round(finalStats.focusTime / 60), // Add minutes
+        });
+      }
+      
+      endFocusSession();
+    }
+    
     setSessionType('work');
     setTimeLeft(25 * 60);
+    setFocusStats({ duration: 0, distractions: 0, focusTime: 0, isPaused: false });
   };
 
   const formatTime = (seconds: number) => {
@@ -67,7 +103,7 @@ const FocusMode: React.FC = () => {
             Focus Mode
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Select a task and click the focus button to start a Pomodoro session.
+            Select a task and click the focus button to start a Pomodoro session with distraction tracking.
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center mb-8">
@@ -80,6 +116,9 @@ const FocusMode: React.FC = () => {
               <div className="text-sm text-gray-600 dark:text-gray-400">Minutes Break</div>
             </div>
           </div>
+
+          {/* Focus Analytics */}
+          <FocusAnalytics />
         </div>
       </div>
     );
@@ -100,6 +139,20 @@ const FocusMode: React.FC = () => {
                 Current Task:
               </h3>
               <p className="text-gray-600 dark:text-gray-400">{currentTask.title}</p>
+            </div>
+          )}
+
+          {/* Focus Status Indicator */}
+          {isActive && (
+            <div className={`flex items-center justify-center space-x-2 mb-4 p-3 rounded-xl ${
+              focusStats.isPaused 
+                ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'
+                : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+            }`}>
+              {focusStats.isPaused ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              <span className="font-medium">
+                {focusStats.isPaused ? 'Distracted - Timer Paused' : 'Focused - Timer Active'}
+              </span>
             </div>
           )}
         </div>
@@ -144,6 +197,30 @@ const FocusMode: React.FC = () => {
           </div>
         </div>
 
+        {/* Focus Stats */}
+        {isActive && (
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+              <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                {Math.floor(focusStats.focusTime / 60)}m
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">Focus Time</div>
+            </div>
+            <div className="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-xl">
+              <div className="text-lg font-bold text-red-600 dark:text-red-400">
+                {focusStats.distractions}
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">Distractions</div>
+            </div>
+            <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
+              <div className="text-lg font-bold text-green-600 dark:text-green-400">
+                {focusStats.focusTime > 0 ? Math.round((focusStats.focusTime / focusStats.duration) * 100) : 0}%
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">Focus Ratio</div>
+            </div>
+          </div>
+        )}
+
         {/* Controls */}
         <div className="flex justify-center space-x-4 mb-8">
           <button
@@ -174,6 +251,80 @@ const FocusMode: React.FC = () => {
           >
             <Square className="h-6 w-6" />
           </button>
+        </div>
+
+        {/* Distraction Tips */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
+          <h4 className="font-semibold text-blue-700 dark:text-blue-400 mb-2">
+            🎯 Focus Tips
+          </h4>
+          <ul className="text-sm text-blue-600 dark:text-blue-300 space-y-1">
+            <li>• Timer pauses automatically when you switch tabs or apps</li>
+            <li>• Each distraction is tracked and counted</li>
+            <li>• Stay focused to maintain your productivity streak</li>
+            <li>• Use break time to rest and recharge</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Focus Analytics Component
+const FocusAnalytics: React.FC = () => {
+  const [analytics, setAnalytics] = useState({
+    totalSessions: 0,
+    totalFocusTime: 0,
+    totalDistractions: 0,
+    averageFocusRatio: 0,
+    averageSessionLength: 0
+  });
+
+  useEffect(() => {
+    const stats = focusTrackingService.getFocusAnalytics();
+    setAnalytics(stats);
+  }, []);
+
+  return (
+    <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Focus Analytics (Last 30 Days)
+      </h3>
+      
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            {analytics.totalSessions}
+          </div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">Sessions</div>
+        </div>
+        
+        <div className="text-center">
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+            {analytics.totalFocusTime}m
+          </div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">Focus Time</div>
+        </div>
+        
+        <div className="text-center">
+          <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+            {analytics.totalDistractions}
+          </div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">Distractions</div>
+        </div>
+        
+        <div className="text-center">
+          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+            {analytics.averageFocusRatio}%
+          </div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">Avg Focus</div>
+        </div>
+        
+        <div className="text-center">
+          <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+            {analytics.averageSessionLength}m
+          </div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">Avg Length</div>
         </div>
       </div>
     </div>

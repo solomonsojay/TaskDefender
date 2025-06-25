@@ -6,7 +6,8 @@ import {
   Facebook, 
   Copy,
   CheckCircle,
-  Code
+  Code,
+  ExternalLink
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -50,14 +51,44 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
 
   const shareToSocial = (platform: string) => {
     const encodedText = encodeURIComponent(shareText);
+    const currentUrl = encodeURIComponent(window.location.href);
+    
     const urls: {[key: string]: string} = {
-      twitter: `https://twitter.com/intent/tweet?text=${encodedText}`,
-      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}&summary=${encodedText}`,
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}&quote=${encodedText}`,
-      devto: `https://dev.to/new?title=${encodeURIComponent(`My ${period.charAt(0).toUpperCase() + period.slice(1)} Productivity Report`)}&body=${encodedText}&tags=productivity,taskdefender`
+      twitter: `https://twitter.com/intent/tweet?text=${encodedText}&hashtags=TaskDefender,Productivity`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${currentUrl}&summary=${encodedText}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${currentUrl}&quote=${encodedText}`,
+      devto: `https://dev.to/new?title=${encodeURIComponent(`My ${period.charAt(0).toUpperCase() + period.slice(1)} Productivity Report`)}&body=${encodedText}&tags=productivity,taskdefender,goals`
     };
 
-    window.open(urls[platform], '_blank', 'width=600,height=400');
+    // Open in new window
+    const shareWindow = window.open(
+      urls[platform], 
+      'share-window',
+      'width=600,height=400,scrollbars=yes,resizable=yes'
+    );
+
+    // Focus the share window
+    if (shareWindow) {
+      shareWindow.focus();
+    }
+  };
+
+  const directShare = async (platform: string) => {
+    // Use Web Share API if available
+    if (navigator.share && platform === 'native') {
+      try {
+        await navigator.share({
+          title: `My ${period} TaskDefender Report`,
+          text: shareText,
+          url: window.location.href
+        });
+        return;
+      } catch (error) {
+        console.log('Web Share API failed, falling back to platform sharing');
+      }
+    }
+
+    shareToSocial(platform);
   };
 
   const getPlatformIcon = (platform: string) => {
@@ -95,6 +126,14 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
     }
   };
 
+  // Available platforms for direct sharing
+  const availablePlatforms = [
+    { id: 'twitter', name: 'X (Twitter)', icon: Twitter, color: 'bg-blue-500 hover:bg-blue-600' },
+    { id: 'linkedin', name: 'LinkedIn', icon: Linkedin, color: 'bg-blue-700 hover:bg-blue-800' },
+    { id: 'facebook', name: 'Facebook', icon: Facebook, color: 'bg-blue-600 hover:bg-blue-700' },
+    { id: 'devto', name: 'Dev.to', icon: Code, color: 'bg-black hover:bg-gray-800' }
+  ];
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full">
@@ -129,34 +168,71 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
             </button>
           </div>
 
-          {/* Connected Accounts */}
-          {connectedAccounts.length > 0 ? (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-gray-900 dark:text-white">Share to Connected Accounts</h3>
+          {/* Native Web Share (if available) */}
+          {navigator.share && (
+            <div className="mb-6">
+              <button
+                onClick={() => directShare('native')}
+                className="w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 transition-colors duration-200"
+              >
+                <ExternalLink className="h-5 w-5" />
+                <span>Share via Device</span>
+              </button>
+            </div>
+          )}
+
+          {/* Direct Platform Sharing */}
+          <div className="space-y-4">
+            <h3 className="font-semibold text-gray-900 dark:text-white">Share Directly</h3>
+            
+            <div className="grid grid-cols-1 gap-3">
+              {availablePlatforms.map((platform) => (
+                <button
+                  key={platform.id}
+                  onClick={() => directShare(platform.id)}
+                  className={`flex items-center justify-center space-x-2 py-3 px-4 rounded-xl text-white transition-colors duration-200 ${platform.color}`}
+                >
+                  <platform.icon className="h-5 w-5" />
+                  <span>Share to {platform.name}</span>
+                  <ExternalLink className="h-4 w-4" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Connected Accounts Section */}
+          {connectedAccounts.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Connected Accounts</h3>
               
               <div className="grid grid-cols-1 gap-3">
                 {connectedAccounts.map((account) => (
                   <button
                     key={account.platform}
-                    onClick={() => shareToSocial(account.platform)}
+                    onClick={() => directShare(account.platform)}
                     className={`flex items-center justify-center space-x-2 py-3 px-4 rounded-xl text-white transition-colors duration-200 ${getPlatformColor(account.platform)}`}
                   >
                     {getPlatformIcon(account.platform)}
                     <span>Share to {getPlatformName(account.platform)}</span>
+                    <span className="text-xs opacity-75">({account.username})</span>
                   </button>
                 ))}
               </div>
             </div>
-          ) : (
-            <div className="text-center py-6">
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                No connected social media accounts found.
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-500">
-                Connect your accounts in Settings → Social Media to share your progress.
-              </p>
-            </div>
           )}
+
+          {/* Tips */}
+          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl">
+            <h4 className="font-medium text-blue-700 dark:text-blue-400 mb-2">
+              💡 Sharing Tips
+            </h4>
+            <ul className="text-sm text-blue-600 dark:text-blue-300 space-y-1">
+              <li>• Share your progress to stay accountable</li>
+              <li>• Inspire others with your productivity journey</li>
+              <li>• Use hashtags like #TaskDefender #Productivity</li>
+              <li>• Connect accounts in Settings for easier sharing</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>

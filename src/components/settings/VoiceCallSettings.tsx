@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   PhoneCall, 
   Volume2, 
@@ -12,6 +12,7 @@ import {
   Edit3,
   TestTube
 } from 'lucide-react';
+import { smartInterventionService } from '../../services/SmartInterventionService';
 
 interface VoiceSettings {
   enableCalls: boolean;
@@ -41,7 +42,34 @@ const VoiceCallSettings: React.FC = () => {
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [newPrompt, setNewPrompt] = useState('');
   const [editingPromptIndex, setEditingPromptIndex] = useState<number | null>(null);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load available voices
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = speechSynthesis.getVoices();
+      setAvailableVoices(voices);
+    };
+
+    loadVoices();
+    speechSynthesis.onvoiceschanged = loadVoices;
+
+    // Load saved settings
+    const saved = localStorage.getItem('taskdefender_voice_settings');
+    if (saved) {
+      try {
+        const savedSettings = JSON.parse(saved);
+        setSettings(savedSettings);
+      } catch (error) {
+        console.error('Failed to load voice settings:', error);
+      }
+    }
+
+    return () => {
+      speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
 
   const characters = [
     { 
@@ -79,8 +107,6 @@ const VoiceCallSettings: React.FC = () => {
     { id: 'en-GB-male', name: 'British English (Male)' },
     { id: 'en-AU-female', name: 'Australian English (Female)' },
     { id: 'en-AU-male', name: 'Australian English (Male)' },
-    { id: 'en-ZA-female', name: 'South African English (Female)' },
-    { id: 'en-ZA-male', name: 'South African English (Male)' },
     { id: 'custom', name: 'Custom Voice Recording' }
   ];
 
@@ -170,15 +196,8 @@ const VoiceCallSettings: React.FC = () => {
     if ('speechSynthesis' in window) {
       const utterance = new SpeechSynthesisUtterance(testMessage);
       
-      // Try to match voice selection
-      const voices = speechSynthesis.getVoices();
-      const selectedVoice = voices.find(voice => 
-        voice.lang.includes(settings.selectedVoice.split('-')[0]) &&
-        (settings.selectedVoice.includes('female') ? 
-          voice.name.toLowerCase().includes('female') || voice.name.toLowerCase().includes('woman') :
-          voice.name.toLowerCase().includes('male') || voice.name.toLowerCase().includes('man'))
-      );
-      
+      // Find the selected voice
+      const selectedVoice = findVoiceBySettings();
       if (selectedVoice) {
         utterance.voice = selectedVoice;
       }
@@ -208,6 +227,23 @@ const VoiceCallSettings: React.FC = () => {
     }
   };
 
+  const findVoiceBySettings = (): SpeechSynthesisVoice | null => {
+    if (settings.selectedVoice === 'custom') return null;
+    
+    const [lang, country, gender] = settings.selectedVoice.split('-');
+    const langCode = `${lang}-${country}`;
+    
+    return availableVoices.find(voice => {
+      const voiceLang = voice.lang.toLowerCase();
+      const voiceName = voice.name.toLowerCase();
+      
+      return voiceLang.includes(langCode.toLowerCase()) &&
+        (gender === 'female' ? 
+          voiceName.includes('female') || voiceName.includes('woman') || voiceName.includes('zira') || voiceName.includes('susan') :
+          voiceName.includes('male') || voiceName.includes('man') || voiceName.includes('david') || voiceName.includes('mark'));
+    }) || availableVoices.find(voice => voice.lang.includes(langCode)) || null;
+  };
+
   const testVoiceCall = () => {
     const selectedCharacter = characters.find(c => c.id === settings.selectedCharacter);
     if (selectedCharacter) {
@@ -217,7 +253,15 @@ const VoiceCallSettings: React.FC = () => {
 
   const saveSettings = () => {
     localStorage.setItem('taskdefender_voice_settings', JSON.stringify(settings));
+    
+    // Update the intervention service with new settings
+    smartInterventionService.updateVoiceSettings(settings);
+    
     alert('Voice call settings saved successfully!');
+  };
+
+  const updateSettings = (updates: Partial<VoiceSettings>) => {
+    setSettings(prev => ({ ...prev, ...updates }));
   };
 
   return (
@@ -231,7 +275,7 @@ const VoiceCallSettings: React.FC = () => {
             Voice Call Settings
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            Configure motivational calls from different characters
+            Configure motivational calls from different characters with smart intervention
           </p>
         </div>
       </div>
@@ -253,7 +297,7 @@ const VoiceCallSettings: React.FC = () => {
                 type="checkbox"
                 className="sr-only peer"
                 checked={settings.enableCalls}
-                onChange={(e) => setSettings(prev => ({ ...prev, enableCalls: e.target.checked }))}
+                onChange={(e) => updateSettings({ enableCalls: e.target.checked })}
               />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 dark:peer-focus:ring-green-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
             </label>
@@ -269,7 +313,7 @@ const VoiceCallSettings: React.FC = () => {
                 min="5"
                 max="120"
                 value={settings.callInterval}
-                onChange={(e) => setSettings(prev => ({ ...prev, callInterval: parseInt(e.target.value) || 20 }))}
+                onChange={(e) => updateSettings({ callInterval: parseInt(e.target.value) || 20 })}
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors duration-200"
               />
             </div>
@@ -280,7 +324,7 @@ const VoiceCallSettings: React.FC = () => {
               </label>
               <select
                 value={settings.callFrequency}
-                onChange={(e) => setSettings(prev => ({ ...prev, callFrequency: e.target.value as any }))}
+                onChange={(e) => updateSettings({ callFrequency: e.target.value as any })}
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors duration-200"
               >
                 <option value="low">Low (Less frequent)</option>
@@ -289,6 +333,83 @@ const VoiceCallSettings: React.FC = () => {
               </select>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Voice Settings */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Voice Settings
+        </h3>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Voice Selection
+            </label>
+            <select
+              value={settings.selectedVoice}
+              onChange={(e) => updateSettings({ selectedVoice: e.target.value })}
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors duration-200"
+            >
+              {voiceOptions.map(voice => (
+                <option key={voice.id} value={voice.id}>{voice.name}</option>
+              ))}
+            </select>
+            
+            {/* Show available system voices */}
+            {availableVoices.length > 0 && (
+              <div className="mt-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Available system voices for {settings.selectedVoice}:
+                </p>
+                <div className="text-xs text-gray-600 dark:text-gray-300">
+                  {availableVoices
+                    .filter(voice => {
+                      if (settings.selectedVoice === 'custom') return false;
+                      const [lang, country] = settings.selectedVoice.split('-');
+                      return voice.lang.toLowerCase().includes(`${lang}-${country}`.toLowerCase());
+                    })
+                    .slice(0, 3)
+                    .map(voice => voice.name)
+                    .join(', ') || 'Default system voice will be used'}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Custom Voice Recording */}
+          {settings.selectedVoice === 'custom' && (
+            <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
+              <h4 className="font-semibold text-purple-700 dark:text-purple-400 mb-4">
+                Record Custom Voice
+              </h4>
+              
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={isRecording ? stopRecording : startRecording}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
+                    isRecording
+                      ? 'bg-red-500 text-white hover:bg-red-600'
+                      : 'bg-purple-500 text-white hover:bg-purple-600'
+                  }`}
+                >
+                  {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  <span>{isRecording ? 'Stop Recording' : 'Start Recording'}</span>
+                </button>
+                
+                {settings.customVoiceBlob && (
+                  <span className="text-sm text-green-600 dark:text-green-400">
+                    ✓ Custom voice recorded
+                  </span>
+                )}
+              </div>
+              
+              <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">
+                Record a sample phrase that will be used to synthesize your voice for calls
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -310,7 +431,7 @@ const VoiceCallSettings: React.FC = () => {
             >
               <div className="flex items-start justify-between mb-3">
                 <button
-                  onClick={() => setSettings(prev => ({ ...prev, selectedCharacter: character.id }))}
+                  onClick={() => updateSettings({ selectedCharacter: character.id })}
                   className="flex-1 text-left"
                 >
                   <h4 className="font-semibold text-gray-900 dark:text-white">{character.name}</h4>
@@ -352,7 +473,7 @@ const VoiceCallSettings: React.FC = () => {
                 <input
                   type="text"
                   value={settings.customCharacterName}
-                  onChange={(e) => setSettings(prev => ({ ...prev, customCharacterName: e.target.value }))}
+                  onChange={(e) => updateSettings({ customCharacterName: e.target.value })}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
                   placeholder="Enter custom name"
                 />
@@ -445,63 +566,6 @@ const VoiceCallSettings: React.FC = () => {
         )}
       </div>
 
-      {/* Voice Settings */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Voice Settings
-        </h3>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Voice Selection
-            </label>
-            <select
-              value={settings.selectedVoice}
-              onChange={(e) => setSettings(prev => ({ ...prev, selectedVoice: e.target.value }))}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors duration-200"
-            >
-              {voiceOptions.map(voice => (
-                <option key={voice.id} value={voice.id}>{voice.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Custom Voice Recording */}
-          {settings.selectedVoice === 'custom' && (
-            <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
-              <h4 className="font-semibold text-purple-700 dark:text-purple-400 mb-4">
-                Record Custom Voice
-              </h4>
-              
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={isRecording ? stopRecording : startRecording}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-                    isRecording
-                      ? 'bg-red-500 text-white hover:bg-red-600'
-                      : 'bg-purple-500 text-white hover:bg-purple-600'
-                  }`}
-                >
-                  {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                  <span>{isRecording ? 'Stop Recording' : 'Start Recording'}</span>
-                </button>
-                
-                {settings.customVoiceBlob && (
-                  <span className="text-sm text-green-600 dark:text-green-400">
-                    ✓ Custom voice recorded
-                  </span>
-                )}
-              </div>
-              
-              <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">
-                Record a sample phrase that will be used to synthesize your voice for calls
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Test & Save */}
       <div className="flex space-x-4">
         <button
@@ -519,6 +583,20 @@ const VoiceCallSettings: React.FC = () => {
           <Save className="h-4 w-4" />
           <span>Save Settings</span>
         </button>
+      </div>
+
+      {/* Smart Intervention Info */}
+      <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl p-4">
+        <h4 className="font-semibold text-orange-700 dark:text-orange-400 mb-2">
+          🛡️ Smart Intervention System
+        </h4>
+        <ul className="text-sm text-orange-600 dark:text-orange-300 space-y-1">
+          <li>• Interventions start when tasks reach 50% of their deadline</li>
+          <li>• Frequency increases as deadlines approach (50% → 70% → 85% → 95%)</li>
+          <li>• Voice calls use your selected character and voice settings</li>
+          <li>• Emergency interventions trigger for critical overdue tasks</li>
+          <li>• Your last line of defense against procrastination!</li>
+        </ul>
       </div>
     </div>
   );

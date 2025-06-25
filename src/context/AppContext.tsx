@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { AppState, Task, User, Theme, FocusSession, Team, TaskDefenseSystem } from '../types';
-import { taskDefenseService } from '../services/TaskDefenseService';
+import { smartInterventionService } from '../services/SmartInterventionService';
 
 interface AppContextType extends AppState {
   dispatch: React.Dispatch<AppAction>;
@@ -41,7 +41,7 @@ const initialState: AppState = {
   currentTeam: null,
   focusSession: null,
   theme: 'light',
-  isOnboarding: false, // Firebase auth handles this
+  isOnboarding: false,
   defenseSystem: {
     isActive: true,
     monitoringTasks: [],
@@ -134,7 +134,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [state.theme]);
 
-  // Load tasks from localStorage when user changes (fallback for when Firebase is not available)
+  // Load tasks from localStorage when user changes
   useEffect(() => {
     if (state.user) {
       const savedTasks = localStorage.getItem(`taskdefender_tasks_${state.user.id}`);
@@ -161,7 +161,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Save tasks to localStorage
   useEffect(() => {
-    if (state.user && state.tasks.length > 0) {
+    if (state.user && state.tasks.length >= 0) {
       localStorage.setItem(`taskdefender_tasks_${state.user.id}`, JSON.stringify(state.tasks));
     }
   }, [state.tasks, state.user]);
@@ -173,6 +173,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...taskData,
       id: Date.now().toString(),
       createdAt: new Date(),
+      updatedAt: new Date(),
       userId: state.user.id,
       isDefenseActive: true,
       defenseLevel: taskData.priority === 'urgent' ? 'critical' : 
@@ -184,7 +185,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateTask = (id: string, updates: Partial<Task>) => {
-    dispatch({ type: 'UPDATE_TASK', payload: { id, updates } });
+    const updatedTask = { ...updates, updatedAt: new Date() };
+    dispatch({ type: 'UPDATE_TASK', payload: { id, updates: updatedTask } });
+    
+    // Clear interventions if task is completed
+    if (updates.status === 'done') {
+      smartInterventionService.clearInterventionForTask(id);
+    }
     
     // Update integrity score if task was completed
     if (updates.status === 'done' && state.user) {
@@ -213,6 +220,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteTask = (id: string) => {
+    // Clear any active interventions for this task
+    smartInterventionService.clearInterventionForTask(id);
     dispatch({ type: 'DELETE_TASK', payload: id });
   };
 
@@ -235,6 +244,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       distractions: 0,
       userId: state.user.id,
       createdAt: new Date(),
+      updatedAt: new Date(),
       defenseTriggered: false,
       interventionCount: 0
     };
@@ -251,6 +261,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...teamData,
       id: Date.now().toString(),
       createdAt: new Date(),
+      updatedAt: new Date(),
       inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
     };
     dispatch({ type: 'CREATE_TEAM', payload: team });
@@ -266,19 +277,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       members: [],
       inviteCode,
       createdAt: new Date(),
+      updatedAt: new Date(),
     };
     dispatch({ type: 'JOIN_TEAM', payload: mockTeam });
   };
 
   const updateProfile = (updates: Partial<User>) => {
     if (state.user) {
-      const updatedUser = { ...state.user, ...updates };
+      const updatedUser = { ...state.user, ...updates, updatedAt: new Date() };
       dispatch({ type: 'SET_USER', payload: updatedUser });
     }
   };
 
   const triggerDefense = (taskId: string, severity: 'low' | 'medium' | 'high' | 'critical' = 'medium') => {
-    taskDefenseService.triggerManualDefense(taskId, severity);
+    smartInterventionService.triggerManualDefense(taskId, severity);
   };
 
   const signOut = async () => {

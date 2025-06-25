@@ -13,10 +13,10 @@ import {
   Edit3
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { smartInterventionService } from '../services/SmartInterventionService';
 
 // Define types for better type safety
 type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
-type DefenseLevel = 'low' | 'medium' | 'high' | 'critical';
 
 const TaskList: React.FC = () => {
   const { tasks, updateTask, deleteTask, startFocusSession, addTask } = useApp();
@@ -28,65 +28,51 @@ const TaskList: React.FC = () => {
     description: '',
     priority: 'medium' as TaskPriority,
     dueDate: '',
-    expectedCompletionTime: '',
-    scheduledTime: '',
     estimatedTime: 30,
     tags: [] as string[]
   });
 
-  // Priority to defense level mapping with proper typing
-  const priorityToDefenseMap: Record<TaskPriority, DefenseLevel> = {
-    'low': 'low',
-    'medium': 'medium',
-    'high': 'high',
-    'urgent': 'critical'
-  };
-
-  // Find critical tasks (80% close to deadline)
+  // Find critical tasks (50% close to deadline)
   const criticalTasks = tasks.filter(task => {
     if (!task.dueDate || task.status === 'done') return false;
     const now = new Date();
     const dueDate = new Date(task.dueDate);
     const createdDate = new Date(task.createdAt);
     const totalTimespan = dueDate.getTime() - createdDate.getTime();
-    const timeLeft = dueDate.getTime() - now.getTime();
+    const elapsedTime = now.getTime() - createdDate.getTime();
+    const timeProgress = elapsedTime / totalTimespan;
     
-    // If less than 20% of time remains, it's critical
-    return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.2;
+    // Critical if 50% or more time has passed
+    return timeProgress >= 0.5 && timeProgress < 0.85;
   });
 
-  // Find at-risk tasks (90% close to deadline)
+  // Find at-risk tasks (85% close to deadline)
   const atRiskTasks = tasks.filter(task => {
     if (!task.dueDate || task.status === 'done') return false;
     const now = new Date();
     const dueDate = new Date(task.dueDate);
     const createdDate = new Date(task.createdAt);
     const totalTimespan = dueDate.getTime() - createdDate.getTime();
-    const timeLeft = dueDate.getTime() - now.getTime();
+    const elapsedTime = now.getTime() - createdDate.getTime();
+    const timeProgress = elapsedTime / totalTimespan;
     
-    // If less than 10% of time remains, it's at risk
-    return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.1;
+    // At risk if 85% or more time has passed
+    return timeProgress >= 0.85;
+  });
+
+  // Find overdue tasks
+  const overdueTasks = tasks.filter(task => {
+    if (!task.dueDate || task.status === 'done') return false;
+    return new Date(task.dueDate) < new Date();
   });
 
   const filteredTasks = tasks.filter(task => {
     if (filter === 'all') return true;
     if (filter === 'critical') {
-      const now = new Date();
-      if (!task.dueDate || task.status === 'done') return false;
-      const dueDate = new Date(task.dueDate);
-      const createdDate = new Date(task.createdAt);
-      const totalTimespan = dueDate.getTime() - createdDate.getTime();
-      const timeLeft = dueDate.getTime() - now.getTime();
-      return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.2;
+      return criticalTasks.includes(task);
     }
     if (filter === 'at-risk') {
-      const now = new Date();
-      if (!task.dueDate || task.status === 'done') return false;
-      const dueDate = new Date(task.dueDate);
-      const createdDate = new Date(task.createdAt);
-      const totalTimespan = dueDate.getTime() - createdDate.getTime();
-      const timeLeft = dueDate.getTime() - now.getTime();
-      return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.1;
+      return atRiskTasks.includes(task);
     }
     return task.status === filter;
   });
@@ -99,6 +85,9 @@ const TaskList: React.FC = () => {
         honestlyCompleted: true,
         isDefenseActive: false
       });
+      
+      // Clear any active interventions for this task
+      smartInterventionService.clearInterventionForTask(taskId);
     } else {
       // If not honestly completed, keep as in-progress and activate defense
       updateTask(taskId, {
@@ -120,9 +109,6 @@ const TaskList: React.FC = () => {
         honestlyCompleted: undefined,
         isDefenseActive: false 
       });
-    } else if (currentStatus === 'todo') {
-      // Show honesty check before completing
-      setShowHonestyCheck(taskId);
     } else {
       // Show honesty check before completing
       setShowHonestyCheck(taskId);
@@ -131,7 +117,7 @@ const TaskList: React.FC = () => {
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTask.title.trim()) return;
+    if (!newTask.title.trim() || !newTask.dueDate) return;
 
     addTask({
       title: newTask.title,
@@ -139,12 +125,11 @@ const TaskList: React.FC = () => {
       priority: newTask.priority,
       status: 'todo',
       tags: newTask.tags,
-      dueDate: newTask.dueDate ? new Date(newTask.dueDate) : undefined,
-      expectedCompletionTime: newTask.expectedCompletionTime ? new Date(newTask.expectedCompletionTime) : undefined,
-      scheduledTime: newTask.scheduledTime ? new Date(newTask.scheduledTime) : undefined,
+      dueDate: new Date(newTask.dueDate),
       estimatedTime: newTask.estimatedTime,
       isDefenseActive: true,
-      defenseLevel: priorityToDefenseMap[newTask.priority],
+      defenseLevel: newTask.priority === 'urgent' ? 'critical' : 
+                   newTask.priority === 'high' ? 'high' : 'medium',
       procrastinationCount: 0
     });
 
@@ -153,8 +138,6 @@ const TaskList: React.FC = () => {
       description: '',
       priority: 'medium',
       dueDate: '',
-      expectedCompletionTime: '',
-      scheduledTime: '',
       estimatedTime: 30,
       tags: []
     });
@@ -176,23 +159,21 @@ const TaskList: React.FC = () => {
   };
 
   const isCritical = (task: any) => {
-    if (!task.dueDate || task.status === 'done') return false;
-    const now = new Date();
-    const dueDate = new Date(task.dueDate);
-    const createdDate = new Date(task.createdAt);
-    const totalTimespan = dueDate.getTime() - createdDate.getTime();
-    const timeLeft = dueDate.getTime() - now.getTime();
-    return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.2;
+    return criticalTasks.includes(task);
   };
 
   const isAtRisk = (task: any) => {
-    if (!task.dueDate || task.status === 'done') return false;
+    return atRiskTasks.includes(task);
+  };
+
+  const getTaskProgress = (task: any) => {
+    if (!task.dueDate || task.status === 'done') return 0;
     const now = new Date();
     const dueDate = new Date(task.dueDate);
     const createdDate = new Date(task.createdAt);
-    const totalTimespan = dueDate.getTime() - createdDate.getTime();
-    const timeLeft = dueDate.getTime() - now.getTime();
-    return timeLeft > 0 && (timeLeft / totalTimespan) <= 0.1;
+    const totalTime = dueDate.getTime() - createdDate.getTime();
+    const elapsedTime = now.getTime() - createdDate.getTime();
+    return Math.min(100, Math.max(0, (elapsedTime / totalTime) * 100));
   };
 
   return (
@@ -218,125 +199,105 @@ const TaskList: React.FC = () => {
       {/* Task Form Modal */}
       {showTaskForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-              Add New Task
-            </h3>
-            
-            <form onSubmit={handleAddTask} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Task Title *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newTask.title}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                  placeholder="What needs to be done?"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={newTask.description}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200 resize-none"
-                  rows={3}
-                  placeholder="Task description (optional)"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                Add New Task
+              </h3>
+              
+              <form onSubmit={handleAddTask} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Priority
-                  </label>
-                  <select
-                    value={newTask.priority}
-                    onChange={(e) => setNewTask(prev => ({ ...prev, priority: e.target.value as TaskPriority }))}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Estimated Time (min)
+                    Task Title *
                   </label>
                   <input
-                    type="number"
-                    min="5"
-                    value={newTask.estimatedTime}
-                    onChange={(e) => setNewTask(prev => ({ ...prev, estimatedTime: parseInt(e.target.value) || 30 }))}
+                    type="text"
+                    required
+                    value={newTask.title}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    placeholder="What needs to be done?"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Due Date
-                </label>
-                <input
-                  type="datetime-local"
-                  value={newTask.dueDate}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, dueDate: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={newTask.description}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200 resize-none"
+                    rows={3}
+                    placeholder="Task description (optional)"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Expected Completion Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={newTask.expectedCompletionTime}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, expectedCompletionTime: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                />
-              </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Priority
+                    </label>
+                    <select
+                      value={newTask.priority}
+                      onChange={(e) => setNewTask(prev => ({ ...prev, priority: e.target.value as TaskPriority }))}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Scheduled Work Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={newTask.scheduledTime}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, scheduledTime: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  When do you plan to work on this task?
-                </p>
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Estimated Time (min)
+                    </label>
+                    <input
+                      type="number"
+                      min="5"
+                      value={newTask.estimatedTime}
+                      onChange={(e) => setNewTask(prev => ({ ...prev, estimatedTime: parseInt(e.target.value) || 30 }))}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    />
+                  </div>
+                </div>
 
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowTaskForm(false)}
-                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
-                >
-                  Add Task
-                </button>
-              </div>
-            </form>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Due Date *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={newTask.dueDate}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, dueDate: e.target.value }))}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Required for TaskDefender's smart intervention system
+                  </p>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowTaskForm(false)}
+                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!newTask.title.trim() || !newTask.dueDate}
+                    className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Add Task
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
@@ -375,164 +336,182 @@ const TaskList: React.FC = () => {
             </h3>
             <p className="text-gray-500 dark:text-gray-400">
               {filter === 'all' 
-                ? 'Add your first task to get started' 
+                ? 'Add your first task to get started with TaskDefender protection' 
                 : `All your ${filter.replace('-', ' ')} tasks will appear here`
               }
             </p>
           </div>
         ) : (
-          filteredTasks.map(task => (
-            <div key={task.id} className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 p-4 ${
-              task.isDefenseActive ? 'border-orange-300 dark:border-orange-600 bg-orange-50 dark:bg-orange-900/10' : 'border-gray-200 dark:border-gray-700'
-            }`}>
-              <div className="flex items-start space-x-3">
-                <button
-                  onClick={() => toggleTaskStatus(task.id, task.status)}
-                  className="mt-1 flex-shrink-0"
-                >
-                  {task.status === 'done' ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <Circle className="h-5 w-5 text-gray-400 hover:text-orange-500 transition-colors duration-200" />
-                  )}
-                </button>
+          filteredTasks.map(task => {
+            const progress = getTaskProgress(task);
+            
+            return (
+              <div key={task.id} className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 p-4 ${
+                task.isDefenseActive ? 'border-orange-300 dark:border-orange-600 bg-orange-50 dark:bg-orange-900/10' : 'border-gray-200 dark:border-gray-700'
+              }`}>
+                <div className="flex items-start space-x-3">
+                  <button
+                    onClick={() => toggleTaskStatus(task.id, task.status)}
+                    className="mt-1 flex-shrink-0"
+                  >
+                    {task.status === 'done' ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-gray-400 hover:text-orange-500 transition-colors duration-200" />
+                    )}
+                  </button>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className={`font-medium transition-all duration-200 ${
-                        task.status === 'done' 
-                          ? 'text-gray-500 dark:text-gray-400 line-through' 
-                          : 'text-gray-900 dark:text-white'
-                      }`}>
-                        {task.title}
-                        {task.isDefenseActive && (
-                          <span title="Defense Active" className="ml-2">
-                            <Shield className="inline h-4 w-4 text-orange-500" aria-label="Defense Active" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className={`font-medium transition-all duration-200 ${
+                          task.status === 'done' 
+                            ? 'text-gray-500 dark:text-gray-400 line-through' 
+                            : 'text-gray-900 dark:text-white'
+                        }`}>
+                          {task.title}
+                          {task.isDefenseActive && (
+                            <span title="Defense Active" className="ml-2">
+                              <Shield className="inline h-4 w-4 text-orange-500" aria-label="Defense Active" />
+                            </span>
+                          )}
+                        </h3>
+                        
+                        {task.procrastinationCount && task.procrastinationCount > 0 && (
+                          <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                            ⚠️ Procrastination detected {task.procrastinationCount} time(s)
+                          </p>
+                        )}
+
+                        {/* Progress Bar for Active Tasks */}
+                        {task.status !== 'done' && task.dueDate && (
+                          <div className="mt-2">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="text-gray-600 dark:text-gray-400">Progress to deadline</span>
+                              <span className={`font-medium ${
+                                progress >= 85 ? 'text-red-500' :
+                                progress >= 50 ? 'text-yellow-500' :
+                                'text-green-500'
+                              }`}>
+                                {Math.round(progress)}%
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full transition-all duration-300 ${
+                                  progress >= 85 ? 'bg-red-500' :
+                                  progress >= 50 ? 'bg-yellow-500' :
+                                  'bg-green-500'
+                                }`}
+                                style={{ width: `${Math.min(100, progress)}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center space-x-2 ml-2">
+                        {isOverdue(task) && (
+                          <span title="Overdue">
+                            <AlertTriangle className="h-4 w-4 text-red-500" aria-label="Overdue" />
                           </span>
                         )}
-                      </h3>
-                      
-                      {task.procrastinationCount && task.procrastinationCount > 0 && (
-                        <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                          ⚠️ Procrastination detected {task.procrastinationCount} time(s)
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center space-x-2 ml-2">
-                      {isOverdue(task) && (
-                        <span title="Overdue">
-                          <AlertTriangle className="h-4 w-4 text-red-500" aria-label="Overdue" />
-                        </span>
-                      )}
-                      
-                      {isAtRisk(task) && (
-                        <span title="At Risk">
-                          <Zap className="h-4 w-4 text-yellow-500 animate-pulse" aria-label="At Risk" />
-                        </span>
-                      )}
-                      
-                      {isCritical(task) && !isAtRisk(task) && (
-                        <span title="Critical">
-                          <AlertTriangle className="h-4 w-4 text-orange-500" aria-label="Critical" />
-                        </span>
-                      )}
-                      
-                      {task.status !== 'done' && (
+                        
+                        {isAtRisk(task) && (
+                          <span title="At Risk">
+                            <Zap className="h-4 w-4 text-yellow-500 animate-pulse" aria-label="At Risk" />
+                          </span>
+                        )}
+                        
+                        {isCritical(task) && !isAtRisk(task) && (
+                          <span title="Critical">
+                            <AlertTriangle className="h-4 w-4 text-orange-500" aria-label="Critical" />
+                          </span>
+                        )}
+                        
+                        {task.status !== 'done' && (
+                          <button
+                            onClick={() => startFocusSession(task.id)}
+                            className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                            title="Start focus session"
+                          >
+                            <Play className="h-4 w-4 text-gray-500 hover:text-orange-500" aria-label="Start focus session" />
+                          </button>
+                        )}
+                        
                         <button
-                          onClick={() => startFocusSession(task.id)}
+                          onClick={() => deleteTask(task.id)}
                           className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                          title="Start focus session"
+                          title="Delete task"
                         >
-                          <Play className="h-4 w-4 text-gray-500 hover:text-orange-500" aria-label="Start focus session" />
+                          <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" aria-label="Delete task" />
                         </button>
+                      </div>
+                    </div>
+
+                    {task.description && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {task.description}
+                      </p>
+                    )}
+
+                    <div className="flex items-center space-x-4 mt-3 text-xs text-gray-500 dark:text-gray-400">
+                      <span className={`px-2 py-1 rounded-full ${
+                        task.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
+                        task.status === 'in-progress' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400' :
+                        'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
+                      }`}>
+                        {task.status.replace('-', ' ').toUpperCase()}
+                      </span>
+                      
+                      <span className={`px-2 py-1 rounded-full ${
+                        task.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
+                        task.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400' :
+                        task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
+                        'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                      }`}>
+                        {task.priority}
+                      </span>
+                      
+                      {task.estimatedTime && (
+                        <div className="flex items-center space-x-1">
+                          <Clock className="h-3 w-3" />
+                          <span>{task.estimatedTime}min</span>
+                        </div>
                       )}
                       
-                      <button
-                        onClick={() => deleteTask(task.id)}
-                        className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                        title="Delete task"
-                      >
-                        <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" aria-label="Delete task" />
-                      </button>
+                      {task.dueDate && (
+                        <div className={`flex items-center space-x-1 ${
+                          isOverdue(task) ? 'text-red-500' :
+                          isAtRisk(task) ? 'text-yellow-500' :
+                          isCritical(task) ? 'text-orange-500' : ''
+                        }`}>
+                          <Calendar className="h-3 w-3" />
+                          <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                          {isOverdue(task) && <span className="text-red-500 font-medium">Overdue!</span>}
+                          {isAtRisk(task) && <span className="text-yellow-500 font-medium">At Risk!</span>}
+                          {isCritical(task) && !isAtRisk(task) && <span className="text-orange-500 font-medium">Critical!</span>}
+                        </div>
+                      )}
                     </div>
-                  </div>
 
-                  {task.description && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {task.description}
-                    </p>
-                  )}
-
-                  <div className="flex items-center space-x-4 mt-3 text-xs text-gray-500 dark:text-gray-400">
-                    <span className={`px-2 py-1 rounded-full ${
-                      task.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
-                      task.status === 'in-progress' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400' :
-                      'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
-                    }`}>
-                      {task.status.replace('-', ' ').toUpperCase()}
-                    </span>
-                    
-                    <span className={`px-2 py-1 rounded-full ${
-                      task.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
-                      task.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400' :
-                      task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
-                      'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
-                    }`}>
-                      {task.priority}
-                    </span>
-                    
-                    {task.estimatedTime && (
-                      <div className="flex items-center space-x-1">
-                        <Clock className="h-3 w-3" />
-                        <span>{task.estimatedTime}min</span>
-                      </div>
-                    )}
-                    
-                    {task.dueDate && (
-                      <div className={`flex items-center space-x-1 ${
-                        isOverdue(task) ? 'text-red-500' :
-                        isAtRisk(task) ? 'text-yellow-500' :
-                        isCritical(task) ? 'text-orange-500' : ''
-                      }`}>
-                        <Calendar className="h-3 w-3" />
-                        <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                        {isOverdue(task) && <span className="text-red-500 font-medium">Overdue!</span>}
-                        {isAtRisk(task) && <span className="text-yellow-500 font-medium">At Risk!</span>}
-                        {isCritical(task) && !isAtRisk(task) && <span className="text-orange-500 font-medium">Critical!</span>}
-                      </div>
-                    )}
-
-                    {task.expectedCompletionTime && (
-                      <div className="flex items-center space-x-1">
-                        <span>Expected: {new Date(task.expectedCompletionTime).toLocaleString()}</span>
-                      </div>
-                    )}
-
-                    {task.scheduledTime && (
-                      <div className="flex items-center space-x-1">
-                        <span>Scheduled: {new Date(task.scheduledTime).toLocaleString()}</span>
+                    {task.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {task.tags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full"
+                          >
+                            {tag}
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>
-
-                  {task.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {task.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
