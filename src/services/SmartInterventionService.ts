@@ -355,6 +355,16 @@ export class SmartInterventionService {
     this.voiceSettings = settings;
   }
 
+  public triggerManualDefense(taskId: string, severity: 'low' | 'medium' | 'high' | 'critical' = 'medium') {
+    const tasks = this.getActiveTasks();
+    const task = tasks.find(t => t.id === taskId);
+    
+    if (task) {
+      const level = severity === 'critical' ? 4 : severity === 'high' ? 3 : severity === 'medium' ? 2 : 1;
+      this.triggerIntervention(task, level);
+    }
+  }
+
   public getInterventionStats() {
     const history = this.getInterventionHistory();
     const last24Hours = history.filter((intervention: any) => 
