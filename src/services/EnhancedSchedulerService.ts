@@ -4,8 +4,8 @@ import { reminderToneService } from './ReminderToneService';
 
 export class EnhancedSchedulerService {
   private static instance: EnhancedSchedulerService;
-  private activeReminders: Map<string, number> = new Map();
-  private reminderIntervals: Map<string, number> = new Map();
+  private activeReminders: Map<string, NodeJS.Timeout> = new Map();
+  private reminderIntervals: Map<string, NodeJS.Timeout> = new Map();
 
   private constructor() {
     this.startReminderMonitoring();
@@ -209,7 +209,7 @@ export class EnhancedSchedulerService {
     this.stopContinuousReminder(notification.id);
 
     // Start new continuous reminder every 1 minute
-    const intervalId = window.setInterval(() => {
+    const intervalId = setInterval(() => {
       const now = new Date();
       
       // Stop if snoozed or dismissed
@@ -237,7 +237,7 @@ export class EnhancedSchedulerService {
       notification.reminderCount = (notification.reminderCount || 0) + 1;
       this.saveNotification(notification);
 
-    }, 60000); // Every 1 minute
+    }, 60000) as NodeJS.Timeout; // Every 1 minute
 
     this.reminderIntervals.set(notification.id, intervalId);
   }
@@ -245,7 +245,7 @@ export class EnhancedSchedulerService {
   private stopContinuousReminder(notificationId: string) {
     const intervalId = this.reminderIntervals.get(notificationId);
     if (intervalId) {
-      window.clearInterval(intervalId);
+      clearInterval(intervalId);
       this.reminderIntervals.delete(notificationId);
     }
   }

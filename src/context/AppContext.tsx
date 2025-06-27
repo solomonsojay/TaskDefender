@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { AppState, Task, User, Theme, FocusSession, Team, TeamMember, TaskDefenseSystem, AppError, TaskReminderSettings } from '../types';
 import { smartInterventionService } from '../services/SmartInterventionService';
 import { generateSecureId, validateUserData, validateTaskData } from '../utils/validation';
@@ -139,7 +139,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   // Error handling helper
-  const addError = (type: AppError['type'], message: string, context?: any) => {
+  const addError = useCallback((type: AppError['type'], message: string, context?: any) => {
     const error: AppError = {
       id: generateSecureId(),
       type,
@@ -148,11 +148,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       context
     };
     dispatch({ type: 'ADD_ERROR', payload: error });
-  };
+  }, []);
 
-  const clearError = (errorId: string) => {
+  const clearError = useCallback((errorId: string) => {
     dispatch({ type: 'CLEAR_ERROR', payload: errorId });
-  };
+  }, []);
 
   // Load theme from localStorage with error handling
   useEffect(() => {
@@ -165,7 +165,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.error('Failed to load theme:', error);
       addError('storage', 'Failed to load theme preferences');
     }
-  }, []);
+  }, [addError]);
 
   // Apply theme with error handling
   useEffect(() => {
@@ -180,7 +180,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.error('Failed to save theme:', error);
       addError('storage', 'Failed to save theme preferences');
     }
-  }, [state.theme]);
+  }, [state.theme, addError]);
 
   // Load tasks from localStorage when user changes with validation
   useEffect(() => {
@@ -217,7 +217,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       dispatch({ type: 'SET_TASKS', payload: [] });
     }
-  }, [state.user]);
+  }, [state.user, addError]);
 
   // Debounced save tasks to localStorage to prevent flickering
   useEffect(() => {
@@ -234,7 +234,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       return () => clearTimeout(timeoutId);
     }
-  }, [state.tasks, state.user]);
+  }, [state.tasks, state.user, addError]);
 
   // Load teams with error handling
   useEffect(() => {
@@ -258,9 +258,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addError('storage', 'Failed to load teams');
       }
     }
-  }, [state.user]);
+  }, [state.user, addError]);
 
-  const addTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'userId'>) => {
+  const addTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt' | 'userId'>) => {
     if (!state.user) {
       addError('auth', 'User must be logged in to add tasks');
       return;
@@ -307,9 +307,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, [state.user, addError]);
 
-  const updateTask = async (id: string, updates: Partial<Task>) => {
+  const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
     try {
       const currentTask = state.tasks.find(t => t.id === id);
       if (!currentTask || !state.user) return;
@@ -385,9 +385,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.error('Failed to update task:', error);
       addError('unknown', 'Failed to update task');
     }
-  };
+  }, [state.tasks, state.user, addError]);
 
-  const deleteTask = async (id: string) => {
+  const deleteTask = useCallback(async (id: string) => {
     try {
       // Clear any active interventions for this task
       smartInterventionService.clearInterventionForTask(id);
@@ -408,18 +408,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.error('Failed to delete task:', error);
       addError('unknown', 'Failed to delete task');
     }
-  };
+  }, [state.user, addError]);
 
-  const moveTaskToInProgress = async (taskId: string) => {
+  const moveTaskToInProgress = useCallback(async (taskId: string) => {
     try {
       await updateTask(taskId, { status: 'in-progress' });
     } catch (error) {
       console.error('Failed to move task to in-progress:', error);
       addError('unknown', 'Failed to move task to in-progress');
     }
-  };
+  }, [updateTask, addError]);
 
-  const setTaskReminder = (taskId: string, settings: TaskReminderSettings) => {
+  const setTaskReminder = useCallback((taskId: string, settings: TaskReminderSettings) => {
     try {
       // Update task with reminder settings
       updateTask(taskId, { reminderSettings: settings });
@@ -434,17 +434,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.error('Failed to set task reminder:', error);
       addError('unknown', 'Failed to set task reminder');
     }
-  };
+  }, [updateTask, addError]);
 
-  const setUser = (user: User | null) => {
+  const setUser = useCallback((user: User | null) => {
     dispatch({ type: 'SET_USER', payload: user });
-  };
+  }, []);
 
-  const setTheme = (theme: Theme) => {
+  const setTheme = useCallback((theme: Theme) => {
     dispatch({ type: 'SET_THEME', payload: theme });
-  };
+  }, []);
 
-  const startFocusSession = (taskId: string) => {
+  const startFocusSession = useCallback((taskId: string) => {
     if (!state.user) return;
 
     const session: FocusSession = {
@@ -470,9 +470,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         sessionId: session.id
       });
     }, 0);
-  };
+  }, [state.user]);
 
-  const endFocusSession = () => {
+  const endFocusSession = useCallback(() => {
     if (state.focusSession && state.user) {
       const session = state.focusSession;
       const endTime = new Date();
@@ -510,9 +510,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     dispatch({ type: 'END_FOCUS_SESSION' });
-  };
+  }, [state.focusSession, state.user, state.tasks, updateTask]);
 
-  const createTeam = async (teamData: Omit<Team, 'id' | 'createdAt' | 'inviteCode'>) => {
+  const createTeam = useCallback(async (teamData: Omit<Team, 'id' | 'createdAt' | 'inviteCode'>) => {
     if (!state.user) {
       addError('auth', 'User must be logged in to create teams');
       return;
@@ -541,9 +541,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, [state.user, state.teams, addError]);
 
-  const joinTeam = async (inviteCode: string) => {
+  const joinTeam = useCallback(async (inviteCode: string) => {
     if (!state.user) {
       addError('auth', 'User must be logged in to join teams');
       return;
@@ -589,9 +589,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, [state.user, state.teams, addError]);
 
-  const updateProfile = async (updates: Partial<User>) => {
+  const updateProfile = useCallback(async (updates: Partial<User>) => {
     if (!state.user) {
       addError('auth', 'User must be logged in to update profile');
       return;
@@ -627,13 +627,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, [state.user, addError]);
 
-  const triggerDefense = (taskId: string, severity: 'low' | 'medium' | 'high' | 'critical' = 'medium') => {
+  const triggerDefense = useCallback((taskId: string, severity: 'low' | 'medium' | 'high' | 'critical' = 'medium') => {
     smartInterventionService.triggerManualDefense(taskId, severity);
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
@@ -649,7 +649,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, [addError]);
 
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = React.useMemo(() => ({
@@ -670,7 +670,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     clearError,
     moveTaskToInProgress,
     setTaskReminder,
-  }), [state]);
+  }), [
+    state,
+    addTask,
+    updateTask,
+    deleteTask,
+    setUser,
+    setTheme,
+    startFocusSession,
+    endFocusSession,
+    createTeam,
+    joinTeam,
+    updateProfile,
+    triggerDefense,
+    signOut,
+    clearError,
+    moveTaskToInProgress,
+    setTaskReminder
+  ]);
 
   return (
     <AppContext.Provider value={contextValue}>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { 
   CheckCircle2, 
   Circle, 
@@ -14,7 +14,9 @@ import {
   Bell,
   Volume2,
   ArrowRight,
-  Settings
+  Settings,
+  Save,
+  X
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { smartInterventionService } from '../services/SmartInterventionService';
@@ -31,6 +33,8 @@ const TaskList: React.FC = () => {
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showReminderModal, setShowReminderModal] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [editingTaskData, setEditingTaskData] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -88,52 +92,61 @@ const TaskList: React.FC = () => {
     });
   }, [tasks, filter, criticalTasks, atRiskTasks]);
 
-  const handleHonestyCheck = (taskId: string, honestlyCompleted: boolean) => {
-    if (honestlyCompleted) {
-      updateTask(taskId, {
-        status: 'done',
-        completedAt: new Date(),
-        honestlyCompleted: true,
-        isDefenseActive: false
-      });
-      
-      // Clear any active interventions for this task
-      smartInterventionService.clearInterventionForTask(taskId);
-    } else {
-      // If not honestly completed, keep as in-progress and activate defense
-      updateTask(taskId, {
-        status: 'in-progress',
-        honestlyCompleted: false,
-        isDefenseActive: true,
-        defenseLevel: 'medium',
-        procrastinationCount: (tasks.find(t => t.id === taskId)?.procrastinationCount || 0) + 1
-      });
+  const handleHonestyCheck = useCallback(async (taskId: string, honestlyCompleted: boolean) => {
+    try {
+      if (honestlyCompleted) {
+        await updateTask(taskId, {
+          status: 'done',
+          completedAt: new Date(),
+          honestlyCompleted: true,
+          isDefenseActive: false
+        });
+        
+        // Clear any active interventions for this task
+        smartInterventionService.clearInterventionForTask(taskId);
+      } else {
+        // If not honestly completed, keep as in-progress and activate defense
+        await updateTask(taskId, {
+          status: 'in-progress',
+          honestlyCompleted: false,
+          isDefenseActive: true,
+          defenseLevel: 'medium',
+          procrastinationCount: (tasks.find(t => t.id === taskId)?.procrastinationCount || 0) + 1
+        });
+      }
+      setShowHonestyCheck(null);
+    } catch (error) {
+      console.error('Error handling honesty check:', error);
     }
-    setShowHonestyCheck(null);
-  };
+  }, [updateTask, tasks]);
 
-  const toggleTaskStatus = (taskId: string, currentStatus: string) => {
-    if (currentStatus === 'done') {
-      updateTask(taskId, { 
-        status: 'todo', 
-        completedAt: undefined, 
-        honestlyCompleted: undefined,
-        isDefenseActive: false 
-      });
-    } else {
-      // Show honesty check before completing
-      setShowHonestyCheck(taskId);
+  const toggleTaskStatus = useCallback(async (taskId: string, currentStatus: string) => {
+    try {
+      if (currentStatus === 'done') {
+        await updateTask(taskId, { 
+          status: 'todo', 
+          completedAt: undefined, 
+          honestlyCompleted: undefined,
+          isDefenseActive: false 
+        });
+      } else {
+        // Show honesty check before completing
+        setShowHonestyCheck(taskId);
+      }
+    } catch (error) {
+      console.error('Error toggling task status:', error);
     }
-  };
+  }, [updateTask]);
 
-  const handleAddTask = async (e: React.FormEvent) => {
+  const handleAddTask = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTask.title.trim() || !newTask.dueDate) return;
+    if (!newTask.title.trim() || !newTask.dueDate || isSubmitting) return;
 
+    setIsSubmitting(true);
     try {
       await addTask({
-        title: newTask.title,
-        description: newTask.description,
+        title: newTask.title.trim(),
+        description: newTask.description.trim(),
         priority: newTask.priority,
         status: 'todo',
         tags: newTask.tags,
@@ -145,6 +158,7 @@ const TaskList: React.FC = () => {
         procrastinationCount: 0
       });
 
+      // Reset form
       setNewTask({
         title: '',
         description: '',
@@ -156,13 +170,73 @@ const TaskList: React.FC = () => {
       setShowTaskForm(false);
     } catch (error) {
       console.error('Failed to add task:', error);
+    } finally {
+      setIsSubmitting(false);
     }
-  };
+  }, [newTask, addTask, isSubmitting]);
 
-  const handleSetReminder = (taskId: string, settings: TaskReminderSettings) => {
-    setTaskReminder(taskId, settings);
-    setShowReminderModal(null);
-  };
+  const handleEditTask = useCallback((task: any) => {
+    setEditingTask(task.id);
+    setEditingTaskData({
+      title: task.title,
+      description: task.description || '',
+      priority: task.priority,
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 16) : '',
+      estimatedTime: task.estimatedTime || 30
+    });
+  }, []);
+
+  const handleSaveEdit = useCallback(async (taskId: string) => {
+    if (!editingTaskData || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      await updateTask(taskId, {
+        title: editingTaskData.title.trim(),
+        description: editingTaskData.description.trim(),
+        priority: editingTaskData.priority,
+        dueDate: editingTaskData.dueDate ? new Date(editingTaskData.dueDate) : undefined,
+        estimatedTime: editingTaskData.estimatedTime
+      });
+
+      setEditingTask(null);
+      setEditingTaskData(null);
+    } catch (error) {
+      console.error('Error saving task edit:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [editingTaskData, updateTask, isSubmitting]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingTask(null);
+    setEditingTaskData(null);
+  }, []);
+
+  const handleMoveToInProgress = useCallback(async (taskId: string) => {
+    try {
+      await moveTaskToInProgress(taskId);
+    } catch (error) {
+      console.error('Error moving task to in-progress:', error);
+    }
+  }, [moveTaskToInProgress]);
+
+  const handleSetReminder = useCallback((taskId: string, settings: TaskReminderSettings) => {
+    try {
+      setTaskReminder(taskId, settings);
+      setShowReminderModal(null);
+    } catch (error) {
+      console.error('Error setting task reminder:', error);
+    }
+  }, [setTaskReminder]);
+
+  const handleDeleteTask = useCallback(async (taskId: string) => {
+    try {
+      await deleteTask(taskId);
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
+  }, [deleteTask]);
 
   const filterOptions = [
     { value: 'all', label: 'All Tasks', count: tasks.length },
@@ -173,20 +247,20 @@ const TaskList: React.FC = () => {
     { value: 'done', label: 'Done', count: tasks.filter(t => t.status === 'done').length },
   ];
 
-  const isOverdue = (task: any) => {
+  const isOverdue = useCallback((task: any) => {
     if (!task.dueDate || task.status === 'done') return false;
     return new Date(task.dueDate) < new Date();
-  };
+  }, []);
 
-  const isCritical = (task: any) => {
+  const isCritical = useCallback((task: any) => {
     return criticalTasks.includes(task);
-  };
+  }, [criticalTasks]);
 
-  const isAtRisk = (task: any) => {
+  const isAtRisk = useCallback((task: any) => {
     return atRiskTasks.includes(task);
-  };
+  }, [atRiskTasks]);
 
-  const getTaskProgress = (task: any) => {
+  const getTaskProgress = useCallback((task: any) => {
     if (!task.dueDate || task.status === 'done') return 0;
     const now = new Date();
     const dueDate = new Date(task.dueDate);
@@ -194,7 +268,7 @@ const TaskList: React.FC = () => {
     const totalTime = dueDate.getTime() - createdDate.getTime();
     const elapsedTime = now.getTime() - createdDate.getTime();
     return Math.min(100, Math.max(0, (elapsedTime / totalTime) * 100));
-  };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -209,7 +283,8 @@ const TaskList: React.FC = () => {
         </div>
         <button
           onClick={() => setShowTaskForm(true)}
-          className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center space-x-2"
+          disabled={isSubmitting}
+          className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="h-4 w-4" />
           <span>Add Task</span>
@@ -237,6 +312,7 @@ const TaskList: React.FC = () => {
                     onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
                     placeholder="What needs to be done?"
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -250,6 +326,7 @@ const TaskList: React.FC = () => {
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200 resize-none"
                     rows={3}
                     placeholder="Task description (optional)"
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -262,6 +339,7 @@ const TaskList: React.FC = () => {
                       value={newTask.priority}
                       onChange={(e) => setNewTask(prev => ({ ...prev, priority: e.target.value as TaskPriority }))}
                       className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                      disabled={isSubmitting}
                     >
                       <option value="low">Low</option>
                       <option value="medium">Medium</option>
@@ -280,6 +358,7 @@ const TaskList: React.FC = () => {
                       value={newTask.estimatedTime}
                       onChange={(e) => setNewTask(prev => ({ ...prev, estimatedTime: parseInt(e.target.value) || 30 }))}
                       className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -294,6 +373,7 @@ const TaskList: React.FC = () => {
                     value={newTask.dueDate}
                     onChange={(e) => setNewTask(prev => ({ ...prev, dueDate: e.target.value }))}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+                    disabled={isSubmitting}
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Required for TaskDefender's smart intervention system
@@ -304,16 +384,22 @@ const TaskList: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowTaskForm(false)}
-                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200 disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={!newTask.title.trim() || !newTask.dueDate}
-                    className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!newTask.title.trim() || !newTask.dueDate || isSubmitting}
+                    className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                   >
-                    Add Task
+                    {isSubmitting ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                    <span>{isSubmitting ? 'Adding...' : 'Add Task'}</span>
                   </button>
                 </div>
               </form>
@@ -374,6 +460,7 @@ const TaskList: React.FC = () => {
         ) : (
           filteredTasks.map(task => {
             const progress = getTaskProgress(task);
+            const isEditing = editingTask === task.id;
             
             return (
               <div key={task.id} className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 p-4 ${
@@ -383,6 +470,7 @@ const TaskList: React.FC = () => {
                   <button
                     onClick={() => toggleTaskStatus(task.id, task.status)}
                     className="mt-1 flex-shrink-0"
+                    disabled={isSubmitting}
                   >
                     {task.status === 'done' ? (
                       <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -394,173 +482,253 @@ const TaskList: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h3 className={`font-medium transition-all duration-200 ${
-                          task.status === 'done' 
-                            ? 'text-gray-500 dark:text-gray-400 line-through' 
-                            : 'text-gray-900 dark:text-white'
-                        }`}>
-                          {task.title}
-                          {task.isDefenseActive && (
-                            <span title="Defense Active" className="ml-2">
-                              <Shield className="inline h-4 w-4 text-orange-500" aria-label="Defense Active" />
-                            </span>
-                          )}
-                        </h3>
-                        
-                        {task.procrastinationCount && task.procrastinationCount > 0 && (
-                          <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                            ⚠️ Procrastination detected {task.procrastinationCount} time(s)
-                          </p>
-                        )}
-
-                        {/* Progress Bar for Active Tasks */}
-                        {task.status !== 'done' && task.dueDate && (
-                          <div className="mt-2">
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="text-gray-600 dark:text-gray-400">Progress to deadline</span>
-                              <span className={`font-medium ${
-                                progress >= 85 ? 'text-red-500' :
-                                progress >= 50 ? 'text-yellow-500' :
-                                'text-green-500'
-                              }`}>
-                                {Math.round(progress)}%
-                              </span>
-                            </div>
-                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                              <div 
-                                className={`h-2 rounded-full transition-all duration-300 ${
-                                  progress >= 85 ? 'bg-red-500' :
-                                  progress >= 50 ? 'bg-yellow-500' :
-                                  'bg-green-500'
-                                }`}
-                                style={{ width: `${Math.min(100, progress)}%` }}
+                        {isEditing ? (
+                          <div className="space-y-3">
+                            <input
+                              type="text"
+                              value={editingTaskData?.title || ''}
+                              onChange={(e) => setEditingTaskData(prev => ({ ...prev, title: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                              disabled={isSubmitting}
+                            />
+                            <textarea
+                              value={editingTaskData?.description || ''}
+                              onChange={(e) => setEditingTaskData(prev => ({ ...prev, description: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm resize-none"
+                              rows={2}
+                              disabled={isSubmitting}
+                            />
+                            <div className="grid grid-cols-2 gap-2">
+                              <select
+                                value={editingTaskData?.priority || 'medium'}
+                                onChange={(e) => setEditingTaskData(prev => ({ ...prev, priority: e.target.value }))}
+                                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                                disabled={isSubmitting}
+                              >
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                              </select>
+                              <input
+                                type="number"
+                                min="5"
+                                value={editingTaskData?.estimatedTime || 30}
+                                onChange={(e) => setEditingTaskData(prev => ({ ...prev, estimatedTime: parseInt(e.target.value) || 30 }))}
+                                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                                disabled={isSubmitting}
                               />
                             </div>
+                            <input
+                              type="datetime-local"
+                              value={editingTaskData?.dueDate || ''}
+                              onChange={(e) => setEditingTaskData(prev => ({ ...prev, dueDate: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                              disabled={isSubmitting}
+                            />
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleSaveEdit(task.id)}
+                                disabled={isSubmitting}
+                                className="flex items-center space-x-1 px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 text-sm disabled:opacity-50"
+                              >
+                                {isSubmitting ? (
+                                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <Save className="h-3 w-3" />
+                                )}
+                                <span>Save</span>
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                disabled={isSubmitting}
+                                className="flex items-center space-x-1 px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200 text-sm"
+                              >
+                                <X className="h-3 w-3" />
+                                <span>Cancel</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <h3 className={`font-medium transition-all duration-200 ${
+                              task.status === 'done' 
+                                ? 'text-gray-500 dark:text-gray-400 line-through' 
+                                : 'text-gray-900 dark:text-white'
+                            }`}>
+                              {task.title}
+                              {task.isDefenseActive && (
+                                <span title="Defense Active" className="ml-2">
+                                  <Shield className="inline h-4 w-4 text-orange-500" aria-label="Defense Active" />
+                                </span>
+                              )}
+                            </h3>
+                            
+                            {task.description && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                {task.description}
+                              </p>
+                            )}
+                            
+                            {task.procrastinationCount && task.procrastinationCount > 0 && (
+                              <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                                ⚠️ Procrastination detected {task.procrastinationCount} time(s)
+                              </p>
+                            )}
+
+                            {/* Progress Bar for Active Tasks */}
+                            {task.status !== 'done' && task.dueDate && (
+                              <div className="mt-2">
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="text-gray-600 dark:text-gray-400">Progress to deadline</span>
+                                  <span className={`font-medium ${
+                                    progress >= 85 ? 'text-red-500' :
+                                    progress >= 50 ? 'text-yellow-500' :
+                                    'text-green-500'
+                                  }`}>
+                                    {Math.round(progress)}%
+                                  </span>
+                                </div>
+                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                  <div 
+                                    className={`h-2 rounded-full transition-all duration-300 ${
+                                      progress >= 85 ? 'bg-red-500' :
+                                      progress >= 50 ? 'bg-yellow-500' :
+                                      'bg-green-500'
+                                    }`}
+                                    style={{ width: `${Math.min(100, progress)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      
+                      {!isEditing && (
+                        <div className="flex items-center space-x-2 ml-2">
+                          {isOverdue(task) && (
+                            <span title="Overdue">
+                              <AlertTriangle className="h-4 w-4 text-red-500" aria-label="Overdue" />
+                            </span>
+                          )}
+                          
+                          {isAtRisk(task) && (
+                            <span title="At Risk">
+                              <Zap className="h-4 w-4 text-yellow-500 animate-pulse" aria-label="At Risk" />
+                            </span>
+                          )}
+                          
+                          {isCritical(task) && !isAtRisk(task) && (
+                            <span title="Critical">
+                              <AlertTriangle className="h-4 w-4 text-orange-500" aria-label="Critical" />
+                            </span>
+                          )}
+
+                          {task.status === 'todo' && (
+                            <button
+                              onClick={() => handleMoveToInProgress(task.id)}
+                              disabled={isSubmitting}
+                              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50"
+                              title="Move to In Progress"
+                            >
+                              <ArrowRight className="h-4 w-4 text-gray-500 hover:text-blue-500" />
+                            </button>
+                          )}
+
+                          {task.status !== 'done' && (
+                            <>
+                              <button
+                                onClick={() => setShowReminderModal(task.id)}
+                                disabled={isSubmitting}
+                                className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50"
+                                title="Set reminder"
+                              >
+                                <Bell className="h-4 w-4 text-gray-500 hover:text-purple-500" />
+                              </button>
+
+                              <button
+                                onClick={() => startFocusSession(task.id)}
+                                disabled={isSubmitting}
+                                className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50"
+                                title="Start focus session"
+                              >
+                                <Play className="h-4 w-4 text-gray-500 hover:text-orange-500" aria-label="Start focus session" />
+                              </button>
+                            </>
+                          )}
+
+                          <button
+                            onClick={() => handleEditTask(task)}
+                            disabled={isSubmitting}
+                            className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50"
+                            title="Edit task"
+                          >
+                            <Edit3 className="h-4 w-4 text-gray-500 hover:text-blue-500" />
+                          </button>
+                          
+                          <button
+                            onClick={() => handleDeleteTask(task.id)}
+                            disabled={isSubmitting}
+                            className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50"
+                            title="Delete task"
+                          >
+                            <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" aria-label="Delete task" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {!isEditing && (
+                      <div className="flex items-center space-x-4 mt-3 text-xs text-gray-500 dark:text-gray-400">
+                        <span className={`px-2 py-1 rounded-full ${
+                          task.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
+                          task.status === 'in-progress' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400' :
+                          'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
+                        }`}>
+                          {task.status.replace('-', ' ').toUpperCase()}
+                        </span>
+                        
+                        <span className={`px-2 py-1 rounded-full ${
+                          task.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
+                          task.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400' :
+                          task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
+                          'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                        }`}>
+                          {task.priority}
+                        </span>
+                        
+                        {task.estimatedTime && (
+                          <div className="flex items-center space-x-1">
+                            <Clock className="h-3 w-3" />
+                            <span>{task.estimatedTime}min</span>
+                          </div>
+                        )}
+                        
+                        {task.dueDate && (
+                          <div className={`flex items-center space-x-1 ${
+                            isOverdue(task) ? 'text-red-500' :
+                            isAtRisk(task) ? 'text-yellow-500' :
+                            isCritical(task) ? 'text-orange-500' : ''
+                          }`}>
+                            <Calendar className="h-3 w-3" />
+                            <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                            {isOverdue(task) && <span className="text-red-500 font-medium">Overdue!</span>}
+                            {isAtRisk(task) && <span className="text-yellow-500 font-medium">At Risk!</span>}
+                            {isCritical(task) && !isAtRisk(task) && <span className="text-orange-500 font-medium">Critical!</span>}
+                          </div>
+                        )}
+
+                        {task.reminderSettings?.enabled && (
+                          <div className="flex items-center space-x-1 text-purple-500">
+                            <Bell className="h-3 w-3" />
+                            <span>Reminder: {task.reminderSettings.interval}m</span>
                           </div>
                         )}
                       </div>
-                      
-                      <div className="flex items-center space-x-2 ml-2">
-                        {isOverdue(task) && (
-                          <span title="Overdue">
-                            <AlertTriangle className="h-4 w-4 text-red-500" aria-label="Overdue" />
-                          </span>
-                        )}
-                        
-                        {isAtRisk(task) && (
-                          <span title="At Risk">
-                            <Zap className="h-4 w-4 text-yellow-500 animate-pulse" aria-label="At Risk" />
-                          </span>
-                        )}
-                        
-                        {isCritical(task) && !isAtRisk(task) && (
-                          <span title="Critical">
-                            <AlertTriangle className="h-4 w-4 text-orange-500" aria-label="Critical" />
-                          </span>
-                        )}
-
-                        {task.status === 'todo' && (
-                          <button
-                            onClick={() => moveTaskToInProgress(task.id)}
-                            className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                            title="Move to In Progress"
-                          >
-                            <ArrowRight className="h-4 w-4 text-gray-500 hover:text-blue-500" />
-                          </button>
-                        )}
-
-                        {task.status !== 'done' && (
-                          <>
-                            <button
-                              onClick={() => setShowReminderModal(task.id)}
-                              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                              title="Set reminder"
-                            >
-                              <Bell className="h-4 w-4 text-gray-500 hover:text-purple-500" />
-                            </button>
-
-                            <button
-                              onClick={() => startFocusSession(task.id)}
-                              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                              title="Start focus session"
-                            >
-                              <Play className="h-4 w-4 text-gray-500 hover:text-orange-500" aria-label="Start focus session" />
-                            </button>
-                          </>
-                        )}
-
-                        <button
-                          onClick={() => setEditingTask(task.id)}
-                          className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                          title="Edit task"
-                        >
-                          <Edit3 className="h-4 w-4 text-gray-500 hover:text-blue-500" />
-                        </button>
-                        
-                        <button
-                          onClick={() => deleteTask(task.id)}
-                          className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                          title="Delete task"
-                        >
-                          <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" aria-label="Delete task" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {task.description && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {task.description}
-                      </p>
                     )}
 
-                    <div className="flex items-center space-x-4 mt-3 text-xs text-gray-500 dark:text-gray-400">
-                      <span className={`px-2 py-1 rounded-full ${
-                        task.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
-                        task.status === 'in-progress' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400' :
-                        'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
-                      }`}>
-                        {task.status.replace('-', ' ').toUpperCase()}
-                      </span>
-                      
-                      <span className={`px-2 py-1 rounded-full ${
-                        task.priority === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
-                        task.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400' :
-                        task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
-                        'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
-                      }`}>
-                        {task.priority}
-                      </span>
-                      
-                      {task.estimatedTime && (
-                        <div className="flex items-center space-x-1">
-                          <Clock className="h-3 w-3" />
-                          <span>{task.estimatedTime}min</span>
-                        </div>
-                      )}
-                      
-                      {task.dueDate && (
-                        <div className={`flex items-center space-x-1 ${
-                          isOverdue(task) ? 'text-red-500' :
-                          isAtRisk(task) ? 'text-yellow-500' :
-                          isCritical(task) ? 'text-orange-500' : ''
-                        }`}>
-                          <Calendar className="h-3 w-3" />
-                          <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                          {isOverdue(task) && <span className="text-red-500 font-medium">Overdue!</span>}
-                          {isAtRisk(task) && <span className="text-yellow-500 font-medium">At Risk!</span>}
-                          {isCritical(task) && !isAtRisk(task) && <span className="text-orange-500 font-medium">Critical!</span>}
-                        </div>
-                      )}
-
-                      {task.reminderSettings?.enabled && (
-                        <div className="flex items-center space-x-1 text-purple-500">
-                          <Bell className="h-3 w-3" />
-                          <span>Reminder: {task.reminderSettings.interval}m</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {task.tags.length > 0 && (
+                    {!isEditing && task.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {task.tags.map((tag, index) => (
                           <span
@@ -602,21 +770,24 @@ const TaskList: React.FC = () => {
             <div className="space-y-3">
               <button
                 onClick={() => handleHonestyCheck(showHonestyCheck, true)}
-                className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200"
+                disabled={isSubmitting}
+                className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 disabled:opacity-50"
               >
                 ✅ Yes, I completed it honestly
               </button>
               
               <button
                 onClick={() => handleHonestyCheck(showHonestyCheck, false)}
-                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
+                disabled={isSubmitting}
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 disabled:opacity-50"
               >
                 🛡️ I need TaskDefender's help
               </button>
               
               <button
                 onClick={() => setShowHonestyCheck(null)}
-                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-3 px-4 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200"
+                disabled={isSubmitting}
+                className="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-3 px-4 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -628,7 +799,7 @@ const TaskList: React.FC = () => {
   );
 };
 
-// Reminder Settings Modal Component
+// Enhanced Reminder Settings Modal Component
 const ReminderSettingsModal: React.FC<{
   taskId: string;
   task: any;
@@ -657,21 +828,46 @@ const ReminderSettingsModal: React.FC<{
     }
   };
 
+  const testVoice = () => {
+    if ('speechSynthesis' in window) {
+      const message = `This is a test reminder for your task: ${task.title}`;
+      const utterance = new SpeechSynthesisUtterance(message);
+      
+      // Character-specific voice adjustments
+      switch (settings.character) {
+        case 'mom':
+          utterance.rate = 0.9;
+          utterance.pitch = 1.1;
+          break;
+        case 'coach':
+          utterance.rate = 1.2;
+          utterance.pitch = 0.9;
+          utterance.volume = 1.0;
+          break;
+        default:
+          utterance.rate = 1.0;
+          utterance.pitch = 1.0;
+      }
+      
+      speechSynthesis.speak(utterance);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-            Task Reminder Settings
+            Smart Task Reminder Settings
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-            Configure smart reminders for: <strong>{task.title}</strong>
+            Configure voice and tone reminders for: <strong>{task.title}</strong>
           </p>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Enable Reminders
+                Enable Smart Reminders
               </label>
               <input
                 type="checkbox"
@@ -695,6 +891,9 @@ const ReminderSettingsModal: React.FC<{
                     onChange={(e) => setSettings(prev => ({ ...prev, interval: parseInt(e.target.value) || 30 }))}
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Continuous reminders every minute until you respond
+                  </p>
                 </div>
 
                 <div className="space-y-3">
@@ -709,6 +908,16 @@ const ReminderSettingsModal: React.FC<{
                     <label htmlFor="useVoice" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Use Voice Reminders
                     </label>
+                    {settings.useVoice && (
+                      <button
+                        type="button"
+                        onClick={testVoice}
+                        className="flex items-center space-x-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded text-xs hover:bg-blue-200 dark:hover:bg-blue-900/30 transition-colors duration-200"
+                      >
+                        <Volume2 className="h-3 w-3" />
+                        <span>Test</span>
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex items-center space-x-3">
@@ -722,6 +931,16 @@ const ReminderSettingsModal: React.FC<{
                     <label htmlFor="useTone" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Use Tone Reminders
                     </label>
+                    {settings.useTone && (
+                      <button
+                        type="button"
+                        onClick={testTone}
+                        className="flex items-center space-x-1 px-2 py-1 bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 rounded text-xs hover:bg-purple-200 dark:hover:bg-purple-900/30 transition-colors duration-200"
+                      >
+                        <Volume2 className="h-3 w-3" />
+                        <span>Test</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -748,29 +967,50 @@ const ReminderSettingsModal: React.FC<{
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Reminder Tone
                     </label>
-                    <div className="space-y-2">
-                      <select
-                        value={settings.selectedTone}
-                        onChange={(e) => setSettings(prev => ({ ...prev, selectedTone: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      >
-                        {availableTones.map(tone => (
-                          <option key={tone.id} value={tone.id}>
-                            {tone.name} - {tone.description}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={testTone}
-                        className="flex items-center space-x-2 px-3 py-2 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/30 transition-colors duration-200"
-                      >
-                        <Volume2 className="h-4 w-4" />
-                        <span>Test Tone</span>
-                      </button>
-                    </div>
+                    <select
+                      value={settings.selectedTone}
+                      onChange={(e) => setSettings(prev => ({ ...prev, selectedTone: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      {availableTones.map(tone => (
+                        <option key={tone.id} value={tone.id}>
+                          {tone.name} - {tone.description}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Snooze Options (minutes)
+                  </label>
+                  <div className="flex space-x-2">
+                    {[5, 10, 15, 30, 60].map(minutes => (
+                      <label key={minutes} className="flex items-center space-x-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settings.snoozeOptions.includes(minutes)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSettings(prev => ({
+                                ...prev,
+                                snoozeOptions: [...prev.snoozeOptions, minutes].sort((a, b) => a - b)
+                              }));
+                            } else {
+                              setSettings(prev => ({
+                                ...prev,
+                                snoozeOptions: prev.snoozeOptions.filter(m => m !== minutes)
+                              }));
+                            }
+                          }}
+                          className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{minutes}m</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </>
             )}
           </div>
