@@ -8,15 +8,24 @@ interface SignupFormProps {
   onToggleMode: () => void;
 }
 
+interface FormData {
+  name: string;
+  email: string;
+  username: string;
+  password: string;
+  confirmPassword: string;
+  role: 'user' | 'admin';
+}
+
 const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode }) => {
   const { setUser, dispatch } = useApp();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
     username: '',
     password: '',
     confirmPassword: '',
-    role: 'user' as const
+    role: 'user'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
