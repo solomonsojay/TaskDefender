@@ -50,6 +50,12 @@ export class AuthService {
         throw new Error('Email and password (min 6 characters) are required');
       }
       
+      // Check if email already exists
+      const existingUser = this.getLocalUser();
+      if (existingUser && existingUser.email === email.toLowerCase().trim()) {
+        throw new Error('Email already in use');
+      }
+      
       const user: User = {
         ...userData,
         id: generateSecureId(),
@@ -87,12 +93,33 @@ export class AuthService {
         throw new Error('Email and password are required');
       }
       
+      // For demo purposes, we'll accept any email/password combination
+      // In a real app, you would validate against stored credentials
+      
+      // Check if user exists
       const localUser = this.getLocalUser();
       if (localUser && localUser.email === email.toLowerCase().trim()) {
         return localUser;
       }
       
-      throw new Error('Invalid credentials or user not found');
+      // For demo, create a new user if not found
+      const newUser: User = {
+        id: generateSecureId(),
+        name: email.split('@')[0],
+        email: email.toLowerCase().trim(),
+        username: email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ''),
+        role: 'user',
+        goals: [],
+        workStyle: null as any, // This will trigger onboarding
+        integrityScore: 100,
+        streak: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        emailVerified: true
+      };
+      
+      this.setLocalUser(newUser);
+      return newUser;
     } catch (error) {
       console.error('Sign in error:', error);
       throw error;

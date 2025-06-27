@@ -9,16 +9,53 @@ import {
   User,
   Crown,
   Building,
-  Shield
+  Shield,
+  Briefcase,
+  Calendar,
+  Brain,
+  Zap,
+  MessageSquare
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { User as UserType } from '../../types';
 import { AuthService } from '../../services/authService';
 import Logo from '../common/Logo';
+import PersonalInfoForm from './PersonalInfoForm';
+import WorkStyleForm from './WorkStyleForm';
+import GoalsForm from './GoalsForm';
+import OrganizationDetailsForm from './OrganizationDetailsForm';
+import NotificationPreferencesForm from './NotificationPreferencesForm';
 
 interface FormData {
-  // Session preference (only thing we collect in onboarding now)
-  sessionType: 'focused' | 'flexible' | 'collaborative';
+  // Personal Info
+  name: string;
+  username: string;
+  bio: string;
+  
+  // Work Style
+  workStyle: 'focused' | 'flexible' | 'collaborative';
+  focusSessionLength: number;
+  breakLength: number;
+  
+  // Goals
+  goals: string[];
+  weeklyTarget: number;
+  
+  // Organization (for admin users)
+  organizationName: string;
+  organizationType: string;
+  organizationIndustry: string;
+  organizationSize: string;
+  userRoleInOrg: string;
+  organizationWebsite: string;
+  organizationDescription: string;
+  
+  // Notification Preferences
+  enableNotifications: boolean;
+  enableVoiceCalls: boolean;
+  enableDefenseSystem: boolean;
+  notificationFrequency: 'low' | 'medium' | 'high';
+  preferredCharacter: 'default' | 'mom' | 'coach' | 'custom';
 }
 
 const OnboardingFlow: React.FC = () => {
@@ -26,10 +63,39 @@ const OnboardingFlow: React.FC = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    sessionType: 'focused'
+    // Personal Info
+    name: user?.name || '',
+    username: user?.username || '',
+    bio: '',
+    
+    // Work Style
+    workStyle: 'focused',
+    focusSessionLength: 25,
+    breakLength: 5,
+    
+    // Goals
+    goals: [],
+    weeklyTarget: 15,
+    
+    // Organization
+    organizationName: user?.organizationName || '',
+    organizationType: user?.organizationType || '',
+    organizationIndustry: user?.organizationIndustry || '',
+    organizationSize: user?.organizationSize || '',
+    userRoleInOrg: user?.userRoleInOrg || '',
+    organizationWebsite: user?.organizationWebsite || '',
+    organizationDescription: user?.organizationDescription || '',
+    
+    // Notification Preferences
+    enableNotifications: true,
+    enableVoiceCalls: true,
+    enableDefenseSystem: true,
+    notificationFrequency: 'medium',
+    preferredCharacter: 'default'
   });
 
-  const totalSteps = 1; // Only work style selection now
+  // Determine total steps based on user role
+  const totalSteps = user?.role === 'admin' ? 5 : 4;
 
   const handleNext = () => {
     if (step < totalSteps) {
@@ -52,15 +118,38 @@ const OnboardingFlow: React.FC = () => {
     
     try {
       const updates: Partial<UserType> = {
-        workStyle: formData.sessionType
+        name: formData.name,
+        username: formData.username,
+        workStyle: formData.workStyle,
+        goals: formData.goals,
       };
       
-      // Update user in Firebase/localStorage
+      // Add organization details for admin users
+      if (user.role === 'admin') {
+        updates.organizationName = formData.organizationName;
+        updates.organizationType = formData.organizationType;
+        updates.organizationIndustry = formData.organizationIndustry;
+        updates.organizationSize = formData.organizationSize;
+        updates.userRoleInOrg = formData.userRoleInOrg;
+        updates.organizationWebsite = formData.organizationWebsite;
+        updates.organizationDescription = formData.organizationDescription;
+      }
+      
+      // Update user in localStorage
       await AuthService.updateUser(user.id, updates);
       
       // Update local state
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
+      
+      // Save notification preferences
+      localStorage.setItem('taskdefender_notification_preferences', JSON.stringify({
+        enableNotifications: formData.enableNotifications,
+        enableVoiceCalls: formData.enableVoiceCalls,
+        enableDefenseSystem: formData.enableDefenseSystem,
+        notificationFrequency: formData.notificationFrequency,
+        preferredCharacter: formData.preferredCharacter
+      }));
       
       // Complete onboarding
       dispatch({ type: 'COMPLETE_ONBOARDING' });
@@ -75,29 +164,24 @@ const OnboardingFlow: React.FC = () => {
     setFormData({ ...formData, ...updates });
   };
 
-  const sessionTypeOptions = [
-    {
-      id: 'focused' as const,
-      title: 'Deep Focus Sessions',
-      description: 'Long, uninterrupted work periods with minimal distractions',
-      icon: Target,
-    },
-    {
-      id: 'flexible' as const,
-      title: 'Flexible Sessions',
-      description: 'Adaptable schedule with variety and shorter bursts',
-      icon: Clock,
-    },
-    {
-      id: 'collaborative' as const,
-      title: 'Collaborative Sessions',
-      description: 'Team-based work with shared accountability',
-      icon: Users,
-    },
-  ];
-
   const canProceed = () => {
-    return formData.sessionType;
+    switch (step) {
+      case 1: // Personal Info
+        return formData.name.trim() !== '' && formData.username.trim() !== '';
+      case 2: // Work Style
+        return formData.workStyle !== undefined;
+      case 3: // Goals
+        return formData.goals.length > 0;
+      case 4: // Organization (admin only)
+        if (user?.role === 'admin') {
+          return formData.organizationName.trim() !== '';
+        }
+        return true;
+      case 5: // Notification Preferences
+        return true;
+      default:
+        return false;
+    }
   };
 
   if (!user) {
@@ -122,104 +206,85 @@ const OnboardingFlow: React.FC = () => {
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 transition-colors duration-200">
-          {/* Step 1: Work Style Preference */}
-          {step === 1 && (
-            <div>
-              <div className="text-center mb-6">
-                <div className="bg-orange-500/20 p-4 rounded-full w-20 h-20 mx-auto mb-6 shadow-lg flex items-center justify-center">
-                  <Logo size="md" className="text-orange-500" />
-                </div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                  Welcome to TaskDefender, {user.name}!
-                </h1>
-                <p className="text-lg text-orange-600 dark:text-orange-400 font-medium mb-2">
-                  Your Last Line of Defense Against Procrastination
-                </p>
-                <div className="space-y-2">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    Work Style Preference
-                  </h2>
-                  <p className="text-gray-600 dark:text-gray-300">
-                    How do you prefer to work and defend against procrastination?
-                  </p>
-                </div>
-              </div>
-              
-              <div className="space-y-4 mb-8">
-                {sessionTypeOptions.map((option) => (
-                  <button
-                    key={option.id}
-                    onClick={() => updateFormData({ sessionType: option.id })}
-                    className={`w-full p-4 rounded-xl border-2 text-left transition-all duration-200 ${
-                      formData.sessionType === option.id
-                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg'
-                        : 'border-gray-200 dark:border-gray-600 hover:border-green-300 dark:hover:border-green-600'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className={`p-3 rounded-lg ${
-                        formData.sessionType === option.id
-                          ? 'bg-green-500 text-white'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                      }`}>
-                        <option.icon className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-white">{option.title}</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">{option.description}</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              {/* User Info Display */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-6 mb-6">
-                <h4 className="font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center space-x-2">
-                  <Shield className="h-5 w-5" />
-                  <span>Your Profile</span>
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-blue-600 dark:text-blue-300 font-medium">Name:</span>
-                    <span className="ml-2 text-blue-800 dark:text-blue-200">{user.name}</span>
-                  </div>
-                  <div>
-                    <span className="text-blue-600 dark:text-blue-300 font-medium">Email:</span>
-                    <span className="ml-2 text-blue-800 dark:text-blue-200">{user.email}</span>
-                  </div>
-                  <div>
-                    <span className="text-blue-600 dark:text-blue-300 font-medium">Username:</span>
-                    <span className="ml-2 text-blue-800 dark:text-blue-200">@{user.username}</span>
-                  </div>
-                  <div>
-                    <span className="text-blue-600 dark:text-blue-300 font-medium">Role:</span>
-                    <span className="ml-2 text-blue-800 dark:text-blue-200 flex items-center space-x-1">
-                      {user.role === 'admin' ? (
-                        <>
-                          <Crown className="h-4 w-4" />
-                          <span>Team Admin</span>
-                        </>
-                      ) : (
-                        <>
-                          <User className="h-4 w-4" />
-                          <span>Individual User</span>
-                        </>
-                      )}
-                    </span>
-                  </div>
-                  {user.organizationName && (
-                    <div className="md:col-span-2">
-                      <span className="text-blue-600 dark:text-blue-300 font-medium">Organization:</span>
-                      <span className="ml-2 text-blue-800 dark:text-blue-200 flex items-center space-x-1">
-                        <Building className="h-4 w-4" />
-                        <span>{user.organizationName}</span>
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="bg-orange-500/20 p-4 rounded-full w-20 h-20 mx-auto mb-6 shadow-lg flex items-center justify-center">
+              <Logo size="md" className="text-orange-500" />
             </div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              Welcome to TaskDefender, {user.name}!
+            </h1>
+            <p className="text-lg text-orange-600 dark:text-orange-400 font-medium mb-2">
+              Your Last Line of Defense Against Procrastination
+            </p>
+            <p className="text-gray-600 dark:text-gray-300">
+              Let's set up your account to maximize your productivity
+            </p>
+          </div>
+
+          {/* Step 1: Personal Info */}
+          {step === 1 && (
+            <PersonalInfoForm 
+              data={{
+                name: formData.name,
+                username: formData.username,
+                bio: formData.bio
+              }}
+              onChange={(updates) => updateFormData(updates)}
+            />
+          )}
+
+          {/* Step 2: Work Style */}
+          {step === 2 && (
+            <WorkStyleForm
+              data={{
+                workStyle: formData.workStyle,
+                focusSessionLength: formData.focusSessionLength,
+                breakLength: formData.breakLength
+              }}
+              onChange={(updates) => updateFormData(updates)}
+            />
+          )}
+
+          {/* Step 3: Goals */}
+          {step === 3 && (
+            <GoalsForm
+              data={{
+                goals: formData.goals,
+                weeklyTarget: formData.weeklyTarget
+              }}
+              onChange={(updates) => updateFormData(updates)}
+            />
+          )}
+
+          {/* Step 4: Organization Details (admin only) */}
+          {step === 4 && user.role === 'admin' && (
+            <OrganizationDetailsForm
+              data={{
+                organizationName: formData.organizationName,
+                organizationType: formData.organizationType,
+                organizationIndustry: formData.organizationIndustry,
+                organizationSize: formData.organizationSize,
+                userRoleInOrg: formData.userRoleInOrg,
+                organizationWebsite: formData.organizationWebsite,
+                organizationDescription: formData.organizationDescription
+              }}
+              onChange={(updates) => updateFormData(updates)}
+            />
+          )}
+
+          {/* Step 4/5: Notification Preferences */}
+          {((user.role === 'admin' && step === 5) || (user.role !== 'admin' && step === 4)) && (
+            <NotificationPreferencesForm
+              data={{
+                enableNotifications: formData.enableNotifications,
+                enableVoiceCalls: formData.enableVoiceCalls,
+                enableDefenseSystem: formData.enableDefenseSystem,
+                notificationFrequency: formData.notificationFrequency,
+                preferredCharacter: formData.preferredCharacter
+              }}
+              onChange={(updates) => updateFormData(updates)}
+            />
           )}
 
           {/* Navigation Buttons */}
