@@ -1,5 +1,6 @@
 import { Task, DefenseAction, VoiceSettings } from '../types';
 import { generateSecureId, validateTaskData } from '../utils/validation';
+import { reminderToneService } from './ReminderToneService';
 
 export class SmartInterventionService {
   private static instance: SmartInterventionService;
@@ -195,6 +196,12 @@ export class SmartInterventionService {
       // Make voice call
       await this.makeVoiceCall(styledMessage, level);
       
+      // Play tone for high-level interventions
+      if (level >= 3) {
+        const toneId = level === 4 ? 'urgent-beep' : 'notification-chime';
+        reminderToneService.playTone(toneId);
+      }
+      
       // Show visual notification
       this.showInterventionNotification(task, styledMessage, level);
       
@@ -341,12 +348,22 @@ export class SmartInterventionService {
 
   private showInterventionModal(task: Task, message: string, level: number) {
     try {
+      // Remove any existing modal
+      const existingModal = document.getElementById(`intervention-modal-${task.id}`);
+      if (existingModal) {
+        existingModal.remove();
+      }
+
       const modal = document.createElement('div');
+      modal.id = `intervention-modal-${task.id}`;
       modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50';
+      
+      const urgencyClass = level === 4 ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-orange-500 bg-orange-50 dark:bg-orange-900/20';
+      
       modal.innerHTML = `
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6 animate-pulse">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6 ${urgencyClass} dark:border-opacity-50 border-2">
           <div class="text-center mb-6">
-            <div class="bg-red-100 dark:bg-red-900/20 p-3 rounded-full w-16 h-16 mx-auto mb-4">
+            <div class="bg-red-100 dark:bg-red-900/20 p-3 rounded-full w-16 h-16 mx-auto mb-4 animate-pulse">
               <svg class="h-10 w-10 text-red-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"></path>
               </svg>
@@ -359,11 +376,14 @@ export class SmartInterventionService {
             </p>
           </div>
           <div class="space-y-3">
-            <button onclick="this.parentElement.parentElement.parentElement.remove()" class="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 px-4 rounded-xl font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200">
+            <button onclick="window.smartInterventionService.acknowledgeIntervention('${task.id}')" class="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 px-4 rounded-xl font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200">
               I'll work on it RIGHT NOW!
             </button>
-            <button onclick="this.parentElement.parentElement.parentElement.remove()" class="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-3 px-4 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200">
+            <button onclick="window.smartInterventionService.snoozeIntervention('${task.id}', 5)" class="w-full bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 py-3 px-4 rounded-xl font-medium hover:bg-yellow-200 dark:hover:bg-yellow-900/30 transition-all duration-200">
               Snooze for 5 minutes
+            </button>
+            <button onclick="window.smartInterventionService.dismissIntervention('${task.id}')" class="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-3 px-4 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200">
+              Dismiss
             </button>
           </div>
         </div>
@@ -379,6 +399,54 @@ export class SmartInterventionService {
       }, level === 4 ? 60000 : 30000);
     } catch (error) {
       console.error('Error showing intervention modal:', error);
+    }
+  }
+
+  acknowledgeIntervention(taskId: string) {
+    try {
+      this.clearInterventionForTask(taskId);
+      this.removeInterventionModal(taskId);
+      console.log('✅ Intervention acknowledged:', taskId);
+    } catch (error) {
+      console.error('Error acknowledging intervention:', error);
+    }
+  }
+
+  snoozeIntervention(taskId: string, minutes: number) {
+    try {
+      this.removeInterventionModal(taskId);
+      
+      // Reschedule intervention after snooze period
+      setTimeout(() => {
+        const tasks = this.getActiveTasks();
+        const task = tasks.find(t => t.id === taskId);
+        if (task && task.status !== 'done') {
+          const level = this.calculateInterventionLevel(task);
+          if (level > 0) {
+            this.triggerIntervention(task, level);
+          }
+        }
+      }, minutes * 60 * 1000);
+      
+      console.log(`⏰ Intervention snoozed for ${minutes} minutes:`, taskId);
+    } catch (error) {
+      console.error('Error snoozing intervention:', error);
+    }
+  }
+
+  dismissIntervention(taskId: string) {
+    try {
+      this.removeInterventionModal(taskId);
+      console.log('❌ Intervention dismissed:', taskId);
+    } catch (error) {
+      console.error('Error dismissing intervention:', error);
+    }
+  }
+
+  private removeInterventionModal(taskId: string) {
+    const modal = document.getElementById(`intervention-modal-${taskId}`);
+    if (modal) {
+      modal.remove();
     }
   }
 
@@ -481,6 +549,9 @@ export class SmartInterventionService {
     this.isInitialized = false;
   }
 }
+
+// Make service available globally for modal buttons
+(window as any).smartInterventionService = SmartInterventionService.getInstance();
 
 // Initialize the intervention service
 export const smartInterventionService = SmartInterventionService.getInstance();

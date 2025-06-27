@@ -1,3 +1,5 @@
+import { userActionService } from './UserActionService';
+
 export class FocusTrackingService {
   private static instance: FocusTrackingService;
   private isTracking = false;
@@ -6,12 +8,18 @@ export class FocusTrackingService {
   private totalPausedTime: number = 0;
   private distractionCount: number = 0;
   private currentSessionId: string | null = null;
+  private currentUserId: string | null = null;
+  private currentTaskId: string | null = null;
   private visibilityChangeHandler: () => void;
   private beforeUnloadHandler: () => void;
+  private windowBlurHandler: () => void;
+  private windowFocusHandler: () => void;
 
   private constructor() {
     this.visibilityChangeHandler = this.handleVisibilityChange.bind(this);
     this.beforeUnloadHandler = this.handleBeforeUnload.bind(this);
+    this.windowBlurHandler = this.handleWindowBlur.bind(this);
+    this.windowFocusHandler = this.handleWindowFocus.bind(this);
   }
 
   static getInstance(): FocusTrackingService {
@@ -21,8 +29,10 @@ export class FocusTrackingService {
     return FocusTrackingService.instance;
   }
 
-  startTracking(sessionId: string) {
+  startTracking(sessionId: string, userId?: string, taskId?: string) {
     this.currentSessionId = sessionId;
+    this.currentUserId = userId || null;
+    this.currentTaskId = taskId || null;
     this.isTracking = true;
     this.startTime = Date.now();
     this.pausedTime = 0;
@@ -32,8 +42,8 @@ export class FocusTrackingService {
     // Add event listeners
     document.addEventListener('visibilitychange', this.visibilityChangeHandler);
     window.addEventListener('beforeunload', this.beforeUnloadHandler);
-    window.addEventListener('blur', this.handleWindowBlur.bind(this));
-    window.addEventListener('focus', this.handleWindowFocus.bind(this));
+    window.addEventListener('blur', this.windowBlurHandler);
+    window.addEventListener('focus', this.windowFocusHandler);
 
     console.log('🎯 Focus tracking started for session:', sessionId);
   }
@@ -60,12 +70,14 @@ export class FocusTrackingService {
     // Remove event listeners
     document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
     window.removeEventListener('beforeunload', this.beforeUnloadHandler);
-    window.removeEventListener('blur', this.handleWindowBlur.bind(this));
-    window.removeEventListener('focus', this.handleWindowFocus.bind(this));
+    window.removeEventListener('blur', this.windowBlurHandler);
+    window.removeEventListener('focus', this.windowFocusHandler);
 
     // Save session data
     this.saveFocusSession({
       sessionId: this.currentSessionId!,
+      userId: this.currentUserId,
+      taskId: this.currentTaskId,
       totalDuration,
       focusTime,
       distractionTime,
@@ -73,8 +85,25 @@ export class FocusTrackingService {
       endTime: new Date()
     });
 
+    // Log user action if userId is available
+    if (this.currentUserId && this.currentTaskId) {
+      userActionService.logAction(
+        this.currentUserId,
+        'focus_completed',
+        this.currentTaskId,
+        {
+          sessionId: this.currentSessionId,
+          duration: Math.round(totalDuration / 1000 / 60), // minutes
+          focusTime: Math.round(focusTime / 1000 / 60), // minutes
+          distractions: this.distractionCount
+        }
+      );
+    }
+
     this.isTracking = false;
     this.currentSessionId = null;
+    this.currentUserId = null;
+    this.currentTaskId = null;
 
     console.log('🎯 Focus tracking stopped:', {
       duration: totalDuration,
@@ -99,6 +128,19 @@ export class FocusTrackingService {
       this.pausedTime = Date.now();
       this.distractionCount++;
       console.log('📱 Distraction detected: Page hidden');
+
+      // Log distraction if userId is available
+      if (this.currentUserId && this.currentTaskId) {
+        userActionService.logAction(
+          this.currentUserId,
+          'procrastination_detected',
+          this.currentTaskId,
+          {
+            sessionId: this.currentSessionId,
+            type: 'page_hidden'
+          }
+        );
+      }
     } else {
       // Page became visible - end pause timer
       if (this.pausedTime > 0) {
@@ -116,6 +158,19 @@ export class FocusTrackingService {
     this.pausedTime = Date.now();
     this.distractionCount++;
     console.log('📱 Distraction detected: Window blur');
+
+    // Log distraction if userId is available
+    if (this.currentUserId && this.currentTaskId) {
+      userActionService.logAction(
+        this.currentUserId,
+        'procrastination_detected',
+        this.currentTaskId,
+        {
+          sessionId: this.currentSessionId,
+          type: 'window_blur'
+        }
+      );
+    }
   }
 
   private handleWindowFocus() {
@@ -139,7 +194,10 @@ export class FocusTrackingService {
   private saveFocusSession(sessionData: any) {
     try {
       const sessions = this.getFocusSessions();
-      sessions.push(sessionData);
+      sessions.push({
+        ...sessionData,
+        endTime: sessionData.endTime.toISOString()
+      });
       
       // Keep only last 100 sessions
       if (sessions.length > 100) {
@@ -186,9 +244,10 @@ export class FocusTrackingService {
   getFocusAnalytics() {
     try {
       const sessions = this.getFocusSessions();
-      const last30Days = sessions.filter((session: any) => 
-        new Date(session.endTime) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      );
+      const last30Days = sessions.filter((session: any) => {
+        const sessionDate = new Date(session.endTime);
+        return sessionDate > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      });
 
       const totalFocusTime = last30Days.reduce((sum: number, session: any) => sum + session.focusTime, 0);
       const totalDistractions = last30Days.reduce((sum: number, session: any) => sum + session.distractionCount, 0);

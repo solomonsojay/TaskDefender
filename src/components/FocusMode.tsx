@@ -1,19 +1,52 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, Square, RotateCcw, Target, Eye, EyeOff } from 'lucide-react';
+import { 
+  Target, 
+  Clock, 
+  CheckCircle2, 
+  Plus, 
+  Play,
+  Pause, 
+  Square, 
+  RotateCcw, 
+  Eye,
+  EyeOff,
+  AlertTriangle,
+  Award,
+  Shield,
+  Zap
+} from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { focusTrackingService } from '../services/FocusTrackingService';
 
 const FocusMode: React.FC = () => {
-  const { focusSession, endFocusSession, tasks, updateTask } = useApp();
+  const { user, tasks, addTask, startFocusSession, endFocusSession, updateTask, focusSession } = useApp();
   const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes in seconds
   const [isActive, setIsActive] = useState(false);
   const [sessionType, setSessionType] = useState<'work' | 'break'>('work');
   const [focusStats, setFocusStats] = useState({ duration: 0, distractions: 0, focusTime: 0, isPaused: false });
+  const [focusPreferences, setFocusPreferences] = useState({
+    focusSessionLength: 25,
+    breakLength: 5
+  });
 
   const currentTask = focusSession ? tasks.find(t => t.id === focusSession.taskId) : null;
 
+  // Load focus preferences
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    try {
+      const savedPreferences = localStorage.getItem('taskdefender_focus_preferences');
+      if (savedPreferences) {
+        const preferences = JSON.parse(savedPreferences);
+        setFocusPreferences(preferences);
+        setTimeLeft(preferences.focusSessionLength * 60);
+      }
+    } catch (error) {
+      console.error('Failed to load focus preferences:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
 
     if (isActive && timeLeft > 0 && !focusStats.isPaused) {
       interval = setInterval(() => {
@@ -24,15 +57,17 @@ const FocusMode: React.FC = () => {
       // Switch between work and break
       if (sessionType === 'work') {
         setSessionType('break');
-        setTimeLeft(5 * 60); // 5 minute break
+        setTimeLeft(focusPreferences.breakLength * 60); // break time in seconds
       } else {
         setSessionType('work');
-        setTimeLeft(25 * 60); // 25 minute work
+        setTimeLeft(focusPreferences.focusSessionLength * 60); // work time in seconds
       }
     }
 
-    return () => clearInterval(interval);
-  }, [isActive, timeLeft, sessionType, focusStats.isPaused]);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isActive, timeLeft, sessionType, focusStats.isPaused, focusPreferences]);
 
   // Update focus stats every second
   useEffect(() => {
@@ -49,14 +84,14 @@ const FocusMode: React.FC = () => {
   const toggleTimer = () => {
     if (!isActive && focusSession) {
       // Start focus tracking
-      focusTrackingService.startTracking(focusSession.id);
+      focusTrackingService.startTracking(focusSession.id, user?.id, focusSession.taskId);
     }
     setIsActive(!isActive);
   };
 
   const resetTimer = () => {
     setIsActive(false);
-    setTimeLeft(sessionType === 'work' ? 25 * 60 : 5 * 60);
+    setTimeLeft(sessionType === 'work' ? focusPreferences.focusSessionLength * 60 : focusPreferences.breakLength * 60);
     if (focusSession) {
       focusTrackingService.stopTracking();
     }
@@ -73,6 +108,8 @@ const FocusMode: React.FC = () => {
       if (currentTask) {
         await updateTask(currentTask.id, {
           actualTime: (currentTask.actualTime || 0) + Math.round(finalStats.focusTime / 60), // Add minutes
+          focusSessionsCount: (currentTask.focusSessionsCount || 0) + 1,
+          totalFocusTime: (currentTask.totalFocusTime || 0) + Math.round(finalStats.focusTime / 60)
         });
       }
       
@@ -80,7 +117,7 @@ const FocusMode: React.FC = () => {
     }
     
     setSessionType('work');
-    setTimeLeft(25 * 60);
+    setTimeLeft(focusPreferences.focusSessionLength * 60);
     setFocusStats({ duration: 0, distractions: 0, focusTime: 0, isPaused: false });
   };
 
@@ -90,7 +127,7 @@ const FocusMode: React.FC = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const progress = ((sessionType === 'work' ? 25 * 60 : 5 * 60) - timeLeft) / (sessionType === 'work' ? 25 * 60 : 5 * 60) * 100;
+  const progress = ((sessionType === 'work' ? focusPreferences.focusSessionLength * 60 : focusPreferences.breakLength * 60) - timeLeft) / (sessionType === 'work' ? focusPreferences.focusSessionLength * 60 : focusPreferences.breakLength * 60) * 100;
 
   if (!focusSession) {
     return (
@@ -108,11 +145,11 @@ const FocusMode: React.FC = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center mb-8">
             <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">25</div>
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{focusPreferences.focusSessionLength}</div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Minutes Focus</div>
             </div>
             <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">5</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{focusPreferences.breakLength}</div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Minutes Break</div>
             </div>
           </div>
@@ -202,7 +239,7 @@ const FocusMode: React.FC = () => {
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
               <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                {Math.floor(focusStats.focusTime / 60)}m
+                {Math.floor(focusStats.focusTime / 60)}m {focusStats.focusTime % 60}s
               </div>
               <div className="text-xs text-gray-600 dark:text-gray-400">Focus Time</div>
             </div>
@@ -263,6 +300,7 @@ const FocusMode: React.FC = () => {
             <li>• Each distraction is tracked and counted</li>
             <li>• Stay focused to maintain your productivity streak</li>
             <li>• Use break time to rest and recharge</li>
+            <li>• All focus sessions are recorded in your analytics</li>
           </ul>
         </div>
       </div>

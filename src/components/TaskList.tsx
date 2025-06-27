@@ -10,19 +10,27 @@ import {
   Zap,
   Shield,
   Plus,
-  Edit3
+  Edit3,
+  Bell,
+  Volume2,
+  ArrowRight,
+  Settings
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { smartInterventionService } from '../services/SmartInterventionService';
+import { reminderToneService } from '../services/ReminderToneService';
+import { TaskReminderSettings } from '../types';
 
 // Define types for better type safety
 type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 const TaskList: React.FC = () => {
-  const { tasks, updateTask, deleteTask, startFocusSession, addTask } = useApp();
+  const { tasks, updateTask, deleteTask, startFocusSession, addTask, moveTaskToInProgress, setTaskReminder } = useApp();
   const [filter, setFilter] = useState<'all' | 'todo' | 'in-progress' | 'done' | 'critical' | 'at-risk'>('all');
   const [showHonestyCheck, setShowHonestyCheck] = useState<string | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
+  const [showReminderModal, setShowReminderModal] = useState<string | null>(null);
+  const [editingTask, setEditingTask] = useState<string | null>(null);
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -142,6 +150,11 @@ const TaskList: React.FC = () => {
       tags: []
     });
     setShowTaskForm(false);
+  };
+
+  const handleSetReminder = (taskId: string, settings: TaskReminderSettings) => {
+    setTaskReminder(taskId, settings);
+    setShowReminderModal(null);
   };
 
   const filterOptions = [
@@ -302,6 +315,16 @@ const TaskList: React.FC = () => {
         </div>
       )}
 
+      {/* Reminder Settings Modal */}
+      {showReminderModal && (
+        <ReminderSettingsModal
+          taskId={showReminderModal}
+          task={tasks.find(t => t.id === showReminderModal)!}
+          onSave={handleSetReminder}
+          onClose={() => setShowReminderModal(null)}
+        />
+      )}
+
       {/* Filter Tabs */}
       <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl overflow-x-auto">
         {filterOptions.map(option => (
@@ -428,16 +451,44 @@ const TaskList: React.FC = () => {
                             <AlertTriangle className="h-4 w-4 text-orange-500" aria-label="Critical" />
                           </span>
                         )}
-                        
-                        {task.status !== 'done' && (
+
+                        {task.status === 'todo' && (
                           <button
-                            onClick={() => startFocusSession(task.id)}
+                            onClick={() => moveTaskToInProgress(task.id)}
                             className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                            title="Start focus session"
+                            title="Move to In Progress"
                           >
-                            <Play className="h-4 w-4 text-gray-500 hover:text-orange-500" aria-label="Start focus session" />
+                            <ArrowRight className="h-4 w-4 text-gray-500 hover:text-blue-500" />
                           </button>
                         )}
+
+                        {task.status !== 'done' && (
+                          <>
+                            <button
+                              onClick={() => setShowReminderModal(task.id)}
+                              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                              title="Set reminder"
+                            >
+                              <Bell className="h-4 w-4 text-gray-500 hover:text-purple-500" />
+                            </button>
+
+                            <button
+                              onClick={() => startFocusSession(task.id)}
+                              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                              title="Start focus session"
+                            >
+                              <Play className="h-4 w-4 text-gray-500 hover:text-orange-500" aria-label="Start focus session" />
+                            </button>
+                          </>
+                        )}
+
+                        <button
+                          onClick={() => setEditingTask(task.id)}
+                          className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                          title="Edit task"
+                        >
+                          <Edit3 className="h-4 w-4 text-gray-500 hover:text-blue-500" />
+                        </button>
                         
                         <button
                           onClick={() => deleteTask(task.id)}
@@ -491,6 +542,13 @@ const TaskList: React.FC = () => {
                           {isOverdue(task) && <span className="text-red-500 font-medium">Overdue!</span>}
                           {isAtRisk(task) && <span className="text-yellow-500 font-medium">At Risk!</span>}
                           {isCritical(task) && !isAtRisk(task) && <span className="text-orange-500 font-medium">Critical!</span>}
+                        </div>
+                      )}
+
+                      {task.reminderSettings?.enabled && (
+                        <div className="flex items-center space-x-1 text-purple-500">
+                          <Bell className="h-3 w-3" />
+                          <span>Reminder: {task.reminderSettings.interval}m</span>
                         </div>
                       )}
                     </div>
@@ -559,6 +617,173 @@ const TaskList: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// Reminder Settings Modal Component
+const ReminderSettingsModal: React.FC<{
+  taskId: string;
+  task: any;
+  onSave: (taskId: string, settings: TaskReminderSettings) => void;
+  onClose: () => void;
+}> = ({ taskId, task, onSave, onClose }) => {
+  const [settings, setSettings] = useState<TaskReminderSettings>({
+    enabled: task.reminderSettings?.enabled || false,
+    interval: task.reminderSettings?.interval || 30,
+    useVoice: task.reminderSettings?.useVoice || false,
+    useTone: task.reminderSettings?.useTone || true,
+    selectedTone: task.reminderSettings?.selectedTone || 'gentle-bell',
+    character: task.reminderSettings?.character || 'default',
+    snoozeOptions: task.reminderSettings?.snoozeOptions || [5, 10, 15]
+  });
+
+  const availableTones = reminderToneService.getAvailableTones();
+
+  const handleSave = () => {
+    onSave(taskId, settings);
+  };
+
+  const testTone = () => {
+    if (settings.selectedTone) {
+      reminderToneService.testTone(settings.selectedTone);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+            Task Reminder Settings
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+            Configure smart reminders for: <strong>{task.title}</strong>
+          </p>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Enable Reminders
+              </label>
+              <input
+                type="checkbox"
+                checked={settings.enabled}
+                onChange={(e) => setSettings(prev => ({ ...prev, enabled: e.target.checked }))}
+                className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+              />
+            </div>
+
+            {settings.enabled && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Reminder Interval (minutes)
+                  </label>
+                  <input
+                    type="number"
+                    min="5"
+                    max="120"
+                    value={settings.interval}
+                    onChange={(e) => setSettings(prev => ({ ...prev, interval: parseInt(e.target.value) || 30 }))}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      id="useVoice"
+                      checked={settings.useVoice}
+                      onChange={(e) => setSettings(prev => ({ ...prev, useVoice: e.target.checked }))}
+                      className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                    />
+                    <label htmlFor="useVoice" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Use Voice Reminders
+                    </label>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      id="useTone"
+                      checked={settings.useTone}
+                      onChange={(e) => setSettings(prev => ({ ...prev, useTone: e.target.checked }))}
+                      className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                    />
+                    <label htmlFor="useTone" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Use Tone Reminders
+                    </label>
+                  </div>
+                </div>
+
+                {settings.useVoice && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Voice Character
+                    </label>
+                    <select
+                      value={settings.character}
+                      onChange={(e) => setSettings(prev => ({ ...prev, character: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="default">TaskDefender AI</option>
+                      <option value="mom">Concerned Mom</option>
+                      <option value="coach">Motivational Coach</option>
+                      <option value="custom">Custom Assistant</option>
+                    </select>
+                  </div>
+                )}
+
+                {settings.useTone && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Reminder Tone
+                    </label>
+                    <div className="space-y-2">
+                      <select
+                        value={settings.selectedTone}
+                        onChange={(e) => setSettings(prev => ({ ...prev, selectedTone: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        {availableTones.map(tone => (
+                          <option key={tone.id} value={tone.id}>
+                            {tone.name} - {tone.description}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={testTone}
+                        className="flex items-center space-x-2 px-3 py-2 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/30 transition-colors duration-200"
+                      >
+                        <Volume2 className="h-4 w-4" />
+                        <span>Test Tone</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="flex justify-end space-x-3 mt-6">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
+            >
+              Save Reminder
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { 
   ArrowRight, 
-  ArrowLeft,
   CheckCircle,
   Shield
 } from 'lucide-react';

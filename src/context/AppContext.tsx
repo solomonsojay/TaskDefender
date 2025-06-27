@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { AppState, Task, User, Theme, FocusSession, Team, TeamMember, TaskDefenseSystem, AppError } from '../types';
+import { AppState, Task, User, Theme, FocusSession, Team, TeamMember, TaskDefenseSystem, AppError, TaskReminderSettings } from '../types';
 import { smartInterventionService } from '../services/SmartInterventionService';
 import { generateSecureId, validateUserData, validateTaskData } from '../utils/validation';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import { userActionService } from '../services/UserActionService';
+import { enhancedSchedulerService } from '../services/EnhancedSchedulerService';
 
 interface AppContextType extends AppState {
   dispatch: React.Dispatch<AppAction>;
@@ -21,6 +23,8 @@ interface AppContextType extends AppState {
   errors: AppError[];
   clearError: (errorId: string) => void;
   isLoading: boolean;
+  moveTaskToInProgress: (taskId: string) => Promise<void>;
+  setTaskReminder: (taskId: string, settings: TaskReminderSettings) => void;
 }
 
 type AppAction =
@@ -269,7 +273,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isDefenseActive: true,
         defenseLevel: taskData.priority === 'urgent' ? 'critical' : 
                      taskData.priority === 'high' ? 'high' : 'medium',
-        procrastinationCount: 0
+        procrastinationCount: 0,
+        focusSessionsCount: 0,
+        totalFocusTime: 0
       };
 
       // Validate task data
@@ -280,6 +286,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       dispatch({ type: 'ADD_TASK', payload: task });
+      
+      // Log user action
+      userActionService.logAction(state.user.id, 'task_created', task.id, {
+        priority: task.priority,
+        hasDueDate: !!task.dueDate
+      });
+
     } catch (error) {
       console.error('Failed to add task:', error);
       addError('unknown', 'Failed to add task');
@@ -292,34 +305,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
+      const currentTask = state.tasks.find(t => t.id === id);
+      if (!currentTask || !state.user) return;
+
       const updatedTask = { ...updates, updatedAt: new Date() };
       dispatch({ type: 'UPDATE_TASK', payload: { id, updates: updatedTask } });
+      
+      // Log completion action
+      if (updates.status === 'done' && currentTask.status !== 'done') {
+        const integrityImpact = updates.honestlyCompleted === false ? -5 : +2;
+        
+        userActionService.logAction(
+          state.user.id, 
+          updates.honestlyCompleted === false ? 'dishonest_completion' : 'honest_completion',
+          id,
+          {
+            completionTime: currentTask.actualTime || 0,
+            priority: currentTask.priority,
+            wasOverdue: currentTask.dueDate ? new Date() > currentTask.dueDate : false
+          },
+          integrityImpact
+        );
+
+        // Clear task reminders
+        enhancedSchedulerService.clearTaskReminders(id);
+      }
+
+      // Log status changes
+      if (updates.status && updates.status !== currentTask.status) {
+        userActionService.logAction(state.user.id, 'task_completed', id, {
+          fromStatus: currentTask.status,
+          toStatus: updates.status
+        });
+      }
       
       // Clear interventions if task is completed
       if (updates.status === 'done') {
         smartInterventionService.clearInterventionForTask(id);
       }
       
-      // Update integrity score if task was completed
+      // Update user stats
       if (updates.status === 'done' && state.user) {
         const completedTasks = state.tasks.filter(t => t.status === 'done').length + 1;
         const honestTasks = state.tasks.filter(t => t.status === 'done' && t.honestlyCompleted !== false).length + (updates.honestlyCompleted !== false ? 1 : 0);
         const integrityScore = Math.round((honestTasks / completedTasks) * 100);
         
-        // Update streak if this is the first task completed today
-        const today = new Date().toDateString();
-        const completedToday = state.tasks.some(t => 
-          t.status === 'done' && 
-          t.completedAt && 
-          new Date(t.completedAt).toDateString() === today
-        );
-        
-        const streak = completedToday ? state.user.streak : state.user.streak + 1;
+        // Update streak using user action service
+        const streakData = userActionService.getStreakData(state.user.id);
         
         const updatedUser = { 
           ...state.user, 
           integrityScore,
-          streak,
+          streak: streakData.currentStreak,
+          totalTasksCompleted: (state.user.totalTasksCompleted || 0) + 1,
+          lastActiveDate: new Date(),
           updatedAt: new Date()
         };
         
@@ -346,12 +385,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       // Clear any active interventions for this task
       smartInterventionService.clearInterventionForTask(id);
+      
+      // Clear task reminders
+      enhancedSchedulerService.clearTaskReminders(id);
+      
       dispatch({ type: 'DELETE_TASK', payload: id });
+      
+      // Log user action
+      if (state.user) {
+        userActionService.logAction(state.user.id, 'task_deleted', id);
+      }
     } catch (error) {
       console.error('Failed to delete task:', error);
       addError('unknown', 'Failed to delete task');
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  };
+
+  const moveTaskToInProgress = async (taskId: string) => {
+    try {
+      await updateTask(taskId, { status: 'in-progress' });
+    } catch (error) {
+      console.error('Failed to move task to in-progress:', error);
+      addError('unknown', 'Failed to move task to in-progress');
+    }
+  };
+
+  const setTaskReminder = (taskId: string, settings: TaskReminderSettings) => {
+    try {
+      // Update task with reminder settings
+      updateTask(taskId, { reminderSettings: settings });
+      
+      // Set up the actual reminder
+      if (settings.enabled) {
+        enhancedSchedulerService.setTaskReminder(taskId, settings);
+      } else {
+        enhancedSchedulerService.clearTaskReminders(taskId);
+      }
+    } catch (error) {
+      console.error('Failed to set task reminder:', error);
+      addError('unknown', 'Failed to set task reminder');
     }
   };
 
@@ -376,13 +450,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date(),
       updatedAt: new Date(),
       defenseTriggered: false,
-      interventionCount: 0
+      interventionCount: 0,
+      actualFocusTime: 0,
+      startTime: new Date()
     };
 
     dispatch({ type: 'START_FOCUS_SESSION', payload: session });
+    
+    // Log user action
+    userActionService.logAction(state.user.id, 'focus_started', taskId, {
+      sessionId: session.id
+    });
   };
 
   const endFocusSession = () => {
+    if (state.focusSession && state.user) {
+      const session = state.focusSession;
+      const endTime = new Date();
+      const duration = endTime.getTime() - (session.startTime?.getTime() || session.createdAt.getTime());
+      const durationMinutes = Math.round(duration / 60000);
+
+      // Log focus completion
+      userActionService.logAction(state.user.id, 'focus_completed', session.taskId, {
+        duration: durationMinutes,
+        distractions: session.distractions,
+        completed: session.completed
+      });
+
+      // Update task focus stats
+      const task = state.tasks.find(t => t.id === session.taskId);
+      if (task) {
+        updateTask(task.id, {
+          focusSessionsCount: (task.focusSessionsCount || 0) + 1,
+          totalFocusTime: (task.totalFocusTime || 0) + durationMinutes,
+          actualTime: (task.actualTime || 0) + durationMinutes
+        });
+      }
+
+      // Update user total focus time
+      const updatedUser = {
+        ...state.user,
+        totalFocusTime: (state.user.totalFocusTime || 0) + durationMinutes,
+        lastActiveDate: new Date()
+      };
+      
+      dispatch({ type: 'SET_USER', payload: updatedUser });
+      localStorage.setItem('taskdefender_current_user', JSON.stringify(updatedUser));
+    }
+
     dispatch({ type: 'END_FOCUS_SESSION' });
   };
 
@@ -542,6 +657,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     triggerDefense,
     signOut,
     clearError,
+    moveTaskToInProgress,
+    setTaskReminder,
   }), [state]);
 
   return (

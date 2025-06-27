@@ -9,26 +9,17 @@ import {
   Save,
   X,
   Play,
-  Pause
+  Pause,
+  Volume2,
+  Settings
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-
-interface ScheduledNotification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'reminder' | 'nudge' | 'deadline' | 'celebration';
-  scheduledFor: Date;
-  recurring: 'none' | 'daily' | 'weekly' | 'workdays';
-  isActive: boolean;
-  taskId?: string;
-  character: string;
-  voiceEnabled: boolean;
-  interval: number; // minutes
-}
+import { ScheduledNotification } from '../../types';
+import { reminderToneService } from '../../services/ReminderToneService';
+import { enhancedSchedulerService } from '../../services/EnhancedSchedulerService';
 
 const NotificationScheduler: React.FC = () => {
-  const { tasks } = useApp();
+  const { tasks, user } = useApp();
   const [notifications, setNotifications] = useState<ScheduledNotification[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newNotification, setNewNotification] = useState({
@@ -40,82 +31,43 @@ const NotificationScheduler: React.FC = () => {
     character: 'default',
     taskId: '',
     voiceEnabled: true,
-    interval: 30
+    toneEnabled: false,
+    selectedTone: 'gentle-bell',
+    interval: 30,
+    snoozeOptions: [5, 10, 15]
   });
+  const [selectedToneForTest, setSelectedToneForTest] = useState('gentle-bell');
 
   // Load notifications from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('taskdefender_notifications');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved).map((n: any) => ({
-          ...n,
-          scheduledFor: new Date(n.scheduledFor)
-        }));
-        setNotifications(parsed);
-      } catch (error) {
-        console.error('Failed to load notifications:', error);
+    const loadNotifications = () => {
+      const saved = localStorage.getItem('taskdefender_notifications');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved).map((n: any) => ({
+            ...n,
+            scheduledFor: new Date(n.scheduledFor),
+            lastTriggered: n.lastTriggered ? new Date(n.lastTriggered) : undefined,
+            snoozedUntil: n.snoozedUntil ? new Date(n.snoozedUntil) : undefined,
+            snoozeOptions: n.snoozeOptions || [5, 10, 15]
+          }));
+          setNotifications(parsed);
+        } catch (error) {
+          console.error('Failed to load notifications:', error);
+        }
       }
-    }
+    };
+
+    loadNotifications();
+
+    // Set up a refresh interval to update notification status
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // Save notifications to localStorage
   useEffect(() => {
     localStorage.setItem('taskdefender_notifications', JSON.stringify(notifications));
-  }, [notifications]);
-
-  // Check for due notifications
-  useEffect(() => {
-    const checkNotifications = () => {
-      const now = new Date();
-      notifications.forEach(notification => {
-        if (notification.isActive && notification.scheduledFor <= now) {
-          // Trigger notification
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification(notification.title, {
-              body: notification.message,
-              icon: '/favicon.ico'
-            });
-          }
-
-          // Voice notification if enabled
-          if (notification.voiceEnabled && 'speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(notification.message);
-            window.speechSynthesis.speak(utterance);
-          }
-          
-          // Handle recurring notifications
-          if (notification.recurring !== 'none') {
-            const nextDate = new Date(notification.scheduledFor);
-            switch (notification.recurring) {
-              case 'daily':
-                nextDate.setDate(nextDate.getDate() + 1);
-                break;
-              case 'weekly':
-                nextDate.setDate(nextDate.getDate() + 7);
-                break;
-              case 'workdays':
-                do {
-                  nextDate.setDate(nextDate.getDate() + 1);
-                } while (nextDate.getDay() === 0 || nextDate.getDay() === 6);
-                break;
-            }
-            
-            setNotifications(prev => prev.map(n => 
-              n.id === notification.id 
-                ? { ...n, scheduledFor: nextDate }
-                : n
-            ));
-          } else {
-            // Remove one-time notifications after triggering
-            setNotifications(prev => prev.filter(n => n.id !== notification.id));
-          }
-        }
-      });
-    };
-
-    const interval = setInterval(checkNotifications, 60000); // Check every minute
-    return () => clearInterval(interval);
   }, [notifications]);
 
   // Request notification permission
@@ -139,7 +91,11 @@ const NotificationScheduler: React.FC = () => {
       character: newNotification.character,
       taskId: newNotification.taskId || undefined,
       voiceEnabled: newNotification.voiceEnabled,
-      interval: newNotification.interval
+      toneEnabled: newNotification.toneEnabled,
+      selectedTone: newNotification.selectedTone,
+      interval: newNotification.interval,
+      snoozeOptions: newNotification.snoozeOptions,
+      reminderCount: 0
     };
 
     setNotifications(prev => [...prev, notification]);
@@ -152,7 +108,10 @@ const NotificationScheduler: React.FC = () => {
       character: 'default',
       taskId: '',
       voiceEnabled: true,
-      interval: 30
+      toneEnabled: false,
+      selectedTone: 'gentle-bell',
+      interval: 30,
+      snoozeOptions: [5, 10, 15]
     });
     setIsCreating(false);
   };
@@ -167,12 +126,18 @@ const NotificationScheduler: React.FC = () => {
     ));
   };
 
+  const testTone = () => {
+    reminderToneService.testTone(selectedToneForTest);
+  };
+
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'reminder': return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
       case 'nudge': return 'text-orange-600 bg-orange-100 dark:bg-orange-900/20';
       case 'deadline': return 'text-red-600 bg-red-100 dark:bg-red-900/20';
       case 'celebration': return 'text-green-600 bg-green-100 dark:bg-green-900/20';
+      case 'defense': return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20';
+      case 'emergency': return 'text-red-600 bg-red-100 dark:bg-red-900/20';
       default: return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
     }
   };
@@ -184,6 +149,22 @@ const NotificationScheduler: React.FC = () => {
       case 'workdays': return 'Workdays';
       default: return 'One-time';
     }
+  };
+
+  const isOverdue = (notification: ScheduledNotification) => {
+    return notification.scheduledFor < new Date() && !notification.lastTriggered;
+  };
+
+  const isSnoozed = (notification: ScheduledNotification) => {
+    return notification.snoozedUntil && notification.snoozedUntil > new Date();
+  };
+
+  const getNotificationStatus = (notification: ScheduledNotification) => {
+    if (!notification.isActive) return 'Inactive';
+    if (isSnoozed(notification)) return `Snoozed until ${notification.snoozedUntil?.toLocaleTimeString()}`;
+    if (isOverdue(notification)) return 'Overdue';
+    if (notification.lastTriggered) return `Last triggered: ${notification.lastTriggered.toLocaleTimeString()}`;
+    return 'Scheduled';
   };
 
   return (
@@ -211,6 +192,43 @@ const NotificationScheduler: React.FC = () => {
           <Plus className="h-4 w-4" />
           <span>Schedule</span>
         </button>
+      </div>
+
+      {/* Tone Testing Section */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
+          <Volume2 className="h-5 w-5 text-blue-500" />
+          <span>Test Reminder Tones</span>
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Select Tone
+            </label>
+            <select
+              value={selectedToneForTest}
+              onChange={(e) => setSelectedToneForTest(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+            >
+              {reminderToneService.getAvailableTones().map(tone => (
+                <option key={tone.id} value={tone.id}>
+                  {tone.name} - {tone.description}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="flex items-end">
+            <button
+              onClick={testTone}
+              className="flex items-center space-x-2 px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors duration-200"
+            >
+              <Volume2 className="h-4 w-4" />
+              <span>Test Tone</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Create Form */}
@@ -247,6 +265,7 @@ const NotificationScheduler: React.FC = () => {
                 <option value="nudge">Motivational Nudge</option>
                 <option value="deadline">Deadline Alert</option>
                 <option value="celebration">Celebration</option>
+                <option value="defense">Defense Alert</option>
               </select>
             </div>
 
@@ -329,7 +348,7 @@ const NotificationScheduler: React.FC = () => {
               </label>
               <input
                 type="number"
-                min="5"
+                min="1"
                 max="120"
                 value={newNotification.interval}
                 onChange={(e) => setNewNotification(prev => ({ ...prev, interval: parseInt(e.target.value) || 30 }))}
@@ -337,7 +356,7 @@ const NotificationScheduler: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center">
+            <div className="flex items-center space-x-4">
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -346,9 +365,71 @@ const NotificationScheduler: React.FC = () => {
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Enable voice notification
+                  Voice notification
                 </span>
               </label>
+
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newNotification.toneEnabled}
+                  onChange={(e) => setNewNotification(prev => ({ ...prev, toneEnabled: e.target.checked }))}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Tone notification
+                </span>
+              </label>
+            </div>
+
+            {newNotification.toneEnabled && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Select Tone
+                </label>
+                <select
+                  value={newNotification.selectedTone}
+                  onChange={(e) => setNewNotification(prev => ({ ...prev, selectedTone: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                >
+                  {reminderToneService.getAvailableTones().map(tone => (
+                    <option key={tone.id} value={tone.id}>
+                      {tone.name} - {tone.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Snooze Options (minutes)
+              </label>
+              <div className="flex space-x-2">
+                {[5, 10, 15, 30, 60].map(minutes => (
+                  <label key={minutes} className="flex items-center space-x-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newNotification.snoozeOptions.includes(minutes)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setNewNotification(prev => ({
+                            ...prev,
+                            snoozeOptions: [...prev.snoozeOptions, minutes].sort((a, b) => a - b)
+                          }));
+                        } else {
+                          setNewNotification(prev => ({
+                            ...prev,
+                            snoozeOptions: prev.snoozeOptions.filter(m => m !== minutes)
+                          }));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{minutes}m</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -388,7 +469,9 @@ const NotificationScheduler: React.FC = () => {
         ) : (
           notifications.map(notification => (
             <div key={notification.id} className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 transition-all duration-200 ${
-              !notification.isActive ? 'opacity-60' : ''
+              !notification.isActive ? 'opacity-60' : 
+              isSnoozed(notification) ? 'border-yellow-300 dark:border-yellow-600' :
+              isOverdue(notification) ? 'border-red-300 dark:border-red-600' : ''
             }`}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -401,7 +484,17 @@ const NotificationScheduler: React.FC = () => {
                     </span>
                     {!notification.isActive && (
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                        Paused
+                        Inactive
+                      </span>
+                    )}
+                    {isSnoozed(notification) && (
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400">
+                        Snoozed
+                      </span>
+                    )}
+                    {isOverdue(notification) && notification.isActive && !isSnoozed(notification) && (
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400">
+                        Overdue
                       </span>
                     )}
                   </div>
@@ -412,7 +505,7 @@ const NotificationScheduler: React.FC = () => {
                     </p>
                   )}
                   
-                  <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                     <div className="flex items-center space-x-1">
                       <Clock className="h-4 w-4" />
                       <span>{notification.scheduledFor.toLocaleString()}</span>
@@ -427,7 +520,24 @@ const NotificationScheduler: React.FC = () => {
                         Voice
                       </span>
                     )}
+                    {notification.toneEnabled && (
+                      <span className="text-xs bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 px-2 py-1 rounded-full">
+                        Tone
+                      </span>
+                    )}
+                    <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-1 rounded-full">
+                      {getNotificationStatus(notification)}
+                    </span>
                   </div>
+
+                  {notification.taskId && (
+                    <div className="mt-2 text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Task: </span>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {tasks.find(t => t.id === notification.taskId)?.title || 'Unknown Task'}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex items-center space-x-2">
@@ -455,6 +565,36 @@ const NotificationScheduler: React.FC = () => {
             </div>
           ))
         )}
+      </div>
+
+      {/* Scheduler Info */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-6">
+        <h4 className="font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center space-x-2">
+          <Settings className="h-5 w-5" />
+          <span>Enhanced Scheduler Features</span>
+        </h4>
+        <ul className="space-y-2 text-blue-600 dark:text-blue-300">
+          <li className="flex items-start space-x-2">
+            <span>•</span>
+            <span>Continuous reminders will sound every minute until you respond</span>
+          </li>
+          <li className="flex items-start space-x-2">
+            <span>•</span>
+            <span>Snooze options let you delay reminders for 5, 10, or 15 minutes</span>
+          </li>
+          <li className="flex items-start space-x-2">
+            <span>•</span>
+            <span>Choose between voice reminders or notification tones</span>
+          </li>
+          <li className="flex items-start space-x-2">
+            <span>•</span>
+            <span>Task-specific reminders can be set from the task list</span>
+          </li>
+          <li className="flex items-start space-x-2">
+            <span>•</span>
+            <span>All user interactions with reminders are tracked in analytics</span>
+          </li>
+        </ul>
       </div>
     </div>
   );

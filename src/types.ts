@@ -1,5 +1,3 @@
-import { ComponentType } from 'react';
-
 export interface User {
   id: string;
   name: string;
@@ -23,6 +21,9 @@ export interface User {
   socialAccounts?: SocialAccount[];
   profilePicture?: string | null;
   emailVerified?: boolean;
+  totalFocusTime?: number;
+  totalTasksCompleted?: number;
+  lastActiveDate?: Date;
 }
 
 export interface SocialAccount {
@@ -56,6 +57,21 @@ export interface Task {
   defenseLevel?: 'low' | 'medium' | 'high' | 'critical';
   lastDefenseAction?: Date;
   procrastinationCount?: number;
+  reminderSettings?: TaskReminderSettings;
+  focusSessionsCount?: number;
+  totalFocusTime?: number;
+}
+
+export interface TaskReminderSettings {
+  enabled: boolean;
+  interval: number; // minutes
+  useVoice: boolean;
+  useTone: boolean;
+  selectedTone?: string;
+  character?: string;
+  snoozeOptions: number[]; // [5, 10, 15] minutes
+  lastReminder?: Date;
+  snoozedUntil?: Date;
 }
 
 export interface Team {
@@ -88,6 +104,9 @@ export interface FocusSession {
   updatedAt?: Date;
   defenseTriggered?: boolean;
   interventionCount?: number;
+  actualFocusTime?: number;
+  startTime?: Date;
+  endTime?: Date;
 }
 
 export interface ChatMessage {
@@ -119,6 +138,15 @@ export interface VoiceSettings {
   emergencyCallThreshold?: number;
 }
 
+export interface ReminderTone {
+  id: string;
+  name: string;
+  description: string;
+  frequency: number; // Hz
+  duration: number; // ms
+  pattern: 'single' | 'double' | 'triple' | 'continuous';
+}
+
 export interface ScheduledNotification {
   id: string;
   title: string;
@@ -130,9 +158,15 @@ export interface ScheduledNotification {
   taskId?: string;
   character: string;
   voiceEnabled: boolean;
+  toneEnabled: boolean;
+  selectedTone?: string;
   interval: number;
   defenseLevel?: 'low' | 'medium' | 'high' | 'critical';
   isDefenseAction?: boolean;
+  snoozeOptions: number[];
+  lastTriggered?: Date;
+  snoozedUntil?: Date;
+  reminderCount?: number;
 }
 
 export interface Badge {
@@ -148,12 +182,13 @@ export interface Badge {
 export interface DefenseAction {
   id: string;
   taskId: string;
-  actionType: 'voice_call' | 'notification' | 'intervention' | 'emergency_call';
+  actionType: 'voice_call' | 'notification' | 'intervention' | 'emergency_call' | 'tone_reminder';
   severity: 'low' | 'medium' | 'high' | 'critical';
   message: string;
   triggeredAt: Date;
   successful?: boolean;
-  userResponse?: 'acknowledged' | 'dismissed' | 'completed_task';
+  userResponse?: 'acknowledged' | 'dismissed' | 'completed_task' | 'snoozed';
+  snoozeTime?: number;
 }
 
 export interface TaskDefenseSystem {
@@ -174,6 +209,21 @@ export interface AnalyticsData {
   growth: number;
   topDay: string;
   achievements: number;
+  integrityScore: number;
+  streak: number;
+  totalFocusMinutes: number;
+  averageTaskCompletionTime: number;
+  procrastinationEvents: number;
+}
+
+export interface UserAction {
+  id: string;
+  userId: string;
+  action: 'task_created' | 'task_completed' | 'task_deleted' | 'focus_started' | 'focus_completed' | 'procrastination_detected' | 'honest_completion' | 'dishonest_completion';
+  timestamp: Date;
+  taskId?: string;
+  metadata?: any;
+  integrityImpact?: number;
 }
 
 export interface NotificationSettings {
@@ -183,6 +233,7 @@ export interface NotificationSettings {
   teamUpdates: boolean;
   voiceCalls: boolean;
   defenseSystem: boolean;
+  toneReminders: boolean;
 }
 
 export interface AppSettings {
