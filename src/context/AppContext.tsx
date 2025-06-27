@@ -219,15 +219,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [state.user]);
 
-  // Save tasks to localStorage with error handling
+  // Debounced save tasks to localStorage to prevent flickering
   useEffect(() => {
     if (state.user && state.tasks.length >= 0) {
-      try {
-        localStorage.setItem(`taskdefender_tasks_${state.user.id}`, JSON.stringify(state.tasks));
-      } catch (error) {
-        console.error('Failed to save tasks:', error);
-        addError('storage', 'Failed to save tasks');
-      }
+      // Use a timeout to debounce the save operation
+      const timeoutId = setTimeout(() => {
+        try {
+          localStorage.setItem(`taskdefender_tasks_${state.user.id}`, JSON.stringify(state.tasks));
+        } catch (error) {
+          console.error('Failed to save tasks:', error);
+          addError('storage', 'Failed to save tasks');
+        }
+      }, 100); // 100ms debounce
+
+      return () => clearTimeout(timeoutId);
     }
   }, [state.tasks, state.user]);
 
@@ -285,13 +290,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
 
+      // Add task to state immediately to prevent flickering
       dispatch({ type: 'ADD_TASK', payload: task });
       
-      // Log user action
-      userActionService.logAction(state.user.id, 'task_created', task.id, {
-        priority: task.priority,
-        hasDueDate: !!task.dueDate
-      });
+      // Log user action asynchronously
+      setTimeout(() => {
+        userActionService.logAction(state.user!.id, 'task_created', task.id, {
+          priority: task.priority,
+          hasDueDate: !!task.dueDate
+        });
+      }, 0);
 
     } catch (error) {
       console.error('Failed to add task:', error);
@@ -303,103 +311,102 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateTask = async (id: string, updates: Partial<Task>) => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      
       const currentTask = state.tasks.find(t => t.id === id);
       if (!currentTask || !state.user) return;
 
       const updatedTask = { ...updates, updatedAt: new Date() };
+      
+      // Update task in state immediately to prevent flickering
       dispatch({ type: 'UPDATE_TASK', payload: { id, updates: updatedTask } });
       
-      // Log completion action
-      if (updates.status === 'done' && currentTask.status !== 'done') {
-        const integrityImpact = updates.honestlyCompleted === false ? -5 : +2;
-        
-        userActionService.logAction(
-          state.user.id, 
-          updates.honestlyCompleted === false ? 'dishonest_completion' : 'honest_completion',
-          id,
-          {
-            completionTime: currentTask.actualTime || 0,
-            priority: currentTask.priority,
-            wasOverdue: currentTask.dueDate ? new Date() > currentTask.dueDate : false
-          },
-          integrityImpact
-        );
+      // Handle completion logic asynchronously
+      setTimeout(() => {
+        if (updates.status === 'done' && currentTask.status !== 'done') {
+          const integrityImpact = updates.honestlyCompleted === false ? -5 : +2;
+          
+          userActionService.logAction(
+            state.user!.id, 
+            updates.honestlyCompleted === false ? 'dishonest_completion' : 'honest_completion',
+            id,
+            {
+              completionTime: currentTask.actualTime || 0,
+              priority: currentTask.priority,
+              wasOverdue: currentTask.dueDate ? new Date() > currentTask.dueDate : false
+            },
+            integrityImpact
+          );
 
-        // Clear task reminders
-        enhancedSchedulerService.clearTaskReminders(id);
-      }
-
-      // Log status changes
-      if (updates.status && updates.status !== currentTask.status) {
-        userActionService.logAction(state.user.id, 'task_completed', id, {
-          fromStatus: currentTask.status,
-          toStatus: updates.status
-        });
-      }
-      
-      // Clear interventions if task is completed
-      if (updates.status === 'done') {
-        smartInterventionService.clearInterventionForTask(id);
-      }
-      
-      // Update user stats
-      if (updates.status === 'done' && state.user) {
-        const completedTasks = state.tasks.filter(t => t.status === 'done').length + 1;
-        const honestTasks = state.tasks.filter(t => t.status === 'done' && t.honestlyCompleted !== false).length + (updates.honestlyCompleted !== false ? 1 : 0);
-        const integrityScore = Math.round((honestTasks / completedTasks) * 100);
-        
-        // Update streak using user action service
-        const streakData = userActionService.getStreakData(state.user.id);
-        
-        const updatedUser = { 
-          ...state.user, 
-          integrityScore,
-          streak: streakData.currentStreak,
-          totalTasksCompleted: (state.user.totalTasksCompleted || 0) + 1,
-          lastActiveDate: new Date(),
-          updatedAt: new Date()
-        };
-        
-        dispatch({ type: 'SET_USER', payload: updatedUser });
-        
-        // Persist user updates
-        try {
-          localStorage.setItem('taskdefender_current_user', JSON.stringify(updatedUser));
-        } catch (error) {
-          addError('storage', 'Failed to save user updates');
+          // Clear task reminders
+          enhancedSchedulerService.clearTaskReminders(id);
         }
-      }
+
+        // Log status changes
+        if (updates.status && updates.status !== currentTask.status) {
+          userActionService.logAction(state.user!.id, 'task_completed', id, {
+            fromStatus: currentTask.status,
+            toStatus: updates.status
+          });
+        }
+        
+        // Clear interventions if task is completed
+        if (updates.status === 'done') {
+          smartInterventionService.clearInterventionForTask(id);
+        }
+        
+        // Update user stats
+        if (updates.status === 'done' && state.user) {
+          const completedTasks = state.tasks.filter(t => t.status === 'done').length + 1;
+          const honestTasks = state.tasks.filter(t => t.status === 'done' && t.honestlyCompleted !== false).length + (updates.honestlyCompleted !== false ? 1 : 0);
+          const integrityScore = Math.round((honestTasks / completedTasks) * 100);
+          
+          // Update streak using user action service
+          const streakData = userActionService.getStreakData(state.user.id);
+          
+          const updatedUser = { 
+            ...state.user, 
+            integrityScore,
+            streak: streakData.currentStreak,
+            totalTasksCompleted: (state.user.totalTasksCompleted || 0) + 1,
+            lastActiveDate: new Date(),
+            updatedAt: new Date()
+          };
+          
+          dispatch({ type: 'SET_USER', payload: updatedUser });
+          
+          // Persist user updates
+          try {
+            localStorage.setItem('taskdefender_current_user', JSON.stringify(updatedUser));
+          } catch (error) {
+            addError('storage', 'Failed to save user updates');
+          }
+        }
+      }, 0);
     } catch (error) {
       console.error('Failed to update task:', error);
       addError('unknown', 'Failed to update task');
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
 
   const deleteTask = async (id: string) => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      
       // Clear any active interventions for this task
       smartInterventionService.clearInterventionForTask(id);
       
       // Clear task reminders
       enhancedSchedulerService.clearTaskReminders(id);
       
+      // Delete task from state immediately
       dispatch({ type: 'DELETE_TASK', payload: id });
       
-      // Log user action
-      if (state.user) {
-        userActionService.logAction(state.user.id, 'task_deleted', id);
-      }
+      // Log user action asynchronously
+      setTimeout(() => {
+        if (state.user) {
+          userActionService.logAction(state.user.id, 'task_deleted', id);
+        }
+      }, 0);
     } catch (error) {
       console.error('Failed to delete task:', error);
       addError('unknown', 'Failed to delete task');
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
 
@@ -457,10 +464,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     dispatch({ type: 'START_FOCUS_SESSION', payload: session });
     
-    // Log user action
-    userActionService.logAction(state.user.id, 'focus_started', taskId, {
-      sessionId: session.id
-    });
+    // Log user action asynchronously
+    setTimeout(() => {
+      userActionService.logAction(state.user!.id, 'focus_started', taskId, {
+        sessionId: session.id
+      });
+    }, 0);
   };
 
   const endFocusSession = () => {
@@ -470,32 +479,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const duration = endTime.getTime() - (session.startTime?.getTime() || session.createdAt.getTime());
       const durationMinutes = Math.round(duration / 60000);
 
-      // Log focus completion
-      userActionService.logAction(state.user.id, 'focus_completed', session.taskId, {
-        duration: durationMinutes,
-        distractions: session.distractions,
-        completed: session.completed
-      });
-
-      // Update task focus stats
-      const task = state.tasks.find(t => t.id === session.taskId);
-      if (task) {
-        updateTask(task.id, {
-          focusSessionsCount: (task.focusSessionsCount || 0) + 1,
-          totalFocusTime: (task.totalFocusTime || 0) + durationMinutes,
-          actualTime: (task.actualTime || 0) + durationMinutes
+      // Log focus completion asynchronously
+      setTimeout(() => {
+        userActionService.logAction(state.user!.id, 'focus_completed', session.taskId, {
+          duration: durationMinutes,
+          distractions: session.distractions,
+          completed: session.completed
         });
-      }
 
-      // Update user total focus time
-      const updatedUser = {
-        ...state.user,
-        totalFocusTime: (state.user.totalFocusTime || 0) + durationMinutes,
-        lastActiveDate: new Date()
-      };
-      
-      dispatch({ type: 'SET_USER', payload: updatedUser });
-      localStorage.setItem('taskdefender_current_user', JSON.stringify(updatedUser));
+        // Update task focus stats
+        const task = state.tasks.find(t => t.id === session.taskId);
+        if (task) {
+          updateTask(task.id, {
+            focusSessionsCount: (task.focusSessionsCount || 0) + 1,
+            totalFocusTime: (task.totalFocusTime || 0) + durationMinutes,
+            actualTime: (task.actualTime || 0) + durationMinutes
+          });
+        }
+
+        // Update user total focus time
+        const updatedUser = {
+          ...state.user!,
+          totalFocusTime: (state.user!.totalFocusTime || 0) + durationMinutes,
+          lastActiveDate: new Date()
+        };
+        
+        dispatch({ type: 'SET_USER', payload: updatedUser });
+        localStorage.setItem('taskdefender_current_user', JSON.stringify(updatedUser));
+      }, 0);
     }
 
     dispatch({ type: 'END_FOCUS_SESSION' });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   CheckCircle2, 
   Circle, 
@@ -40,50 +40,53 @@ const TaskList: React.FC = () => {
     tags: [] as string[]
   });
 
-  // Find critical tasks (50% close to deadline)
-  const criticalTasks = tasks.filter(task => {
-    if (!task.dueDate || task.status === 'done') return false;
-    const now = new Date();
-    const dueDate = new Date(task.dueDate);
-    const createdDate = new Date(task.createdAt);
-    const totalTimespan = dueDate.getTime() - createdDate.getTime();
-    const elapsedTime = now.getTime() - createdDate.getTime();
-    const timeProgress = elapsedTime / totalTimespan;
-    
-    // Critical if 50% or more time has passed
-    return timeProgress >= 0.5 && timeProgress < 0.85;
-  });
+  // Memoize critical and at-risk tasks to prevent recalculation on every render
+  const { criticalTasks, atRiskTasks, overdueTasks } = useMemo(() => {
+    const critical = tasks.filter(task => {
+      if (!task.dueDate || task.status === 'done') return false;
+      const now = new Date();
+      const dueDate = new Date(task.dueDate);
+      const createdDate = new Date(task.createdAt);
+      const totalTimespan = dueDate.getTime() - createdDate.getTime();
+      const elapsedTime = now.getTime() - createdDate.getTime();
+      const timeProgress = elapsedTime / totalTimespan;
+      
+      return timeProgress >= 0.5 && timeProgress < 0.85;
+    });
 
-  // Find at-risk tasks (85% close to deadline)
-  const atRiskTasks = tasks.filter(task => {
-    if (!task.dueDate || task.status === 'done') return false;
-    const now = new Date();
-    const dueDate = new Date(task.dueDate);
-    const createdDate = new Date(task.createdAt);
-    const totalTimespan = dueDate.getTime() - createdDate.getTime();
-    const elapsedTime = now.getTime() - createdDate.getTime();
-    const timeProgress = elapsedTime / totalTimespan;
-    
-    // At risk if 85% or more time has passed
-    return timeProgress >= 0.85;
-  });
+    const atRisk = tasks.filter(task => {
+      if (!task.dueDate || task.status === 'done') return false;
+      const now = new Date();
+      const dueDate = new Date(task.dueDate);
+      const createdDate = new Date(task.createdAt);
+      const totalTimespan = dueDate.getTime() - createdDate.getTime();
+      const elapsedTime = now.getTime() - createdDate.getTime();
+      const timeProgress = elapsedTime / totalTimespan;
+      
+      return timeProgress >= 0.85;
+    });
 
-  // Find overdue tasks
-  const overdueTasks = tasks.filter(task => {
-    if (!task.dueDate || task.status === 'done') return false;
-    return new Date(task.dueDate) < new Date();
-  });
+    const overdue = tasks.filter(task => {
+      if (!task.dueDate || task.status === 'done') return false;
+      return new Date(task.dueDate) < new Date();
+    });
 
-  const filteredTasks = tasks.filter(task => {
-    if (filter === 'all') return true;
-    if (filter === 'critical') {
-      return criticalTasks.includes(task);
-    }
-    if (filter === 'at-risk') {
-      return atRiskTasks.includes(task);
-    }
-    return task.status === filter;
-  });
+    return { criticalTasks: critical, atRiskTasks: atRisk, overdueTasks: overdue };
+  }, [tasks]);
+
+  // Memoize filtered tasks to prevent unnecessary recalculations
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      if (filter === 'all') return true;
+      if (filter === 'critical') {
+        return criticalTasks.includes(task);
+      }
+      if (filter === 'at-risk') {
+        return atRiskTasks.includes(task);
+      }
+      return task.status === filter;
+    });
+  }, [tasks, filter, criticalTasks, atRiskTasks]);
 
   const handleHonestyCheck = (taskId: string, honestlyCompleted: boolean) => {
     if (honestlyCompleted) {
@@ -123,33 +126,37 @@ const TaskList: React.FC = () => {
     }
   };
 
-  const handleAddTask = (e: React.FormEvent) => {
+  const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTask.title.trim() || !newTask.dueDate) return;
 
-    addTask({
-      title: newTask.title,
-      description: newTask.description,
-      priority: newTask.priority,
-      status: 'todo',
-      tags: newTask.tags,
-      dueDate: new Date(newTask.dueDate),
-      estimatedTime: newTask.estimatedTime,
-      isDefenseActive: true,
-      defenseLevel: newTask.priority === 'urgent' ? 'critical' : 
-                   newTask.priority === 'high' ? 'high' : 'medium',
-      procrastinationCount: 0
-    });
+    try {
+      await addTask({
+        title: newTask.title,
+        description: newTask.description,
+        priority: newTask.priority,
+        status: 'todo',
+        tags: newTask.tags,
+        dueDate: new Date(newTask.dueDate),
+        estimatedTime: newTask.estimatedTime,
+        isDefenseActive: true,
+        defenseLevel: newTask.priority === 'urgent' ? 'critical' : 
+                     newTask.priority === 'high' ? 'high' : 'medium',
+        procrastinationCount: 0
+      });
 
-    setNewTask({
-      title: '',
-      description: '',
-      priority: 'medium',
-      dueDate: '',
-      estimatedTime: 30,
-      tags: []
-    });
-    setShowTaskForm(false);
+      setNewTask({
+        title: '',
+        description: '',
+        priority: 'medium',
+        dueDate: '',
+        estimatedTime: 30,
+        tags: []
+      });
+      setShowTaskForm(false);
+    } catch (error) {
+      console.error('Failed to add task:', error);
+    }
   };
 
   const handleSetReminder = (taskId: string, settings: TaskReminderSettings) => {
