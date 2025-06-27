@@ -3,9 +3,9 @@ import { generateSecureId, validateTaskData } from '../utils/validation';
 
 export class SmartInterventionService {
   private static instance: SmartInterventionService;
-  private interventionTimer: NodeJS.Timeout | null = null;
+  private interventionTimer: number | null = null;
   private voiceSettings: VoiceSettings | null = null;
-  private activeInterventions: Map<string, NodeJS.Timeout> = new Map();
+  private activeInterventions: Map<string, number> = new Map();
   private isInitialized = false;
 
   private constructor() {
@@ -69,11 +69,11 @@ export class SmartInterventionService {
   private startInterventionMonitoring() {
     // Clear existing timer
     if (this.interventionTimer) {
-      clearInterval(this.interventionTimer);
+      window.clearInterval(this.interventionTimer);
     }
 
     // Check every 5 minutes for interventions
-    this.interventionTimer = setInterval(() => {
+    this.interventionTimer = window.setInterval(() => {
       this.checkTasksForIntervention();
     }, 5 * 60 * 1000);
   }
@@ -159,7 +159,7 @@ export class SmartInterventionService {
     
     // Clear existing intervention for this task
     if (this.activeInterventions.has(taskId)) {
-      clearTimeout(this.activeInterventions.get(taskId)!);
+      window.clearTimeout(this.activeInterventions.get(taskId)!);
     }
     
     // Calculate intervention frequency based on level
@@ -173,7 +173,7 @@ export class SmartInterventionService {
     const frequency = frequencies[level as keyof typeof frequencies];
     
     // Schedule intervention
-    const timeout = setTimeout(() => {
+    const timeout = window.setTimeout(() => {
       this.triggerIntervention(task, level);
       // Reschedule for next intervention
       this.scheduleIntervention(task, level);
@@ -372,7 +372,7 @@ export class SmartInterventionService {
       document.body.appendChild(modal);
       
       // Auto-remove after 60 seconds for emergency, 30 for urgent
-      setTimeout(() => {
+      window.setTimeout(() => {
         if (modal.parentNode) {
           modal.remove();
         }
@@ -419,7 +419,7 @@ export class SmartInterventionService {
 
   public clearInterventionForTask(taskId: string) {
     if (this.activeInterventions.has(taskId)) {
-      clearTimeout(this.activeInterventions.get(taskId)!);
+      window.clearTimeout(this.activeInterventions.get(taskId)!);
       this.activeInterventions.delete(taskId);
     }
   }
@@ -472,11 +472,11 @@ export class SmartInterventionService {
 
   public destroy() {
     if (this.interventionTimer) {
-      clearInterval(this.interventionTimer);
+      window.clearInterval(this.interventionTimer);
       this.interventionTimer = null;
     }
     
-    this.activeInterventions.forEach(timeout => clearTimeout(timeout));
+    this.activeInterventions.forEach(timeout => window.clearTimeout(timeout));
     this.activeInterventions.clear();
     this.isInitialized = false;
   }

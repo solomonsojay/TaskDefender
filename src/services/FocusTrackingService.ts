@@ -137,15 +137,19 @@ export class FocusTrackingService {
   }
 
   private saveFocusSession(sessionData: any) {
-    const sessions = this.getFocusSessions();
-    sessions.push(sessionData);
-    
-    // Keep only last 100 sessions
-    if (sessions.length > 100) {
-      sessions.splice(0, sessions.length - 100);
+    try {
+      const sessions = this.getFocusSessions();
+      sessions.push(sessionData);
+      
+      // Keep only last 100 sessions
+      if (sessions.length > 100) {
+        sessions.splice(0, sessions.length - 100);
+      }
+      
+      localStorage.setItem('taskdefender_focus_sessions', JSON.stringify(sessions));
+    } catch (error) {
+      console.error('Failed to save focus session:', error);
     }
-    
-    localStorage.setItem('taskdefender_focus_sessions', JSON.stringify(sessions));
   }
 
   private getFocusSessions(): any[] {
@@ -180,26 +184,37 @@ export class FocusTrackingService {
   }
 
   getFocusAnalytics() {
-    const sessions = this.getFocusSessions();
-    const last30Days = sessions.filter((session: any) => 
-      new Date(session.endTime) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    );
+    try {
+      const sessions = this.getFocusSessions();
+      const last30Days = sessions.filter((session: any) => 
+        new Date(session.endTime) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      );
 
-    const totalFocusTime = last30Days.reduce((sum: number, session: any) => sum + session.focusTime, 0);
-    const totalDistractions = last30Days.reduce((sum: number, session: any) => sum + session.distractionCount, 0);
-    const averageFocusRatio = last30Days.length > 0 ? 
-      last30Days.reduce((sum: number, session: any) => 
-        sum + (session.focusTime / session.totalDuration), 0) / last30Days.length : 0;
+      const totalFocusTime = last30Days.reduce((sum: number, session: any) => sum + session.focusTime, 0);
+      const totalDistractions = last30Days.reduce((sum: number, session: any) => sum + session.distractionCount, 0);
+      const averageFocusRatio = last30Days.length > 0 ? 
+        last30Days.reduce((sum: number, session: any) => 
+          sum + (session.focusTime / session.totalDuration), 0) / last30Days.length : 0;
 
-    return {
-      totalSessions: last30Days.length,
-      totalFocusTime: Math.round(totalFocusTime / 1000 / 60), // Convert to minutes
-      totalDistractions,
-      averageFocusRatio: Math.round(averageFocusRatio * 100),
-      averageSessionLength: last30Days.length > 0 ? 
-        Math.round(last30Days.reduce((sum: number, session: any) => 
-          sum + session.totalDuration, 0) / last30Days.length / 1000 / 60) : 0
-    };
+      return {
+        totalSessions: last30Days.length,
+        totalFocusTime: Math.round(totalFocusTime / 1000 / 60), // Convert to minutes
+        totalDistractions,
+        averageFocusRatio: Math.round(averageFocusRatio * 100),
+        averageSessionLength: last30Days.length > 0 ? 
+          Math.round(last30Days.reduce((sum: number, session: any) => 
+            sum + session.totalDuration, 0) / last30Days.length / 1000 / 60) : 0
+      };
+    } catch (error) {
+      console.error('Error getting focus analytics:', error);
+      return {
+        totalSessions: 0,
+        totalFocusTime: 0,
+        totalDistractions: 0,
+        averageFocusRatio: 0,
+        averageSessionLength: 0
+      };
+    }
   }
 }
 
