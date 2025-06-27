@@ -152,7 +152,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
         <div className="flex items-center justify-center space-x-2">
           <Shield className="h-4 w-4 text-orange-500" />
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Your data is stored locally on your device
+            Your data is stored securely and synced with your account
           </p>
         </div>
       </div>

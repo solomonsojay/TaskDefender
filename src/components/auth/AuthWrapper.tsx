@@ -3,6 +3,8 @@ import { useApp } from '../../context/AppContext';
 import LoadingSpinner from '../common/LoadingSpinner';
 import LoginForm from './LoginForm';
 import SignupForm from './SignupForm';
+import { AuthService } from '../../services/authService';
+import { checkFirebaseAvailability } from '../../config/firebase';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
@@ -20,24 +22,80 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
       try {
         console.log('🔄 Initializing authentication...');
         
-        // Check for existing local user
-        const userData = localStorage.getItem('taskdefender_current_user');
-        
-        if (userData && mounted) {
-          try {
-            const localUser = JSON.parse(userData);
-            const user = {
-              ...localUser,
-              createdAt: new Date(localUser.createdAt),
-              workStyle: localUser.workStyle || null // Ensure workStyle is properly handled
-            };
+        // Check if Firebase is available
+        if (checkFirebaseAvailability()) {
+          // Set up Firebase auth state listener
+          const unsubscribe = AuthService.onAuthStateChanged(async (firebaseUser) => {
+            if (firebaseUser && mounted) {
+              try {
+                // Get user data from Firestore or localStorage
+                const userData = await AuthService.getCurrentUser();
+                
+                if (userData) {
+                  console.log('✅ User found:', userData.email);
+                  setUser(userData);
+                  
+                  // Check if user needs onboarding - only check for workStyle
+                  const needsOnboarding = userData.workStyle === null || 
+                                         userData.workStyle === undefined;
+                  
+                  if (needsOnboarding) {
+                    console.log('🎯 User needs onboarding - missing workStyle');
+                    dispatch({ type: 'START_ONBOARDING' });
+                  } else {
+                    console.log('✅ User profile complete - skipping onboarding');
+                    dispatch({ type: 'COMPLETE_ONBOARDING' });
+                  }
+                } else {
+                  setUser(null);
+                }
+              } catch (error) {
+                console.error('Error getting user data:', error);
+                setUser(null);
+              }
+            } else if (mounted) {
+              // Check for local user if Firebase user not found
+              const localUser = await AuthService.getCurrentUser();
+              
+              if (localUser && mounted) {
+                console.log('✅ Local user found:', localUser.email);
+                setUser(localUser);
+                
+                // Check if user needs onboarding
+                const needsOnboarding = localUser.workStyle === null || 
+                                       localUser.workStyle === undefined;
+                
+                if (needsOnboarding) {
+                  console.log('🎯 User needs onboarding - missing workStyle');
+                  dispatch({ type: 'START_ONBOARDING' });
+                } else {
+                  console.log('✅ User profile complete - skipping onboarding');
+                  dispatch({ type: 'COMPLETE_ONBOARDING' });
+                }
+              } else if (mounted) {
+                setUser(null);
+              }
+            }
             
-            console.log('✅ User found:', user.email);
-            setUser(user);
+            if (mounted) {
+              setLoading(false);
+            }
+          });
+          
+          return () => {
+            unsubscribe();
+          };
+        } else {
+          // Local authentication
+          const localUser = await AuthService.getCurrentUser();
+          
+          if (localUser && mounted) {
+            console.log('✅ Local user found:', localUser.email);
+            setUser(localUser);
             
-            // Check if user needs onboarding - only check for workStyle
-            const needsOnboarding = user.workStyle === null || 
-                                   user.workStyle === undefined;
+            // Check if user needs onboarding
+            const needsOnboarding = localUser.workStyle === null || 
+                                   localUser.workStyle === undefined;
             
             if (needsOnboarding) {
               console.log('🎯 User needs onboarding - missing workStyle');
@@ -46,22 +104,18 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
               console.log('✅ User profile complete - skipping onboarding');
               dispatch({ type: 'COMPLETE_ONBOARDING' });
             }
-          } catch (error) {
-            console.error('Error parsing local user data:', error);
-            // Clear corrupted data
-            localStorage.removeItem('taskdefender_current_user');
+          } else if (mounted) {
             setUser(null);
           }
-        } else if (mounted) {
-          setUser(null);
+          
+          if (mounted) {
+            setLoading(false);
+          }
         }
       } catch (error: any) {
         console.error('❌ Auth initialization error:', error);
         if (mounted) {
           setUser(null);
-        }
-      } finally {
-        if (mounted) {
           setLoading(false);
         }
       }

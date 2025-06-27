@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AuthService } from '../../services/authService';
 import Logo from '../common/Logo';
-import { Shield, UserPlus, User, Mail, Key, ArrowRight } from 'lucide-react';
+import { Shield, UserPlus, User, Mail, Key, ArrowRight, Users } from 'lucide-react';
 
 interface SignupFormProps {
   onToggleMode: () => void;
@@ -204,15 +204,42 @@ const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode }) => {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Account Type
           </label>
-          <select
-            name="role"
-            value={formData.role}
-            onChange={handleChange}
-            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
-          >
-            <option value="user">Individual User</option>
-            <option value="admin">Team Admin</option>
-          </select>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, role: 'user' }))}
+              className={`flex items-center justify-center space-x-2 p-3 rounded-xl border-2 transition-all duration-200 ${
+                formData.role === 'user'
+                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                  : 'border-gray-200 dark:border-gray-600 hover:border-orange-300 dark:hover:border-orange-600'
+              }`}
+            >
+              <User className={`h-5 w-5 ${formData.role === 'user' ? 'text-orange-500' : 'text-gray-500 dark:text-gray-400'}`} />
+              <span className={`font-medium ${formData.role === 'user' ? 'text-orange-700 dark:text-orange-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                Personal User
+              </span>
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, role: 'admin' }))}
+              className={`flex items-center justify-center space-x-2 p-3 rounded-xl border-2 transition-all duration-200 ${
+                formData.role === 'admin'
+                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                  : 'border-gray-200 dark:border-gray-600 hover:border-orange-300 dark:hover:border-orange-600'
+              }`}
+            >
+              <Users className={`h-5 w-5 ${formData.role === 'admin' ? 'text-orange-500' : 'text-gray-500 dark:text-gray-400'}`} />
+              <span className={`font-medium ${formData.role === 'admin' ? 'text-orange-700 dark:text-orange-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                Team Admin
+              </span>
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            {formData.role === 'admin' 
+              ? 'Team admins can create and manage teams of users'
+              : 'Personal users have access to all productivity features'}
+          </p>
         </div>
         
         <button
@@ -248,7 +275,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode }) => {
         <div className="flex items-center justify-center space-x-2">
           <Shield className="h-4 w-4 text-orange-500" />
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Your data is stored locally on your device
+            Your data is stored securely and synced with your account
           </p>
         </div>
       </div>
