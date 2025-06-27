@@ -7,7 +7,7 @@ export interface User {
   username: string;
   role: 'user' | 'admin';
   goals: string[];
-  workStyle: 'focused' | 'flexible' | 'collaborative';
+  workStyle: 'focused' | 'flexible' | 'collaborative' | null; // Allow null for new users
   integrityScore: number;
   streak: number;
   teamId?: string;

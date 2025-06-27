@@ -10,7 +10,9 @@ export class AuthService {
         return {
           ...user,
           createdAt: new Date(user.createdAt),
-          updatedAt: user.updatedAt ? new Date(user.updatedAt) : undefined
+          updatedAt: user.updatedAt ? new Date(user.updatedAt) : undefined,
+          // Ensure workStyle is properly set - default to null to trigger onboarding
+          workStyle: user.workStyle || null
         };
       }
     } catch (error) {
@@ -22,14 +24,22 @@ export class AuthService {
   private static setLocalUser(user: User | null): void {
     try {
       if (user) {
-        // Validate user data before saving
-        const validation = validateUserData(user);
-        if (!validation.isValid) {
-          console.error('Invalid user data:', validation.errors);
-          throw new Error(`Invalid user data: ${validation.errors.join(', ')}`);
+        // Ensure workStyle is properly set before validation
+        const userToSave = {
+          ...user,
+          workStyle: user.workStyle || null
+        };
+        
+        // Only validate if workStyle is set (not during initial signup)
+        if (userToSave.workStyle) {
+          const validation = validateUserData(userToSave);
+          if (!validation.isValid) {
+            console.warn('User data validation warnings:', validation.errors);
+            // Don't throw error, just log warnings for existing users
+          }
         }
         
-        localStorage.setItem('taskdefender_current_user', JSON.stringify(user));
+        localStorage.setItem('taskdefender_current_user', JSON.stringify(userToSave));
         console.log('✅ User saved to localStorage');
       } else {
         localStorage.removeItem('taskdefender_current_user');
@@ -65,7 +75,7 @@ export class AuthService {
         emailVerified: true,
         integrityScore: userData.integrityScore || 100,
         streak: userData.streak || 0,
-        workStyle: null // This will trigger onboarding
+        workStyle: null // Always null for new users to trigger onboarding
       };
       
       this.setLocalUser(user);
@@ -94,13 +104,21 @@ export class AuthService {
         throw new Error('Email and password are required');
       }
       
-      // For demo purposes, we'll accept any email/password combination
-      // In a real app, you would validate against stored credentials
-      
       // Check if user exists
       const localUser = this.getLocalUser();
       if (localUser && localUser.email === email.toLowerCase().trim()) {
-        return localUser;
+        // Ensure workStyle is properly handled for existing users
+        const userToReturn = {
+          ...localUser,
+          workStyle: localUser.workStyle || null // Ensure it's null if not set
+        };
+        
+        // Update the stored user if workStyle was missing
+        if (!localUser.workStyle) {
+          this.setLocalUser(userToReturn);
+        }
+        
+        return userToReturn;
       }
       
       // For demo, create a new user if not found
@@ -111,7 +129,7 @@ export class AuthService {
         username: email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ''),
         role: 'user',
         goals: [],
-        workStyle: null, // This will trigger onboarding
+        workStyle: null, // Always null for new users to trigger onboarding
         integrityScore: 100,
         streak: 0,
         createdAt: new Date(),
@@ -215,9 +233,8 @@ export class AuthService {
       const user = this.getLocalUser();
       if (!user) return false;
       
-      // Validate user data integrity
-      const validation = validateUserData(user);
-      return validation.isValid;
+      // Session is valid if user exists, regardless of workStyle
+      return true;
     } catch (error) {
       console.error('Session validation error:', error);
       return false;

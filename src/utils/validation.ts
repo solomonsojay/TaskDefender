@@ -32,7 +32,8 @@ export const validateUserData = (user: Partial<User>): ValidationResult => {
     errors.push('Valid role is required');
   }
 
-  if (!user.workStyle || !['focused', 'flexible', 'collaborative'].includes(user.workStyle)) {
+  // Only validate workStyle if it's provided (not null/undefined)
+  if (user.workStyle !== null && user.workStyle !== undefined && !['focused', 'flexible', 'collaborative'].includes(user.workStyle)) {
     errors.push('Valid work style is required');
   }
 
