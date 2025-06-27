@@ -64,7 +64,8 @@ export class AuthService {
         updatedAt: new Date(),
         emailVerified: true,
         integrityScore: userData.integrityScore || 100,
-        streak: userData.streak || 0
+        streak: userData.streak || 0,
+        workStyle: null // This will trigger onboarding
       };
       
       this.setLocalUser(user);
@@ -110,7 +111,7 @@ export class AuthService {
         username: email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ''),
         role: 'user',
         goals: [],
-        workStyle: null as any, // This will trigger onboarding
+        workStyle: null, // This will trigger onboarding
         integrityScore: 100,
         streak: 0,
         createdAt: new Date(),

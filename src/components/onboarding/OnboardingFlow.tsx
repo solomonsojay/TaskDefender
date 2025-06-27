@@ -2,114 +2,32 @@ import React, { useState } from 'react';
 import { 
   ArrowRight, 
   ArrowLeft,
-  Target, 
-  Users, 
-  Clock,
   CheckCircle,
-  User,
-  Crown,
-  Building,
-  Shield,
-  Briefcase,
-  Calendar,
-  Brain,
-  Zap,
-  MessageSquare
+  Shield
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { User as UserType } from '../../types';
 import { AuthService } from '../../services/authService';
 import Logo from '../common/Logo';
-import PersonalInfoForm from './PersonalInfoForm';
 import WorkStyleForm from './WorkStyleForm';
-import GoalsForm from './GoalsForm';
-import OrganizationDetailsForm from './OrganizationDetailsForm';
-import NotificationPreferencesForm from './NotificationPreferencesForm';
 
 interface FormData {
-  // Personal Info
-  name: string;
-  username: string;
-  bio: string;
-  
-  // Work Style
+  // Work Style - the only thing we need in onboarding
   workStyle: 'focused' | 'flexible' | 'collaborative';
   focusSessionLength: number;
   breakLength: number;
-  
-  // Goals
-  goals: string[];
-  weeklyTarget: number;
-  
-  // Organization (for admin users)
-  organizationName: string;
-  organizationType: string;
-  organizationIndustry: string;
-  organizationSize: string;
-  userRoleInOrg: string;
-  organizationWebsite: string;
-  organizationDescription: string;
-  
-  // Notification Preferences
-  enableNotifications: boolean;
-  enableVoiceCalls: boolean;
-  enableDefenseSystem: boolean;
-  notificationFrequency: 'low' | 'medium' | 'high';
-  preferredCharacter: 'default' | 'mom' | 'coach' | 'custom';
 }
 
 const OnboardingFlow: React.FC = () => {
   const { user, setUser, dispatch } = useApp();
-  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    // Personal Info
-    name: user?.name || '',
-    username: user?.username || '',
-    bio: '',
-    
-    // Work Style
     workStyle: 'focused',
     focusSessionLength: 25,
-    breakLength: 5,
-    
-    // Goals
-    goals: [],
-    weeklyTarget: 15,
-    
-    // Organization
-    organizationName: user?.organizationName || '',
-    organizationType: user?.organizationType || '',
-    organizationIndustry: user?.organizationIndustry || '',
-    organizationSize: user?.organizationSize || '',
-    userRoleInOrg: user?.userRoleInOrg || '',
-    organizationWebsite: user?.organizationWebsite || '',
-    organizationDescription: user?.organizationDescription || '',
-    
-    // Notification Preferences
-    enableNotifications: true,
-    enableVoiceCalls: true,
-    enableDefenseSystem: true,
-    notificationFrequency: 'medium',
-    preferredCharacter: 'default'
+    breakLength: 5
   });
 
-  // Determine total steps based on user role
-  const totalSteps = user?.role === 'admin' ? 5 : 4;
-
-  const handleNext = () => {
-    if (step < totalSteps) {
-      setStep(step + 1);
-    } else {
-      completeOnboarding();
-    }
-  };
-
-  const handleBack = () => {
-    if (step > 1) {
-      setStep(step - 1);
-    }
-  };
+  const totalSteps = 1; // Only work style selection
 
   const completeOnboarding = async () => {
     if (!user) return;
@@ -118,22 +36,8 @@ const OnboardingFlow: React.FC = () => {
     
     try {
       const updates: Partial<UserType> = {
-        name: formData.name,
-        username: formData.username,
-        workStyle: formData.workStyle,
-        goals: formData.goals,
+        workStyle: formData.workStyle
       };
-      
-      // Add organization details for admin users
-      if (user.role === 'admin') {
-        updates.organizationName = formData.organizationName;
-        updates.organizationType = formData.organizationType;
-        updates.organizationIndustry = formData.organizationIndustry;
-        updates.organizationSize = formData.organizationSize;
-        updates.userRoleInOrg = formData.userRoleInOrg;
-        updates.organizationWebsite = formData.organizationWebsite;
-        updates.organizationDescription = formData.organizationDescription;
-      }
       
       // Update user in localStorage
       await AuthService.updateUser(user.id, updates);
@@ -142,13 +46,10 @@ const OnboardingFlow: React.FC = () => {
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
       
-      // Save notification preferences
-      localStorage.setItem('taskdefender_notification_preferences', JSON.stringify({
-        enableNotifications: formData.enableNotifications,
-        enableVoiceCalls: formData.enableVoiceCalls,
-        enableDefenseSystem: formData.enableDefenseSystem,
-        notificationFrequency: formData.notificationFrequency,
-        preferredCharacter: formData.preferredCharacter
+      // Save focus preferences
+      localStorage.setItem('taskdefender_focus_preferences', JSON.stringify({
+        focusSessionLength: formData.focusSessionLength,
+        breakLength: formData.breakLength
       }));
       
       // Complete onboarding
@@ -165,23 +66,7 @@ const OnboardingFlow: React.FC = () => {
   };
 
   const canProceed = () => {
-    switch (step) {
-      case 1: // Personal Info
-        return formData.name.trim() !== '' && formData.username.trim() !== '';
-      case 2: // Work Style
-        return formData.workStyle !== undefined;
-      case 3: // Goals
-        return formData.goals.length > 0;
-      case 4: // Organization (admin only)
-        if (user?.role === 'admin') {
-          return formData.organizationName.trim() !== '';
-        }
-        return true;
-      case 5: // Notification Preferences
-        return true;
-      default:
-        return false;
-    }
+    return formData.workStyle !== undefined;
   };
 
   if (!user) {
@@ -194,13 +79,13 @@ const OnboardingFlow: React.FC = () => {
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-2">
-            <span>Step {step} of {totalSteps}</span>
-            <span>{Math.round((step / totalSteps) * 100)}%</span>
+            <span>Step 1 of {totalSteps}</span>
+            <span>100%</span>
           </div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
             <div 
               className="bg-gradient-to-r from-orange-500 to-green-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(step / totalSteps) * 100}%` }}
+              style={{ width: '100%' }}
             />
           </div>
         </div>
@@ -218,92 +103,52 @@ const OnboardingFlow: React.FC = () => {
               Your Last Line of Defense Against Procrastination
             </p>
             <p className="text-gray-600 dark:text-gray-300">
-              Let's set up your account to maximize your productivity
+              Let's set up your work style preference to get started
             </p>
           </div>
 
-          {/* Step 1: Personal Info */}
-          {step === 1 && (
-            <PersonalInfoForm 
-              data={{
-                name: formData.name,
-                username: formData.username,
-                bio: formData.bio
-              }}
-              onChange={(updates) => updateFormData(updates)}
-            />
-          )}
+          {/* Work Style Selection */}
+          <WorkStyleForm
+            data={{
+              workStyle: formData.workStyle,
+              focusSessionLength: formData.focusSessionLength,
+              breakLength: formData.breakLength
+            }}
+            onChange={(updates) => updateFormData(updates)}
+          />
 
-          {/* Step 2: Work Style */}
-          {step === 2 && (
-            <WorkStyleForm
-              data={{
-                workStyle: formData.workStyle,
-                focusSessionLength: formData.focusSessionLength,
-                breakLength: formData.breakLength
-              }}
-              onChange={(updates) => updateFormData(updates)}
-            />
-          )}
-
-          {/* Step 3: Goals */}
-          {step === 3 && (
-            <GoalsForm
-              data={{
-                goals: formData.goals,
-                weeklyTarget: formData.weeklyTarget
-              }}
-              onChange={(updates) => updateFormData(updates)}
-            />
-          )}
-
-          {/* Step 4: Organization Details (admin only) */}
-          {step === 4 && user.role === 'admin' && (
-            <OrganizationDetailsForm
-              data={{
-                organizationName: formData.organizationName,
-                organizationType: formData.organizationType,
-                organizationIndustry: formData.organizationIndustry,
-                organizationSize: formData.organizationSize,
-                userRoleInOrg: formData.userRoleInOrg,
-                organizationWebsite: formData.organizationWebsite,
-                organizationDescription: formData.organizationDescription
-              }}
-              onChange={(updates) => updateFormData(updates)}
-            />
-          )}
-
-          {/* Step 4/5: Notification Preferences */}
-          {((user.role === 'admin' && step === 5) || (user.role !== 'admin' && step === 4)) && (
-            <NotificationPreferencesForm
-              data={{
-                enableNotifications: formData.enableNotifications,
-                enableVoiceCalls: formData.enableVoiceCalls,
-                enableDefenseSystem: formData.enableDefenseSystem,
-                notificationFrequency: formData.notificationFrequency,
-                preferredCharacter: formData.preferredCharacter
-              }}
-              onChange={(updates) => updateFormData(updates)}
-            />
-          )}
+          {/* User Info Display */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-6 mb-6 mt-6">
+            <h4 className="font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center space-x-2">
+              <Shield className="h-5 w-5" />
+              <span>Your Profile</span>
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-blue-600 dark:text-blue-300 font-medium">Name:</span>
+                <span className="ml-2 text-blue-800 dark:text-blue-200">{user.name}</span>
+              </div>
+              <div>
+                <span className="text-blue-600 dark:text-blue-300 font-medium">Email:</span>
+                <span className="ml-2 text-blue-800 dark:text-blue-200">{user.email}</span>
+              </div>
+              <div>
+                <span className="text-blue-600 dark:text-blue-300 font-medium">Username:</span>
+                <span className="ml-2 text-blue-800 dark:text-blue-200">@{user.username}</span>
+              </div>
+              <div>
+                <span className="text-blue-600 dark:text-blue-300 font-medium">Role:</span>
+                <span className="ml-2 text-blue-800 dark:text-blue-200">
+                  {user.role === 'admin' ? 'Team Admin' : 'Individual User'}
+                </span>
+              </div>
+            </div>
+          </div>
 
           {/* Navigation Buttons */}
-          <div className="flex justify-between mt-8">
+          <div className="flex justify-end mt-8">
             <button
-              onClick={handleBack}
-              disabled={step === 1}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
-                step === 1
-                  ? 'opacity-50 cursor-not-allowed text-gray-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span>Back</span>
-            </button>
-
-            <button
-              onClick={handleNext}
+              onClick={completeOnboarding}
               disabled={!canProceed() || loading}
               className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -311,12 +156,8 @@ const OnboardingFlow: React.FC = () => {
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
-                  <span>{step === totalSteps ? 'Complete Setup' : 'Continue'}</span>
-                  {step === totalSteps ? (
-                    <CheckCircle className="h-5 w-5" />
-                  ) : (
-                    <ArrowRight className="h-5 w-5" />
-                  )}
+                  <span>Complete Setup</span>
+                  <CheckCircle className="h-5 w-5" />
                 </>
               )}
             </button>
@@ -326,6 +167,9 @@ const OnboardingFlow: React.FC = () => {
           <div className="mt-6 text-center">
             <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
               🛡️ Your Last Line of Defense Against Procrastination
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              You can customize voice calls, notifications, and other settings later in your profile
             </p>
           </div>
         </div>

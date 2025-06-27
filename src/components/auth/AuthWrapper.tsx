@@ -34,16 +34,13 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
             console.log('✅ User found:', user.email);
             setUser(user);
             
-            // Check if user needs onboarding
+            // Check if user needs onboarding - only check for workStyle
             const needsOnboarding = !user.workStyle || 
-                                   !user.role || 
-                                   user.workStyle === null || 
-                                   user.role === null ||
-                                   user.workStyle === undefined ||
-                                   user.role === undefined;
+                                   user.workStyle === null ||
+                                   user.workStyle === undefined;
             
             if (needsOnboarding) {
-              console.log('🎯 User needs onboarding - missing or null workStyle/role');
+              console.log('🎯 User needs onboarding - missing workStyle');
               dispatch({ type: 'START_ONBOARDING' });
             } else {
               console.log('✅ User profile complete - skipping onboarding');
