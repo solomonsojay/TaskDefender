@@ -209,7 +209,7 @@ export class EnhancedSchedulerService {
     this.stopContinuousReminder(notification.id);
 
     // Start new continuous reminder every 1 minute
-    const intervalId = setInterval(() => {
+    const intervalId = window.setInterval(() => {
       const now = new Date();
       
       // Stop if snoozed or dismissed
@@ -245,7 +245,7 @@ export class EnhancedSchedulerService {
   private stopContinuousReminder(notificationId: string) {
     const intervalId = this.reminderIntervals.get(notificationId);
     if (intervalId) {
-      clearInterval(intervalId);
+      window.clearInterval(intervalId);
       this.reminderIntervals.delete(notificationId);
     }
   }

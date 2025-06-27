@@ -1,3 +1,5 @@
+import React from 'react';
+
 export interface User {
   id: string;
   name: string;
@@ -121,7 +123,7 @@ export interface QuickAction {
   id: string;
   label: string;
   message: string;
-  icon: ComponentType<any>;
+  icon: React.ComponentType<any>;
   category: 'help' | 'action' | 'navigation';
 }
 
