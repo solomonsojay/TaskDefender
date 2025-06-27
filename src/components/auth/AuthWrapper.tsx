@@ -28,15 +28,15 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
             const localUser = JSON.parse(userData);
             const user = {
               ...localUser,
-              createdAt: new Date(localUser.createdAt)
+              createdAt: new Date(localUser.createdAt),
+              workStyle: localUser.workStyle || null // Ensure workStyle is properly handled
             };
             
             console.log('✅ User found:', user.email);
             setUser(user);
             
             // Check if user needs onboarding - only check for workStyle
-            const needsOnboarding = !user.workStyle || 
-                                   user.workStyle === null ||
+            const needsOnboarding = user.workStyle === null || 
                                    user.workStyle === undefined;
             
             if (needsOnboarding) {
@@ -48,6 +48,8 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
             }
           } catch (error) {
             console.error('Error parsing local user data:', error);
+            // Clear corrupted data
+            localStorage.removeItem('taskdefender_current_user');
             setUser(null);
           }
         } else if (mounted) {

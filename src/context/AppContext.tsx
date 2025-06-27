@@ -474,11 +474,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      // Validate updates
-      const validation = validateUserData({ ...state.user, ...updates });
-      if (!validation.isValid) {
-        addError('validation', `Invalid profile data: ${validation.errors.join(', ')}`);
-        return;
+      // Only validate if workStyle is being set (not null)
+      if (updates.workStyle !== null && updates.workStyle !== undefined) {
+        const validation = validateUserData({ ...state.user, ...updates });
+        if (!validation.isValid) {
+          addError('validation', `Invalid profile data: ${validation.errors.join(', ')}`);
+          return;
+        }
       }
       
       const updatedUser = { 
