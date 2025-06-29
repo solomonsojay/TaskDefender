@@ -9,6 +9,12 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Allow unauthenticated users to list users collection for email existence check
+    // WARNING: This is a security consideration - only use for email checking
+    match /users {
+      allow list: if request.auth == null;
+    }
+
     // TaskDefender Tasks - Users can only access their own tasks
     match /tasks/{taskId} {
       allow create: if request.auth != null;
