@@ -3,7 +3,6 @@ import {
   Moon, 
   Sun, 
   Settings, 
-  User, 
   Users,
   TrendingUp,
   Shield,
@@ -69,11 +68,11 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
               </div>
             </button>
 
-            {/* Main Navigation - Always visible on larger screens */}
+            {/* Main Navigation - Always visible */}
             <div className="flex items-center space-x-3">
               {user && (
                 <>
-                  {/* Integrity Score - Always visible on sm+ */}
+                  {/* Integrity Score */}
                   <div className="hidden sm:flex items-center space-x-2 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-full">
                     <Shield className="h-4 w-4 text-green-500" />
                     <span className="text-sm font-medium text-green-700 dark:text-green-400">
@@ -81,7 +80,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
                     </span>
                   </div>
                   
-                  {/* Analytics & Streak - Always visible on sm+ */}
+                  {/* Analytics & Streak */}
                   <button
                     onClick={handleAnalyticsClick}
                     className="hidden sm:flex items-center space-x-2 bg-orange-50 dark:bg-orange-900/20 px-3 py-2 rounded-full hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors duration-200"
@@ -93,7 +92,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
                     </span>
                   </button>
 
-                  {/* Teams Button for Admin - Always visible on md+ */}
+                  {/* Teams Button for Admin */}
                   {user.role === 'admin' && (
                     <button 
                       onClick={handleTeamsClick}
@@ -111,7 +110,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
                 </>
               )}
 
-              {/* Theme Toggle - Always visible */}
+              {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
@@ -124,7 +123,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
                 )}
               </button>
 
-              {/* Settings Button - Always visible when user exists */}
+              {/* Settings Button */}
               {user && (
                 <button 
                   onClick={() => setIsSettingsOpen(true)}
@@ -135,7 +134,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
                 </button>
               )}
 
-              {/* Sign Out Button - Always visible when user exists */}
+              {/* Sign Out Button */}
               {user && (
                 <button 
                   onClick={handleSignOut}
@@ -146,13 +145,21 @@ const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView }) => {
                 </button>
               )}
 
-              {/* User Profile Picture & Info - Always visible on lg+ */}
+              {/* User Profile Picture & Info */}
               {user && (
-                <div className="hidden lg:flex items-center space-x-3 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
+                <div className="flex items-center space-x-3 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg">
                   <div className="w-8 h-8 rounded-full overflow-hidden bg-orange-500/20 flex items-center justify-center">
-                    <span className="text-sm font-medium text-orange-500">
-                      {user.name.charAt(0).toUpperCase()}
-                    </span>
+                    {user.profilePicture ? (
+                      <img 
+                        src={user.profilePicture} 
+                        alt={user.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-sm font-medium text-orange-500">
+                        {user.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
                   </div>
                   <div className="text-left">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-300">

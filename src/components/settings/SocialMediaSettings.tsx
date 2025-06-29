@@ -299,19 +299,6 @@ const SocialMediaSettings: React.FC = () => {
         </p>
       </div>
 
-      {/* Twitter API Info */}
-      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl p-4 mb-6">
-        <div className="flex items-start space-x-3">
-          <Twitter className="h-5 w-5 text-green-600 mt-0.5" />
-          <div>
-            <h4 className="font-medium text-green-700 dark:text-green-400">Twitter API Configured</h4>
-            <p className="text-sm text-green-600 dark:text-green-300">
-              Your Twitter API credentials are properly configured. You can now connect your Twitter account to share your productivity achievements.
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Connected Accounts */}
       <div className="space-y-4">
         <h4 className="font-semibold text-gray-900 dark:text-white">Social Media Accounts</h4>
@@ -402,22 +389,6 @@ const SocialMediaSettings: React.FC = () => {
           {copied ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           <span>{copied ? 'Copied!' : 'Copy Text'}</span>
         </button>
-      </div>
-
-      {/* Privacy Notice */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
-        <div className="flex items-start space-x-3">
-          <Settings className="h-5 w-5 text-blue-500 mt-0.5" />
-          <div>
-            <h4 className="font-medium text-blue-700 dark:text-blue-400 mb-1">
-              Privacy & Security
-            </h4>
-            <p className="text-sm text-blue-600 dark:text-blue-300">
-              Your API keys are stored securely in environment variables and used only for authentication. 
-              We never post without your explicit permission. All sharing is done through official platform APIs.
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );
