@@ -11,7 +11,8 @@ import {
   orderBy, 
   limit,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  arrayContains
 } from 'firebase/firestore';
 import { db, checkFirebaseAvailability } from '../config/firebase';
 import { Task, Team, FocusSession, User } from '../types';
@@ -185,7 +186,7 @@ export class FirestoreService {
         const teamsRef = collection(db, 'teams');
         const q = query(
           teamsRef,
-          where('members', 'array-contains-any', [{ userId }])
+          where('members', 'array-contains', { userId: userId })
         );
         
         const querySnapshot = await getDocs(q);
