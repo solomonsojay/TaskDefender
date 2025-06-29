@@ -184,12 +184,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [state.theme, addError]);
 
-  // Set up Firebase Auth state listener
+  // Set up Auth state listener
   useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChanged(async (firebaseUser) => {
-      if (firebaseUser) {
+    const unsubscribe = AuthService.onAuthStateChanged(async (user) => {
+      if (user) {
         try {
-          // Get user data from Firestore
+          // Get user data from localStorage
           const userData = await AuthService.getCurrentUser();
           
           if (userData) {
@@ -202,11 +202,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               dispatch({ type: 'COMPLETE_ONBOARDING' });
             }
             
-            // Load user tasks from Firestore
+            // Load user tasks from localStorage
             const tasks = await FirestoreService.getUserTasks(userData.id);
             dispatch({ type: 'SET_TASKS', payload: tasks });
             
-            // Load user teams from Firestore
+            // Load user teams from localStorage
             const teams = await FirestoreService.getUserTeams(userData.id);
             dispatch({ type: 'SET_TEAMS', payload: teams });
           }
@@ -216,9 +216,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } else {
         // No user is signed in, check for local user
-        const localUser = AuthService.getCurrentUser();
+        const localUser = await AuthService.getCurrentUser();
         if (localUser) {
-          dispatch({ type: 'SET_USER', payload: await localUser });
+          dispatch({ type: 'SET_USER', payload: localUser });
         } else {
           dispatch({ type: 'SET_USER', payload: null });
         }
@@ -278,7 +278,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Update task in state immediately
       dispatch({ type: 'UPDATE_TASK', payload: { id, updates: updatedTask } });
       
-      // Update in Firestore
+      // Update in localStorage
       await FirestoreService.updateTask(state.user.id, id, updatedTask);
       
       // Handle completion logic asynchronously
@@ -335,7 +335,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           
           dispatch({ type: 'SET_USER', payload: updatedUser });
           
-          // Update user in Firestore
+          // Update user in localStorage
           AuthService.updateUser(state.user.id, {
             integrityScore,
             streak: streakData.currentStreak,
@@ -360,7 +360,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Clear task reminders
       enhancedSchedulerService.clearTaskReminders(id);
       
-      // Delete task from Firestore
+      // Delete task from localStorage
       await FirestoreService.deleteTask(state.user.id, id);
       
       // Delete task from state
@@ -432,7 +432,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     dispatch({ type: 'START_FOCUS_SESSION', payload: session });
     
-    // Create focus session in Firestore
+    // Create focus session in localStorage
     if (state.user) {
       FirestoreService.createFocusSession(session).catch(error => {
         console.error('Failed to save focus session:', error);
@@ -481,7 +481,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         
         dispatch({ type: 'SET_USER', payload: updatedUser });
         
-        // Update user in Firestore
+        // Update user in localStorage
         AuthService.updateUser(state.user!.id, {
           totalFocusTime: (state.user!.totalFocusTime || 0) + durationMinutes,
           lastActiveDate: new Date()
@@ -567,7 +567,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      // Update user in Firestore and localStorage
+      // Update user in localStorage
       const updatedUser = await AuthService.updateUser(state.user.id, updates);
       
       dispatch({ type: 'SET_USER', payload: updatedUser });

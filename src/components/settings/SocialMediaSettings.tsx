@@ -13,8 +13,6 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { functions } from '../../config/firebase';
-import { httpsCallable } from 'firebase/functions';
 
 interface SocialAccount {
   platform: 'twitter' | 'linkedin' | 'facebook' | 'devto';
@@ -30,7 +28,6 @@ interface SocialPlatformConfig {
   name: string;
   icon: React.ComponentType<any>;
   color: string;
-  functionName: string;
 }
 
 const SocialMediaSettings: React.FC = () => {
@@ -44,35 +41,31 @@ const SocialMediaSettings: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
 
-  // Platform configurations for Firebase Functions
+  // Platform configurations
   const platformConfigs: SocialPlatformConfig[] = [
     {
       id: 'twitter',
       name: 'X (Twitter)',
       icon: Twitter,
-      color: 'text-blue-500 bg-blue-50 dark:bg-blue-900/20',
-      functionName: 'connectTwitter'
+      color: 'text-blue-500 bg-blue-50 dark:bg-blue-900/20'
     },
     {
       id: 'linkedin',
       name: 'LinkedIn',
       icon: Linkedin,
-      color: 'text-blue-700 bg-blue-50 dark:bg-blue-900/20',
-      functionName: 'connectLinkedIn'
+      color: 'text-blue-700 bg-blue-50 dark:bg-blue-900/20'
     },
     {
       id: 'facebook',
       name: 'Facebook',
       icon: Facebook,
-      color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20',
-      functionName: 'connectFacebook'
+      color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20'
     },
     {
       id: 'devto',
       name: 'Dev.to',
       icon: Code,
-      color: 'text-black bg-gray-50 dark:bg-gray-900/20',
-      functionName: 'connectDevTo'
+      color: 'text-black bg-gray-50 dark:bg-gray-900/20'
     }
   ];
 
@@ -104,54 +97,32 @@ const SocialMediaSettings: React.FC = () => {
     setConnecting(platform);
     
     try {
-      const config = platformConfigs.find(p => p.id === platform);
-      if (!config) {
-        throw new Error(`Platform configuration not found for ${platform}`);
-      }
-
-      if (!functions) {
-        throw new Error('Firebase Functions not available');
-      }
-
-      // Call Firebase Function to connect to social media
-      const connectFunction = httpsCallable(functions, config.functionName);
-      const result = await connectFunction({});
+      // Simulate API connection with a delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      const data = result.data as any;
+      // Mock successful connection
+      const mockData = {
+        username: `${user?.name.toLowerCase().replace(/\s+/g, '')}`,
+        profileUrl: `https://${platform}.com/${user?.name.toLowerCase().replace(/\s+/g, '')}`
+      };
       
-      if (data.success) {
-        // Update account status
-        const updatedAccounts = accounts.map(account => 
-          account.platform === platform 
-            ? { 
-                ...account, 
-                connected: true, 
-                username: data.user.username || data.user.name,
-                profileUrl: data.user.profileUrl
-              }
-            : account
-        );
-        saveAccounts(updatedAccounts);
-        
-        console.log(`✅ Successfully connected to ${config.name}`);
-      } else {
-        throw new Error(data.error || 'Connection failed');
-      }
-
+      // Update account status
+      const updatedAccounts = accounts.map(account => 
+        account.platform === platform 
+          ? { 
+              ...account, 
+              connected: true, 
+              username: mockData.username,
+              profileUrl: mockData.profileUrl
+            }
+          : account
+      );
+      
+      saveAccounts(updatedAccounts);
+      console.log(`✅ Successfully connected to ${platform}`);
     } catch (error: any) {
       console.error(`Error connecting to ${platform}:`, error);
-      
-      let errorMessage = `Failed to connect to ${platform}. `;
-      
-      if (error.message?.includes('Bearer Token not configured')) {
-        errorMessage += 'API credentials not configured in Firebase. Please contact support.';
-      } else if (error.message?.includes('API error')) {
-        errorMessage += 'API authentication failed. Please try again later.';
-      } else {
-        errorMessage += 'Please try again later.';
-      }
-      
-      alert(errorMessage);
+      alert(`Failed to connect to ${platform}. Please try again later.`);
     } finally {
       setConnecting(null);
     }
@@ -224,14 +195,14 @@ const SocialMediaSettings: React.FC = () => {
           <Settings className="h-5 w-5 text-blue-500 mt-0.5" />
           <div>
             <h4 className="font-medium text-blue-700 dark:text-blue-400 mb-2">
-              API Configuration
+              Local Mode Active
             </h4>
             <p className="text-sm text-blue-600 dark:text-blue-300 mb-2">
-              Social media connections are powered by secure Firebase backend functions. 
-              API credentials are managed server-side for security.
+              Social media connections are simulated in local mode. 
+              In a production environment, these would connect to real social media APIs.
             </p>
             <p className="text-xs text-blue-500 dark:text-blue-400">
-              If you encounter connection issues, please contact support for API configuration assistance.
+              All connections are stored locally in your browser.
             </p>
           </div>
         </div>
@@ -329,28 +300,28 @@ const SocialMediaSettings: React.FC = () => {
         </button>
       </div>
 
-      {/* Firebase Functions Info */}
+      {/* Local Mode Info */}
       <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl p-4">
         <h4 className="font-semibold text-green-700 dark:text-green-400 mb-3 flex items-center space-x-2">
           <CheckCircle className="h-5 w-5" />
-          <span>Secure Backend Integration</span>
+          <span>Local Mode Active</span>
         </h4>
         <ul className="space-y-2 text-green-600 dark:text-green-300 text-sm">
           <li className="flex items-start space-x-2">
             <span>•</span>
-            <span>All social media connections are handled by secure Firebase Cloud Functions</span>
+            <span>All social media connections are simulated in local mode</span>
           </li>
           <li className="flex items-start space-x-2">
             <span>•</span>
-            <span>API keys and bearer tokens are stored securely in Firebase configuration</span>
+            <span>Share buttons open native sharing dialogs when available</span>
           </li>
           <li className="flex items-start space-x-2">
             <span>•</span>
-            <span>CORS is properly configured for secure cross-origin requests</span>
+            <span>Your data is stored securely in your browser's local storage</span>
           </li>
           <li className="flex items-start space-x-2">
             <span>•</span>
-            <span>No sensitive credentials are exposed to the frontend application</span>
+            <span>No data is sent to external servers</span>
           </li>
         </ul>
       </div>

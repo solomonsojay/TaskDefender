@@ -18,10 +18,12 @@ const EmailVerificationRequired: React.FC<EmailVerificationRequiredProps> = ({ o
     setResendSuccess(false);
     
     try {
+      // In local mode, this will throw an error
       await AuthService.resendEmailVerification();
       setResendSuccess(true);
     } catch (error) {
       console.error('Failed to resend verification email:', error);
+      alert('Email verification is not available in local mode.');
     } finally {
       setResending(false);
     }

@@ -1,21 +1,4 @@
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where, 
-  orderBy, 
-  limit,
-  serverTimestamp,
-  writeBatch,
-  arrayContains
-} from 'firebase/firestore';
-import { db, checkFirebaseAvailability } from '../config/firebase';
-import { Task, Team, FocusSession, User } from '../types';
+import { Task, Team, FocusSession } from '../types';
 import { generateSecureId, validateTaskData } from '../utils/validation';
 
 export class FirestoreService {
@@ -36,21 +19,7 @@ export class FirestoreService {
         throw new Error(`Invalid task data: ${validation.errors.join(', ')}`);
       }
 
-      if (checkFirebaseAvailability() && db) {
-        // Save to Firestore
-        const docRef = await addDoc(collection(db, 'tasks'), {
-          ...task,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          dueDate: task.dueDate ? task.dueDate.toISOString() : null,
-          completedAt: task.completedAt ? task.completedAt.toISOString() : null
-        });
-        
-        task.id = docRef.id;
-        console.log('✅ Task created in Firestore:', task.id);
-      }
-
-      // Also save to localStorage as backup
+      // Save to localStorage
       this.saveTaskToLocal(userId, task);
       
       return task;
@@ -67,20 +36,7 @@ export class FirestoreService {
         updatedAt: new Date()
       };
 
-      if (checkFirebaseAvailability() && db) {
-        // Update in Firestore
-        const taskRef = doc(db, 'tasks', taskId);
-        await updateDoc(taskRef, {
-          ...updatedData,
-          updatedAt: serverTimestamp(),
-          dueDate: updatedData.dueDate ? updatedData.dueDate.toISOString() : null,
-          completedAt: updatedData.completedAt ? updatedData.completedAt.toISOString() : null
-        });
-        
-        console.log('✅ Task updated in Firestore:', taskId);
-      }
-
-      // Also update in localStorage
+      // Update in localStorage
       this.updateTaskInLocal(userId, taskId, updatedData);
     } catch (error) {
       console.error('Error updating task:', error);
@@ -90,13 +46,7 @@ export class FirestoreService {
 
   static async deleteTask(userId: string, taskId: string): Promise<void> {
     try {
-      if (checkFirebaseAvailability() && db) {
-        // Delete from Firestore
-        await deleteDoc(doc(db, 'tasks', taskId));
-        console.log('✅ Task deleted from Firestore:', taskId);
-      }
-
-      // Also delete from localStorage
+      // Delete from localStorage
       this.deleteTaskFromLocal(userId, taskId);
     } catch (error) {
       console.error('Error deleting task:', error);
@@ -106,43 +56,11 @@ export class FirestoreService {
 
   static async getUserTasks(userId: string): Promise<Task[]> {
     try {
-      if (checkFirebaseAvailability() && db) {
-        // Get from Firestore
-        const tasksRef = collection(db, 'tasks');
-        const q = query(
-          tasksRef, 
-          where('userId', '==', userId),
-          orderBy('createdAt', 'desc')
-        );
-        
-        const querySnapshot = await getDocs(q);
-        const tasks: Task[] = [];
-        
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          tasks.push({
-            ...data,
-            id: doc.id,
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date(),
-            dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
-            completedAt: data.completedAt ? new Date(data.completedAt) : undefined
-          } as Task);
-        });
-        
-        // Also save to localStorage as backup
-        localStorage.setItem(`taskdefender_tasks_${userId}`, JSON.stringify(tasks));
-        
-        console.log('✅ Tasks loaded from Firestore:', tasks.length);
-        return tasks;
-      }
-
-      // Fallback to localStorage
+      // Get from localStorage
       return this.getTasksFromLocal(userId);
     } catch (error) {
       console.error('Error getting user tasks:', error);
-      // Fallback to localStorage on error
-      return this.getTasksFromLocal(userId);
+      return [];
     }
   }
 
@@ -156,21 +74,15 @@ export class FirestoreService {
         updatedAt: new Date()
       };
 
-      if (checkFirebaseAvailability() && db) {
-        // Save to Firestore
-        const docRef = await addDoc(collection(db, 'teams'), {
-          ...team,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          members: team.members.map(member => ({
-            ...member,
-            joinedAt: member.joinedAt.toISOString()
-          }))
-        });
-        
-        team.id = docRef.id;
-        console.log('✅ Team created in Firestore:', team.id);
-      }
+      // Save to localStorage
+      const teams = this.getTeamsFromLocal();
+      teams.push(team);
+      localStorage.setItem('taskdefender_teams', JSON.stringify(teams));
+      
+      // Also save to all teams for discovery
+      const allTeams = JSON.parse(localStorage.getItem('taskdefender_all_teams') || '[]');
+      allTeams.push(team);
+      localStorage.setItem('taskdefender_all_teams', JSON.stringify(allTeams));
 
       return team;
     } catch (error) {
@@ -181,36 +93,10 @@ export class FirestoreService {
 
   static async getUserTeams(userId: string): Promise<Team[]> {
     try {
-      if (checkFirebaseAvailability() && db) {
-        // Get teams where user is a member
-        const teamsRef = collection(db, 'teams');
-        const q = query(
-          teamsRef,
-          where('members', 'array-contains', { userId: userId })
-        );
-        
-        const querySnapshot = await getDocs(q);
-        const teams: Team[] = [];
-        
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          teams.push({
-            ...data,
-            id: doc.id,
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date(),
-            members: data.members.map((member: any) => ({
-              ...member,
-              joinedAt: new Date(member.joinedAt)
-            }))
-          } as Team);
-        });
-        
-        console.log('✅ Teams loaded from Firestore:', teams.length);
-        return teams;
-      }
-
-      return [];
+      // Get from localStorage
+      return this.getTeamsFromLocal().filter(team => 
+        team.members.some(member => member.userId === userId)
+      );
     } catch (error) {
       console.error('Error getting user teams:', error);
       return [];
@@ -218,29 +104,14 @@ export class FirestoreService {
   }
 
   // Focus Sessions
-  static async createFocusSession(sessionData: Omit<FocusSession, 'id' | 'createdAt'>): Promise<FocusSession> {
+  static async createFocusSession(sessionData: FocusSession): Promise<FocusSession> {
     try {
-      const session: FocusSession = {
-        ...sessionData,
-        id: generateSecureId(),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
+      // Save to localStorage
+      const sessions = this.getFocusSessionsFromLocal();
+      sessions.push(sessionData);
+      localStorage.setItem('taskdefender_focus_sessions', JSON.stringify(sessions));
 
-      if (checkFirebaseAvailability() && db) {
-        // Save to Firestore
-        await addDoc(collection(db, 'focus_sessions'), {
-          ...session,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          startTime: session.startTime ? session.startTime.toISOString() : null,
-          endTime: session.endTime ? session.endTime.toISOString() : null
-        });
-        
-        console.log('✅ Focus session created in Firestore:', session.id);
-      }
-
-      return session;
+      return sessionData;
     } catch (error) {
       console.error('Error creating focus session:', error);
       throw error;
@@ -307,25 +178,48 @@ export class FirestoreService {
     }
   }
 
+  private static getTeamsFromLocal(): Team[] {
+    try {
+      const saved = localStorage.getItem('taskdefender_teams');
+      if (!saved) return [];
+      
+      return JSON.parse(saved).map((team: any) => ({
+        ...team,
+        createdAt: new Date(team.createdAt),
+        updatedAt: team.updatedAt ? new Date(team.updatedAt) : undefined,
+        members: team.members.map((member: any) => ({
+          ...member,
+          joinedAt: new Date(member.joinedAt)
+        }))
+      }));
+    } catch (error) {
+      console.error('Error loading teams from localStorage:', error);
+      return [];
+    }
+  }
+
+  private static getFocusSessionsFromLocal(): FocusSession[] {
+    try {
+      const saved = localStorage.getItem('taskdefender_focus_sessions');
+      if (!saved) return [];
+      
+      return JSON.parse(saved).map((session: any) => ({
+        ...session,
+        createdAt: new Date(session.createdAt),
+        updatedAt: session.updatedAt ? new Date(session.updatedAt) : undefined,
+        startTime: session.startTime ? new Date(session.startTime) : undefined,
+        endTime: session.endTime ? new Date(session.endTime) : undefined
+      }));
+    } catch (error) {
+      console.error('Error loading focus sessions from localStorage:', error);
+      return [];
+    }
+  }
+
   // Batch operations
   static async batchUpdateTasks(userId: string, updates: Array<{ id: string; data: Partial<Task> }>): Promise<void> {
     try {
-      if (checkFirebaseAvailability() && db) {
-        const batch = writeBatch(db);
-        
-        updates.forEach(({ id, data }) => {
-          const taskRef = doc(db, 'tasks', id);
-          batch.update(taskRef, {
-            ...data,
-            updatedAt: serverTimestamp()
-          });
-        });
-        
-        await batch.commit();
-        console.log('✅ Batch update completed in Firestore');
-      }
-
-      // Also update localStorage
+      // Update localStorage
       updates.forEach(({ id, data }) => {
         this.updateTaskInLocal(userId, id, data);
       });

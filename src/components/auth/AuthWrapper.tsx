@@ -4,7 +4,6 @@ import LoadingSpinner from '../common/LoadingSpinner';
 import LoginForm from './LoginForm';
 import SignupForm from './SignupForm';
 import { AuthService } from '../../services/authService';
-import { checkFirebaseAvailability } from '../../config/firebase';
 import EmailVerificationRequired from './EmailVerificationRequired';
 
 interface AuthWrapperProps {
@@ -24,104 +23,30 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
       try {
         console.log('🔄 Initializing authentication...');
         
-        // Check if Firebase is available
-        if (checkFirebaseAvailability()) {
-          // Set up Firebase auth state listener
-          const unsubscribe = AuthService.onAuthStateChanged(async (firebaseUser) => {
-            if (firebaseUser && mounted) {
-              try {
-                // Get user data from Firestore
-                const userData = await AuthService.getCurrentUser();
-                
-                if (userData) {
-                  console.log('✅ User found:', userData.email);
-                  
-                  // Check if email verification is required
-                  if (!userData.emailVerified && firebaseUser.email) {
-                    console.log('📧 Email verification required');
-                    setEmailVerificationRequired(true);
-                    setLoading(false);
-                    return;
-                  }
-                  
-                  setUser(userData);
-                  
-                  // Check if user needs onboarding - only check for workStyle
-                  const needsOnboarding = userData.workStyle === null || 
-                                         userData.workStyle === undefined;
-                  
-                  if (needsOnboarding) {
-                    console.log('🎯 User needs onboarding - missing workStyle');
-                    dispatch({ type: 'START_ONBOARDING' });
-                  } else {
-                    console.log('✅ User profile complete - skipping onboarding');
-                    dispatch({ type: 'COMPLETE_ONBOARDING' });
-                  }
-                } else {
-                  setUser(null);
-                }
-              } catch (error) {
-                console.error('Error getting user data:', error);
-                setUser(null);
-              }
-            } else if (mounted) {
-              // Check for local user if Firebase user not found
-              const localUser = await AuthService.getCurrentUser();
-              
-              if (localUser && mounted) {
-                console.log('✅ Local user found:', localUser.email);
-                setUser(localUser);
-                
-                // Check if user needs onboarding
-                const needsOnboarding = localUser.workStyle === null || 
-                                       localUser.workStyle === undefined;
-                
-                if (needsOnboarding) {
-                  console.log('🎯 User needs onboarding - missing workStyle');
-                  dispatch({ type: 'START_ONBOARDING' });
-                } else {
-                  console.log('✅ User profile complete - skipping onboarding');
-                  dispatch({ type: 'COMPLETE_ONBOARDING' });
-                }
-              } else if (mounted) {
-                setUser(null);
-              }
-            }
-            
-            if (mounted) {
-              setLoading(false);
-            }
-          });
+        // Check for local user
+        const localUser = await AuthService.getCurrentUser();
+        
+        if (localUser && mounted) {
+          console.log('✅ Local user found:', localUser.email);
+          setUser(localUser);
           
-          return () => {
-            unsubscribe();
-          };
-        } else {
-          // Local authentication
-          const localUser = await AuthService.getCurrentUser();
+          // Check if user needs onboarding
+          const needsOnboarding = localUser.workStyle === null || 
+                                 localUser.workStyle === undefined;
           
-          if (localUser && mounted) {
-            console.log('✅ Local user found:', localUser.email);
-            setUser(localUser);
-            
-            // Check if user needs onboarding
-            const needsOnboarding = localUser.workStyle === null || 
-                                   localUser.workStyle === undefined;
-            
-            if (needsOnboarding) {
-              console.log('🎯 User needs onboarding - missing workStyle');
-              dispatch({ type: 'START_ONBOARDING' });
-            } else {
-              console.log('✅ User profile complete - skipping onboarding');
-              dispatch({ type: 'COMPLETE_ONBOARDING' });
-            }
-          } else if (mounted) {
-            setUser(null);
+          if (needsOnboarding) {
+            console.log('🎯 User needs onboarding - missing workStyle');
+            dispatch({ type: 'START_ONBOARDING' });
+          } else {
+            console.log('✅ User profile complete - skipping onboarding');
+            dispatch({ type: 'COMPLETE_ONBOARDING' });
           }
-          
-          if (mounted) {
-            setLoading(false);
-          }
+        } else if (mounted) {
+          setUser(null);
+        }
+        
+        if (mounted) {
+          setLoading(false);
         }
       } catch (error: any) {
         console.error('❌ Auth initialization error:', error);
