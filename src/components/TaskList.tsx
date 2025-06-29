@@ -16,7 +16,8 @@ import {
   ArrowRight,
   Settings,
   Save,
-  X
+  X,
+  Check
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { smartInterventionService } from '../services/SmartInterventionService';
@@ -438,6 +439,7 @@ const TaskList: React.FC = () => {
             <span className={`ml-2 text-xs px-2 py-1 rounded-full ${
               option.value === 'critical' ? 'bg-red-200 dark:bg-red-800 text-red-700 dark:text-red-300' :
               option.value === 'at-risk' ? 'bg-yellow-200 dark:bg-yellow-800 text-yellow-700 dark:text-yellow-300' :
+              option.value === 'done' ? 'bg-green-200 dark:bg-green-800 text-green-700 dark:text-green-300' :
               'bg-gray-200 dark:bg-gray-600'
             }`}>
               {option.count}
@@ -465,10 +467,13 @@ const TaskList: React.FC = () => {
           filteredTasks.map(task => {
             const progress = getTaskProgress(task);
             const isEditing = editingTask === task.id;
+            const isCompleted = task.status === 'done';
             
             return (
               <div key={task.id} className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 p-4 ${
-                task.isDefenseActive ? 'border-orange-300 dark:border-orange-600 bg-orange-50 dark:bg-orange-900/10' : 'border-gray-200 dark:border-gray-700'
+                isCompleted ? 'border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/10' :
+                task.isDefenseActive ? 'border-orange-300 dark:border-orange-600 bg-orange-50 dark:bg-orange-900/10' : 
+                'border-gray-200 dark:border-gray-700'
               }`}>
                 <div className="flex items-start space-x-3">
                   <button
@@ -476,7 +481,7 @@ const TaskList: React.FC = () => {
                     className="mt-1 flex-shrink-0"
                     disabled={isSubmitting}
                   >
-                    {task.status === 'done' ? (
+                    {isCompleted ? (
                       <CheckCircle2 className="h-5 w-5 text-green-500" />
                     ) : (
                       <Circle className="h-5 w-5 text-gray-400 hover:text-orange-500 transition-colors duration-200" />
@@ -556,12 +561,17 @@ const TaskList: React.FC = () => {
                         ) : (
                           <>
                             <h3 className={`font-medium transition-all duration-200 ${
-                              task.status === 'done' 
-                                ? 'text-gray-500 dark:text-gray-400 line-through' 
+                              isCompleted 
+                                ? 'text-green-700 dark:text-green-400 line-through' 
                                 : 'text-gray-900 dark:text-white'
                             }`}>
                               {task.title}
-                              {task.isDefenseActive && (
+                              {isCompleted && (
+                                <span title="Completed" className="ml-2">
+                                  <Check className="inline h-4 w-4 text-green-500" aria-label="Completed" />
+                                </span>
+                              )}
+                              {task.isDefenseActive && !isCompleted && (
                                 <span title="Defense Active" className="ml-2">
                                   <Shield className="inline h-4 w-4 text-orange-500" aria-label="Defense Active" />
                                 </span>
@@ -569,19 +579,23 @@ const TaskList: React.FC = () => {
                             </h3>
                             
                             {task.description && (
-                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              <p className={`text-sm mt-1 ${
+                                isCompleted 
+                                  ? 'text-green-600/70 dark:text-green-400/70' 
+                                  : 'text-gray-600 dark:text-gray-400'
+                              }`}>
                                 {task.description}
                               </p>
                             )}
                             
-                            {task.procrastinationCount && task.procrastinationCount > 0 && (
+                            {task.procrastinationCount && task.procrastinationCount > 0 && !isCompleted && (
                               <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
                                 ⚠️ Procrastination detected {task.procrastinationCount} time(s)
                               </p>
                             )}
 
                             {/* Progress Bar for Active Tasks */}
-                            {task.status !== 'done' && task.dueDate && (
+                            {!isCompleted && task.dueDate && (
                               <div className="mt-2">
                                 <div className="flex justify-between text-xs mb-1">
                                   <span className="text-gray-600 dark:text-gray-400">Progress to deadline</span>
@@ -611,19 +625,19 @@ const TaskList: React.FC = () => {
                       
                       {!isEditing && (
                         <div className="flex items-center space-x-2 ml-2">
-                          {isOverdue(task) && (
+                          {isOverdue(task) && !isCompleted && (
                             <span title="Overdue">
                               <AlertTriangle className="h-4 w-4 text-red-500" aria-label="Overdue" />
                             </span>
                           )}
                           
-                          {isAtRisk(task) && (
+                          {isAtRisk(task) && !isCompleted && (
                             <span title="At Risk">
                               <Zap className="h-4 w-4 text-yellow-500 animate-pulse" aria-label="At Risk" />
                             </span>
                           )}
                           
-                          {isCritical(task) && !isAtRisk(task) && (
+                          {isCritical(task) && !isAtRisk(task) && !isCompleted && (
                             <span title="Critical">
                               <AlertTriangle className="h-4 w-4 text-orange-500" aria-label="Critical" />
                             </span>
@@ -640,7 +654,7 @@ const TaskList: React.FC = () => {
                             </button>
                           )}
 
-                          {task.status !== 'done' && (
+                          {!isCompleted && (
                             <>
                               <button
                                 onClick={() => setShowReminderModal(task.id)}
@@ -686,7 +700,7 @@ const TaskList: React.FC = () => {
                     {!isEditing && (
                       <div className="flex items-center space-x-4 mt-3 text-xs text-gray-500 dark:text-gray-400">
                         <span className={`px-2 py-1 rounded-full ${
-                          task.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
+                          isCompleted ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
                           task.status === 'in-progress' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400' :
                           'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
                         }`}>
@@ -711,15 +725,15 @@ const TaskList: React.FC = () => {
                         
                         {task.dueDate && (
                           <div className={`flex items-center space-x-1 ${
-                            isOverdue(task) ? 'text-red-500' :
-                            isAtRisk(task) ? 'text-yellow-500' :
-                            isCritical(task) ? 'text-orange-500' : ''
+                            isOverdue(task) && !isCompleted ? 'text-red-500' :
+                            isAtRisk(task) && !isCompleted ? 'text-yellow-500' :
+                            isCritical(task) && !isCompleted ? 'text-orange-500' : ''
                           }`}>
                             <Calendar className="h-3 w-3" />
                             <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                            {isOverdue(task) && <span className="text-red-500 font-medium">Overdue!</span>}
-                            {isAtRisk(task) && <span className="text-yellow-500 font-medium">At Risk!</span>}
-                            {isCritical(task) && !isAtRisk(task) && <span className="text-orange-500 font-medium">Critical!</span>}
+                            {isOverdue(task) && !isCompleted && <span className="text-red-500 font-medium">Overdue!</span>}
+                            {isAtRisk(task) && !isCompleted && <span className="text-yellow-500 font-medium">At Risk!</span>}
+                            {isCritical(task) && !isAtRisk(task) && !isCompleted && <span className="text-orange-500 font-medium">Critical!</span>}
                           </div>
                         )}
 
@@ -727,6 +741,13 @@ const TaskList: React.FC = () => {
                           <div className="flex items-center space-x-1 text-purple-500">
                             <Bell className="h-3 w-3" />
                             <span>Reminder: {task.reminderSettings.interval}m</span>
+                          </div>
+                        )}
+                        
+                        {isCompleted && task.completedAt && (
+                          <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
+                            <CheckCircle2 className="h-3 w-3" />
+                            <span>Completed: {new Date(task.completedAt).toLocaleDateString()}</span>
                           </div>
                         )}
                       </div>

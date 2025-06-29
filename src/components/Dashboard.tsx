@@ -9,7 +9,8 @@ import {
   AlertTriangle,
   Award,
   Shield,
-  Zap
+  Zap,
+  Check
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -301,11 +302,12 @@ const Dashboard: React.FC = () => {
           ) : (
             recentTasks.map(task => {
               const progress = getTaskProgress(task);
+              const isCompleted = task.status === 'done';
               
               return (
                 <div key={task.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
                   <div className={`w-3 h-3 rounded-full ${
-                    task.status === 'done' ? 'bg-green-500' :
+                    isCompleted ? 'bg-green-500' :
                     task.status === 'in-progress' ? 'bg-orange-500' :
                     isOverdue(task) ? 'bg-red-500' :
                     isAtRisk(task) ? 'bg-yellow-500' :
@@ -313,35 +315,44 @@ const Dashboard: React.FC = () => {
                     'bg-gray-400'
                   }`} />
                   <div className="flex-1 min-w-0">
-                    <p className={`font-medium truncate ${
-                      task.status === 'done' 
-                        ? 'text-gray-500 dark:text-gray-400 line-through' 
-                        : 'text-gray-900 dark:text-white'
-                    }`}>
-                      {task.title}
-                      {task.isDefenseActive && (
-                        <span title="Defense Active" className="ml-2">
-                          <Shield className="inline h-3 w-3 text-orange-500" />
+                    <div className="flex items-center">
+                      <p className={`font-medium truncate ${
+                        isCompleted 
+                          ? 'text-green-700 dark:text-green-400 line-through' 
+                          : 'text-gray-900 dark:text-white'
+                      }`}>
+                        {task.title}
+                      </p>
+                      {isCompleted && (
+                        <span title="Completed" className="ml-2">
+                          <Check className="h-4 w-4 text-green-500" />
                         </span>
                       )}
-                    </p>
+                      {task.isDefenseActive && !isCompleted && (
+                        <span title="Defense Active" className="ml-2">
+                          <Shield className="h-3 w-3 text-orange-500" />
+                        </span>
+                      )}
+                    </div>
                     {task.dueDate && (
                       <div className={`flex items-center space-x-1 text-xs ${
-                        isOverdue(task) ? 'text-red-500' :
-                        isAtRisk(task) ? 'text-yellow-500' :
-                        isCritical(task) ? 'text-red-400' :
+                        isOverdue(task) && !isCompleted ? 'text-red-500' :
+                        isAtRisk(task) && !isCompleted ? 'text-yellow-500' :
+                        isCritical(task) && !isCompleted ? 'text-red-400' :
+                        isCompleted ? 'text-green-600 dark:text-green-400' :
                         'text-gray-500 dark:text-gray-400'
                       }`}>
                         <Calendar className="h-3 w-3" />
                         <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                        {isOverdue(task) && <span className="text-red-500 font-medium">Overdue!</span>}
-                        {isAtRisk(task) && <span className="text-yellow-500 font-medium">At Risk!</span>}
-                        {isCritical(task) && !isAtRisk(task) && <span className="text-red-400 font-medium">Critical!</span>}
+                        {isOverdue(task) && !isCompleted && <span className="text-red-500 font-medium">Overdue!</span>}
+                        {isAtRisk(task) && !isCompleted && <span className="text-yellow-500 font-medium">At Risk!</span>}
+                        {isCritical(task) && !isAtRisk(task) && !isCompleted && <span className="text-red-400 font-medium">Critical!</span>}
+                        {isCompleted && <span className="text-green-600 dark:text-green-400 font-medium">Completed</span>}
                       </div>
                     )}
                     
                     {/* Progress Bar for Active Tasks */}
-                    {task.status !== 'done' && task.dueDate && (
+                    {!isCompleted && task.dueDate && (
                       <div className="mt-1">
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1">
                           <div 
@@ -364,7 +375,7 @@ const Dashboard: React.FC = () => {
                   }`}>
                     {task.priority}
                   </span>
-                  {task.status !== 'done' && (
+                  {!isCompleted && (
                     <button
                       onClick={() => startFocusSession(task.id)}
                       className="p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
