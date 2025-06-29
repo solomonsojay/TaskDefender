@@ -15,16 +15,23 @@ const AuthRoutes: React.FC = () => {
     return <Navigate to="/" replace />;
   }
   
-  switch (mode) {
-    case 'resetPassword':
-      return <PasswordResetForm oobCode={oobCode} onBackToLogin={() => window.location.href = '/'} />;
-    
-    case 'verifyEmail':
-      return <EmailVerificationConfirmation oobCode={oobCode} />;
-    
-    default:
-      return <Navigate to="/" replace />;
-  }
+  return (
+    <Routes>
+      <Route path="/reset-password" element={
+        mode === 'resetPassword' ? 
+          <PasswordResetForm oobCode={oobCode} onBackToLogin={() => window.location.href = '/'} /> : 
+          <Navigate to="/" replace />
+      } />
+      
+      <Route path="/verify-email" element={
+        mode === 'verifyEmail' ? 
+          <EmailVerificationConfirmation oobCode={oobCode} /> : 
+          <Navigate to="/" replace />
+      } />
+      
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
 };
 
 export default AuthRoutes;
