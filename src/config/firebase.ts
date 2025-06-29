@@ -1,9 +1,9 @@
-// Mock Firebase configuration
+// Empty mock Firebase configuration
 export const checkFirebaseAvailability = (): boolean => {
   return false;
 };
 
-// Initialize Firebase conditionally
+// Initialize empty mock objects
 export const auth = null;
 export const db = null;
 export const storage = null;
