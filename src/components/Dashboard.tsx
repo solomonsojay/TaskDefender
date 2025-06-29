@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Target, 
   Clock, 
@@ -18,7 +18,15 @@ const Dashboard: React.FC = () => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState('medium');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Force re-render when tasks change to ensure dashboard updates
+  const [, forceUpdate] = useState({});
+  useEffect(() => {
+    forceUpdate({});
+  }, [tasks]);
+
+  // Calculate task counts
   const completedTasks = tasks.filter(task => task.status === 'done');
   const inProgressTasks = tasks.filter(task => task.status === 'in-progress');
   const todoTasks = tasks.filter(task => task.status === 'todo');
@@ -57,22 +65,29 @@ const Dashboard: React.FC = () => {
     return new Date(task.dueDate) < new Date();
   });
 
-  const handleAddTask = (e: React.FormEvent) => {
+  const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTaskTitle.trim()) return;
+    if (!newTaskTitle.trim() || isSubmitting) return;
 
-    addTask({
-      title: newTaskTitle,
-      description: '',
-      priority: newTaskPriority as any,
-      status: 'todo',
-      tags: [],
-      dueDate: newTaskDueDate ? new Date(newTaskDueDate) : undefined,
-    });
+    setIsSubmitting(true);
+    try {
+      await addTask({
+        title: newTaskTitle,
+        description: '',
+        priority: newTaskPriority as any,
+        status: 'todo',
+        tags: [],
+        dueDate: newTaskDueDate ? new Date(newTaskDueDate) : undefined,
+      });
 
-    setNewTaskTitle('');
-    setNewTaskDueDate('');
-    setNewTaskPriority('medium');
+      setNewTaskTitle('');
+      setNewTaskDueDate('');
+      setNewTaskPriority('medium');
+    } catch (error) {
+      console.error('Failed to add task:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const recentTasks = tasks
@@ -143,12 +158,14 @@ const Dashboard: React.FC = () => {
               onChange={(e) => setNewTaskTitle(e.target.value)}
               placeholder="What needs to be done?"
               className="flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+              disabled={isSubmitting}
             />
             
             <select
               value={newTaskPriority}
               onChange={(e) => setNewTaskPriority(e.target.value)}
               className="md:w-40 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+              disabled={isSubmitting}
             >
               <option value="low">Low Priority</option>
               <option value="medium">Medium Priority</option>
@@ -161,16 +178,21 @@ const Dashboard: React.FC = () => {
               value={newTaskDueDate}
               onChange={(e) => setNewTaskDueDate(e.target.value)}
               className="md:w-40 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors duration-200"
+              disabled={isSubmitting}
             />
           </div>
           
           <button
             type="submit"
-            disabled={!newTaskTitle.trim()}
+            disabled={!newTaskTitle.trim() || isSubmitting}
             className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Plus className="h-5 w-5" />
-            <span>Add Task</span>
+            {isSubmitting ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Plus className="h-5 w-5" />
+            )}
+            <span>{isSubmitting ? 'Adding...' : 'Add Task'}</span>
           </button>
         </form>
       </div>
