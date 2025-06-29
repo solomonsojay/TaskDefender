@@ -94,6 +94,7 @@ const TaskList: React.FC = () => {
 
   const handleHonestyCheck = useCallback(async (taskId: string, honestlyCompleted: boolean) => {
     try {
+      setIsSubmitting(true);
       if (honestlyCompleted) {
         await updateTask(taskId, {
           status: 'done',
@@ -106,17 +107,20 @@ const TaskList: React.FC = () => {
         smartInterventionService.clearInterventionForTask(taskId);
       } else {
         // If not honestly completed, keep as in-progress and activate defense
+        const task = tasks.find(t => t.id === taskId);
         await updateTask(taskId, {
           status: 'in-progress',
           honestlyCompleted: false,
           isDefenseActive: true,
           defenseLevel: 'medium',
-          procrastinationCount: (tasks.find(t => t.id === taskId)?.procrastinationCount || 0) + 1
+          procrastinationCount: (task?.procrastinationCount || 0) + 1
         });
       }
-      setShowHonestyCheck(null);
     } catch (error) {
       console.error('Error handling honesty check:', error);
+    } finally {
+      setIsSubmitting(false);
+      setShowHonestyCheck(null);
     }
   }, [updateTask, tasks]);
 
@@ -728,9 +732,9 @@ const TaskList: React.FC = () => {
                       </div>
                     )}
 
-                    {!isEditing && task.tags.length > 0 && (
+                    {!isEditing && task.tags && task.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
-                        {task.tags.map((tag, index) => (
+                        {task.tags.map((tag: string, index: number) => (
                           <span
                             key={index}
                             className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full"
@@ -771,9 +775,13 @@ const TaskList: React.FC = () => {
               <button
                 onClick={() => handleHonestyCheck(showHonestyCheck, true)}
                 disabled={isSubmitting}
-                className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 disabled:opacity-50"
+                className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 disabled:opacity-50 flex items-center justify-center space-x-2"
               >
-                ✅ Yes, I completed it honestly
+                {isSubmitting ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>✅ Yes, I completed it honestly</>
+                )}
               </button>
               
               <button
