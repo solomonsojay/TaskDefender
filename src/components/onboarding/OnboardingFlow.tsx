@@ -15,9 +15,6 @@ import WorkStyleForm from './WorkStyleForm';
 import OrganizationDetailsForm from './OrganizationDetailsForm';
 
 interface FormData {
-  // User Type
-  userType: 'personal' | 'team-admin';
-  
   // Work Style
   workStyle: 'focused' | 'flexible' | 'collaborative';
   focusSessionLength: number;
@@ -38,9 +35,6 @@ const OnboardingFlow: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    // User Type
-    userType: user?.role === 'admin' ? 'team-admin' : 'personal',
-    
     // Work Style
     workStyle: 'focused',
     focusSessionLength: 25,
@@ -56,7 +50,7 @@ const OnboardingFlow: React.FC = () => {
     organizationDescription: user?.organizationDescription || ''
   });
 
-  const totalSteps = formData.userType === 'personal' ? 2 : 3;
+  const totalSteps = user?.role === 'admin' ? 2 : 1;
 
   const completeOnboarding = async () => {
     if (!user) return;
@@ -65,12 +59,11 @@ const OnboardingFlow: React.FC = () => {
     
     try {
       const updates: Partial<UserType> = {
-        workStyle: formData.workStyle,
-        role: formData.userType === 'team-admin' ? 'admin' : 'user'
+        workStyle: formData.workStyle
       };
       
       // Add organization details for team admins
-      if (formData.userType === 'team-admin') {
+      if (user.role === 'admin') {
         updates.organizationName = formData.organizationName;
         updates.organizationType = formData.organizationType;
         updates.organizationIndustry = formData.organizationIndustry;
@@ -122,12 +115,10 @@ const OnboardingFlow: React.FC = () => {
 
   const canProceed = () => {
     switch (currentStep) {
-      case 1: // User Type Selection
-        return formData.userType !== undefined;
-      case 2: // Work Style Selection
+      case 1: // Work Style Selection
         return formData.workStyle !== undefined;
-      case 3: // Organization Details (for team admins)
-        return formData.userType === 'team-admin' && 
+      case 2: // Organization Details (for team admins)
+        return user?.role === 'admin' && 
                formData.organizationName.trim() !== '' && 
                formData.organizationType !== '' && 
                formData.organizationIndustry !== '' && 
@@ -176,103 +167,8 @@ const OnboardingFlow: React.FC = () => {
             </p>
           </div>
 
-          {/* Step 1: User Type Selection */}
+          {/* Step 1: Work Style Selection */}
           {currentStep === 1 && (
-            <div className="space-y-6">
-              <div className="text-center mb-6">
-                <div className="bg-blue-500/20 p-3 rounded-full w-12 h-12 mx-auto mb-4">
-                  <Users className="h-6 w-6 text-blue-500 mx-auto" />
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  How will you use TaskDefender?
-                </h2>
-                <p className="text-gray-600 dark:text-gray-400">
-                  Choose your account type to customize your experience
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <button
-                  onClick={() => updateFormData({ userType: 'personal' })}
-                  className={`w-full p-4 rounded-xl border-2 text-left transition-all duration-200 ${
-                    formData.userType === 'personal'
-                      ? 'border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg'
-                      : 'border-gray-200 dark:border-gray-600 hover:border-green-300 dark:hover:border-green-600'
-                  }`}
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className={`p-3 rounded-lg ${
-                      formData.userType === 'personal'
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                    }`}>
-                      <User className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">Personal User</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
-                        Individual productivity tracking and task management
-                      </p>
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => updateFormData({ userType: 'team-admin' })}
-                  className={`w-full p-4 rounded-xl border-2 text-left transition-all duration-200 ${
-                    formData.userType === 'team-admin'
-                      ? 'border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg'
-                      : 'border-gray-200 dark:border-gray-600 hover:border-green-300 dark:hover:border-green-600'
-                  }`}
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className={`p-3 rounded-lg ${
-                      formData.userType === 'team-admin'
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                    }`}>
-                      <Users className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">Team Admin</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
-                        Create and manage teams with collaborative productivity
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              </div>
-
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4 mt-4">
-                <h4 className="font-medium text-blue-700 dark:text-blue-400 mb-2">
-                  Account Type Features
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <h5 className="font-medium text-blue-600 dark:text-blue-300 mb-1">Personal User</h5>
-                    <ul className="space-y-1 text-blue-600 dark:text-blue-300">
-                      <li>• Individual task management</li>
-                      <li>• Personal productivity analytics</li>
-                      <li>• Focus mode and reminders</li>
-                      <li>• Achievement tracking</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h5 className="font-medium text-blue-600 dark:text-blue-300 mb-1">Team Admin</h5>
-                    <ul className="space-y-1 text-blue-600 dark:text-blue-300">
-                      <li>• All personal features</li>
-                      <li>• Create and manage teams</li>
-                      <li>• Team productivity analytics</li>
-                      <li>• Member management</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Work Style Selection */}
-          {currentStep === 2 && (
             <WorkStyleForm
               data={{
                 workStyle: formData.workStyle,
@@ -283,8 +179,8 @@ const OnboardingFlow: React.FC = () => {
             />
           )}
 
-          {/* Step 3: Organization Details (for team admins) */}
-          {currentStep === 3 && formData.userType === 'team-admin' && (
+          {/* Step 2: Organization Details (for team admins) */}
+          {currentStep === 2 && user.role === 'admin' && (
             <OrganizationDetailsForm
               data={{
                 organizationName: formData.organizationName,
@@ -305,7 +201,7 @@ const OnboardingFlow: React.FC = () => {
               <button
                 onClick={prevStep}
                 disabled={loading}
-                className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 flex items-center space-x-2"
+                className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 flex items-center space-x-2"
               >
                 <ArrowLeft className="h-5 w-5" />
                 <span>Back</span>
