@@ -4,9 +4,9 @@ import { reminderToneService } from './ReminderToneService';
 
 export class SmartInterventionService {
   private static instance: SmartInterventionService;
-  private interventionTimer: NodeJS.Timeout | null = null;
+  private interventionTimer: number | null = null;
   private voiceSettings: VoiceSettings | null = null;
-  private activeInterventions: Map<string, NodeJS.Timeout> = new Map();
+  private activeInterventions: Map<string, number> = new Map();
   private isInitialized = false;
 
   private constructor() {
@@ -74,7 +74,7 @@ export class SmartInterventionService {
     }
 
     // Check every 5 minutes for interventions
-    this.interventionTimer = setInterval(() => {
+    this.interventionTimer = window.setInterval(() => {
       this.checkTasksForIntervention();
     }, 5 * 60 * 1000);
   }
@@ -174,7 +174,7 @@ export class SmartInterventionService {
     const frequency = frequencies[level as keyof typeof frequencies];
     
     // Schedule intervention
-    const timeout = setTimeout(() => {
+    const timeout = window.setTimeout(() => {
       this.triggerIntervention(task, level);
       // Reschedule for next intervention
       this.scheduleIntervention(task, level);
