@@ -9,9 +9,20 @@ import {
   sendPasswordResetEmail,
   verifyPasswordResetCode,
   confirmPasswordReset,
-  applyActionCode
+  applyActionCode,
+  updateProfile,
+  onAuthStateChanged
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  updateDoc, 
+  query, 
+  where, 
+  collection, 
+  getDocs 
+} from 'firebase/firestore';
 
 export class AuthService {
   private static getLocalUser(): User | null {
@@ -23,7 +34,6 @@ export class AuthService {
           ...user,
           createdAt: new Date(user.createdAt),
           updatedAt: user.updatedAt ? new Date(user.updatedAt) : undefined,
-          // Ensure workStyle is properly set - default to null to trigger onboarding
           workStyle: user.workStyle || null
         };
       }
@@ -36,18 +46,15 @@ export class AuthService {
   private static setLocalUser(user: User | null): void {
     try {
       if (user) {
-        // Ensure workStyle is properly set before validation
         const userToSave = {
           ...user,
           workStyle: user.workStyle || null
         };
         
-        // Only validate if workStyle is set (not during initial signup)
         if (userToSave.workStyle) {
           const validation = validateUserData(userToSave);
           if (!validation.isValid) {
             console.warn('User data validation warnings:', validation.errors);
-            // Don't throw error, just log warnings for existing users
           }
         }
         
@@ -63,6 +70,24 @@ export class AuthService {
     }
   }
 
+  static async checkEmailExists(email: string): Promise<boolean> {
+    try {
+      if (checkFirebaseAvailability() && db) {
+        // Query Firestore to check if email exists
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('email', '==', email.toLowerCase().trim()));
+        const querySnapshot = await getDocs(q);
+        return !querySnapshot.empty;
+      } else {
+        const localUser = this.getLocalUser();
+        return localUser?.email === email.toLowerCase().trim();
+      }
+    } catch (error) {
+      console.error('Error checking email:', error);
+      return false;
+    }
+  }
+
   static async signUp(email: string, password: string, userData: Omit<User, 'id' | 'createdAt'>) {
     try {
       // Validate input
@@ -70,7 +95,12 @@ export class AuthService {
         throw new Error('Email and password (min 6 characters) are required');
       }
       
-      // Check if Firebase is available
+      // Check if email already exists
+      const emailExists = await this.checkEmailExists(email);
+      if (emailExists) {
+        throw new Error('Email already in use. Please sign in or use a different email.');
+      }
+      
       if (checkFirebaseAvailability() && auth && db) {
         console.log('🔥 Creating Firebase account...');
         
@@ -78,8 +108,16 @@ export class AuthService {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
         
+        // Update Firebase Auth profile
+        await updateProfile(firebaseUser, {
+          displayName: userData.name
+        });
+        
         // Send email verification
-        await sendEmailVerification(firebaseUser);
+        await sendEmailVerification(firebaseUser, {
+          url: `${window.location.origin}/auth/verify-email`,
+          handleCodeInApp: true
+        });
         
         // Create user document in Firestore
         const user: User = {
@@ -103,15 +141,12 @@ export class AuthService {
         // Also save to localStorage as backup
         this.setLocalUser(user);
         
+        console.log('✅ Firebase account created successfully');
+        console.log('📧 Email verification sent to:', email);
+        
         return user;
       } else {
         console.log('📱 Creating TaskDefender account locally...');
-        
-        // Check if email already exists
-        const existingUser = this.getLocalUser();
-        if (existingUser && existingUser.email === email.toLowerCase().trim()) {
-          throw new Error('Email already in use');
-        }
         
         const user: User = {
           ...userData,
@@ -122,33 +157,25 @@ export class AuthService {
           emailVerified: true,
           integrityScore: userData.integrityScore || 100,
           streak: userData.streak || 0,
-          workStyle: null // Always null for new users to trigger onboarding
+          workStyle: null
         };
         
         this.setLocalUser(user);
         return user;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sign up error:', error);
+      
+      // Provide user-friendly error messages
+      if (error.code === 'auth/email-already-in-use') {
+        throw new Error('Email already in use. Please sign in or use a different email.');
+      } else if (error.code === 'auth/weak-password') {
+        throw new Error('Password is too weak. Please use at least 6 characters.');
+      } else if (error.code === 'auth/invalid-email') {
+        throw new Error('Invalid email address.');
+      }
+      
       throw error;
-    }
-  }
-
-  static async sendEmailVerification() {
-    if (checkFirebaseAvailability() && auth && auth.currentUser) {
-      await sendEmailVerification(auth.currentUser);
-      console.log('📧 Email verification sent');
-    } else {
-      console.log('📧 Email verification skipped in local mode');
-    }
-  }
-
-  static async verifyEmailWithCode(oobCode: string) {
-    if (checkFirebaseAvailability() && auth) {
-      await applyActionCode(auth, oobCode);
-      console.log('✅ Email verified successfully');
-    } else {
-      console.log('✅ Email verification skipped in local mode');
     }
   }
   
@@ -158,7 +185,6 @@ export class AuthService {
         throw new Error('Email and password are required');
       }
       
-      // Check if Firebase is available
       if (checkFirebaseAvailability() && auth && db) {
         console.log('🔥 Signing into Firebase...');
         
@@ -170,19 +196,21 @@ export class AuthService {
         const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
         
         if (userDoc.exists()) {
-          const userData = userDoc.data() as User;
+          const userData = userDoc.data() as any;
           
           // Convert date strings to Date objects
           const user: User = {
             ...userData,
             createdAt: new Date(userData.createdAt),
             updatedAt: userData.updatedAt ? new Date(userData.updatedAt) : undefined,
-            workStyle: userData.workStyle || null // Ensure it's null if not set
+            workStyle: userData.workStyle || null,
+            emailVerified: firebaseUser.emailVerified
           };
           
           // Also save to localStorage as backup
           this.setLocalUser(user);
           
+          console.log('✅ Firebase sign in successful');
           return user;
         } else {
           throw new Error('User data not found');
@@ -193,13 +221,11 @@ export class AuthService {
         // Check if user exists
         const localUser = this.getLocalUser();
         if (localUser && localUser.email === email.toLowerCase().trim()) {
-          // Ensure workStyle is properly handled for existing users
           const userToReturn = {
             ...localUser,
-            workStyle: localUser.workStyle || null // Ensure it's null if not set
+            workStyle: localUser.workStyle || null
           };
           
-          // Update the stored user if workStyle was missing
           if (!localUser.workStyle) {
             this.setLocalUser(userToReturn);
           }
@@ -215,7 +241,7 @@ export class AuthService {
           username: email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ''),
           role: 'user',
           goals: [],
-          workStyle: null, // Always null for new users to trigger onboarding
+          workStyle: null,
           integrityScore: 100,
           streak: 0,
           createdAt: new Date(),
@@ -226,15 +252,30 @@ export class AuthService {
         this.setLocalUser(newUser);
         return newUser;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sign in error:', error);
+      
+      // Provide user-friendly error messages
+      if (error.code === 'auth/user-not-found') {
+        throw new Error('No account found with this email address.');
+      } else if (error.code === 'auth/wrong-password') {
+        throw new Error('Incorrect password.');
+      } else if (error.code === 'auth/invalid-email') {
+        throw new Error('Invalid email address.');
+      } else if (error.code === 'auth/user-disabled') {
+        throw new Error('This account has been disabled.');
+      }
+      
       throw error;
     }
   }
   
   static async resetPassword(email: string) {
     if (checkFirebaseAvailability() && auth) {
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordResetEmail(auth, email, {
+        url: `${window.location.origin}/auth/reset-password`,
+        handleCodeInApp: true
+      });
       console.log('📧 Password reset email sent');
     } else {
       console.log('📧 Password reset skipped in local mode');
@@ -259,18 +300,32 @@ export class AuthService {
     }
   }
   
-  static async handleAuthAction(mode: string, oobCode: string, continueUrl?: string) {
+  static async verifyEmail(oobCode: string) {
     if (checkFirebaseAvailability() && auth) {
-      switch (mode) {
-        case 'resetPassword':
-          return await verifyPasswordResetCode(auth, oobCode);
-        case 'verifyEmail':
-          return await applyActionCode(auth, oobCode);
-        default:
-          throw new Error(`Unsupported auth action mode: ${mode}`);
+      await applyActionCode(auth, oobCode);
+      console.log('✅ Email verified successfully');
+      
+      // Update user document in Firestore
+      if (auth.currentUser && db) {
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+          emailVerified: true,
+          updatedAt: new Date().toISOString()
+        });
       }
     } else {
-      throw new Error('Auth actions are not available in local mode.');
+      console.log('✅ Email verification skipped in local mode');
+    }
+  }
+  
+  static async resendEmailVerification() {
+    if (checkFirebaseAvailability() && auth && auth.currentUser) {
+      await sendEmailVerification(auth.currentUser, {
+        url: `${window.location.origin}/auth/verify-email`,
+        handleCodeInApp: true
+      });
+      console.log('📧 Email verification resent');
+    } else {
+      throw new Error('Email verification is not available in local mode.');
     }
   }
   
@@ -301,14 +356,15 @@ export class AuthService {
         const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
         
         if (userDoc.exists()) {
-          const userData = userDoc.data() as User;
+          const userData = userDoc.data() as any;
           
           // Convert date strings to Date objects
           return {
             ...userData,
             createdAt: new Date(userData.createdAt),
             updatedAt: userData.updatedAt ? new Date(userData.updatedAt) : undefined,
-            workStyle: userData.workStyle || null
+            workStyle: userData.workStyle || null,
+            emailVerified: auth.currentUser.emailVerified
           };
         }
       } catch (error) {
@@ -362,7 +418,7 @@ export class AuthService {
   
   static onAuthStateChanged(callback: (user: any) => void) {
     if (checkFirebaseAvailability() && auth) {
-      return auth.onAuthStateChanged(callback);
+      return onAuthStateChanged(auth, callback);
     } else {
       setTimeout(() => {
         const localUser = this.getLocalUser();
@@ -379,14 +435,15 @@ export class AuthService {
         const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
         
         if (userDoc.exists()) {
-          const userData = userDoc.data() as User;
+          const userData = userDoc.data() as any;
           
           // Convert date strings to Date objects
           const user = {
             ...userData,
             createdAt: new Date(userData.createdAt),
             updatedAt: userData.updatedAt ? new Date(userData.updatedAt) : undefined,
-            workStyle: userData.workStyle || null
+            workStyle: userData.workStyle || null,
+            emailVerified: auth.currentUser.emailVerified
           };
           
           // Update localStorage
@@ -402,23 +459,6 @@ export class AuthService {
     return this.getLocalUser();
   }
 
-  // Additional utility methods
-  static async checkEmailExists(email: string): Promise<boolean> {
-    try {
-      if (checkFirebaseAvailability() && db) {
-        // In a real app, you would check Firestore or use Firebase Auth methods
-        // This is a simplified implementation
-        return false;
-      } else {
-        const localUser = this.getLocalUser();
-        return localUser?.email === email.toLowerCase().trim();
-      }
-    } catch (error) {
-      console.error('Error checking email:', error);
-      return false;
-    }
-  }
-
   static async validateSession(): Promise<boolean> {
     try {
       if (checkFirebaseAvailability() && auth) {
@@ -426,8 +466,6 @@ export class AuthService {
       } else {
         const user = this.getLocalUser();
         if (!user) return false;
-        
-        // Session is valid if user exists, regardless of workStyle
         return true;
       }
     } catch (error) {

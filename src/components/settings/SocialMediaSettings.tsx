@@ -13,6 +13,8 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { functions } from '../../config/firebase';
+import { httpsCallable } from 'firebase/functions';
 
 interface SocialAccount {
   platform: 'twitter' | 'linkedin' | 'facebook' | 'devto';
@@ -28,10 +30,7 @@ interface SocialPlatformConfig {
   name: string;
   icon: React.ComponentType<any>;
   color: string;
-  authUrl: string;
-  scope: string;
-  clientId: string;
-  redirectUri: string;
+  functionName: string;
 }
 
 const SocialMediaSettings: React.FC = () => {
@@ -45,47 +44,35 @@ const SocialMediaSettings: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
 
-  // Platform configurations for OAuth
+  // Platform configurations for Firebase Functions
   const platformConfigs: SocialPlatformConfig[] = [
     {
       id: 'twitter',
       name: 'X (Twitter)',
       icon: Twitter,
       color: 'text-blue-500 bg-blue-50 dark:bg-blue-900/20',
-      authUrl: 'https://twitter.com/i/oauth2/authorize',
-      scope: 'tweet.read tweet.write users.read',
-      clientId: '', // Removed from code - use environment variable
-      redirectUri: `${window.location.origin}/auth/twitter/callback`
+      functionName: 'connectTwitter'
     },
     {
       id: 'linkedin',
       name: 'LinkedIn',
       icon: Linkedin,
       color: 'text-blue-700 bg-blue-50 dark:bg-blue-900/20',
-      authUrl: 'https://www.linkedin.com/oauth/v2/authorization',
-      scope: 'r_liteprofile w_member_social',
-      clientId: '',
-      redirectUri: `${window.location.origin}/auth/linkedin/callback`
+      functionName: 'connectLinkedIn'
     },
     {
       id: 'facebook',
       name: 'Facebook',
       icon: Facebook,
       color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20',
-      authUrl: 'https://www.facebook.com/v18.0/dialog/oauth',
-      scope: 'pages_manage_posts,pages_read_engagement',
-      clientId: '',
-      redirectUri: `${window.location.origin}/auth/facebook/callback`
+      functionName: 'connectFacebook'
     },
     {
       id: 'devto',
       name: 'Dev.to',
       icon: Code,
       color: 'text-black bg-gray-50 dark:bg-gray-900/20',
-      authUrl: '', // Dev.to uses API key authentication
-      scope: '',
-      clientId: '',
-      redirectUri: ''
+      functionName: 'connectDevTo'
     }
   ];
 
@@ -122,121 +109,52 @@ const SocialMediaSettings: React.FC = () => {
         throw new Error(`Platform configuration not found for ${platform}`);
       }
 
-      if (platform === 'devto') {
-        // Dev.to uses API key authentication
-        // Simulate successful connection
-        const updatedAccounts = accounts.map(account => 
-          account.platform === platform 
-            ? { 
-                ...account, 
-                connected: true, 
-                username: 'dev-user',
-                profileUrl: `https://dev.to/dev-user`
-              }
-            : account
-        );
-        saveAccounts(updatedAccounts);
-        return;
+      if (!functions) {
+        throw new Error('Firebase Functions not available');
       }
 
-      // For Twitter, use the API key from environment variables
-      if (platform === 'twitter') {
-        const twitterApiKey = import.meta.env.VITE_TWITTER_API_KEY;
-        if (!twitterApiKey) {
-          throw new Error('Twitter API key not found in environment variables');
-        }
-        
-        console.log('Connecting to Twitter with API key from environment');
-        
-        // Simulate successful Twitter connection using the provided API key
-        const updatedAccounts = accounts.map(account => 
-          account.platform === platform 
-            ? { 
-                ...account, 
-                connected: true, 
-                username: '@productivity_hero',
-                profileUrl: 'https://twitter.com/productivity_hero',
-                accessToken: 'simulated-token-' + Math.random().toString(36).substring(2)
-              }
-            : account
-        );
-        saveAccounts(updatedAccounts);
-        return;
-      }
-
-      // OAuth flow for other platforms
-      if (!config.clientId) {
-        throw new Error(`Client ID not configured for ${config.name}`);
-      }
-
-      // Generate state parameter for security
-      const state = Math.random().toString(36).substring(2, 15);
-      localStorage.setItem(`oauth_state_${platform}`, state);
-
-      // Build OAuth URL
-      const params = new URLSearchParams({
-        client_id: config.clientId,
-        redirect_uri: config.redirectUri,
-        scope: config.scope,
-        response_type: 'code',
-        state: state
-      });
-
-      const authUrl = `${config.authUrl}?${params.toString()}`;
+      // Call Firebase Function to connect to social media
+      const connectFunction = httpsCallable(functions, config.functionName);
+      const result = await connectFunction({});
       
-      // Open OAuth popup
-      const popup = window.open(
-        authUrl,
-        `${platform}_oauth`,
-        'width=600,height=600,scrollbars=yes,resizable=yes'
-      );
+      const data = result.data as any;
+      
+      if (data.success) {
+        // Update account status
+        const updatedAccounts = accounts.map(account => 
+          account.platform === platform 
+            ? { 
+                ...account, 
+                connected: true, 
+                username: data.user.username || data.user.name,
+                profileUrl: data.user.profileUrl
+              }
+            : account
+        );
+        saveAccounts(updatedAccounts);
+        
+        console.log(`✅ Successfully connected to ${config.name}`);
+      } else {
+        throw new Error(data.error || 'Connection failed');
+      }
 
-      // Listen for OAuth callback
-      const checkClosed = setInterval(() => {
-        if (popup?.closed) {
-          clearInterval(checkClosed);
-          // Check if authentication was successful
-          setTimeout(() => {
-            checkAuthResult(platform);
-          }, 1000);
-        }
-      }, 1000);
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error connecting to ${platform}:`, error);
-      alert(`Failed to connect to ${platform}. Please try again later.`);
+      
+      let errorMessage = `Failed to connect to ${platform}. `;
+      
+      if (error.message?.includes('Bearer Token not configured')) {
+        errorMessage += 'API credentials not configured in Firebase. Please contact support.';
+      } else if (error.message?.includes('API error')) {
+        errorMessage += 'API authentication failed. Please try again later.';
+      } else {
+        errorMessage += 'Please try again later.';
+      }
+      
+      alert(errorMessage);
     } finally {
       setConnecting(null);
     }
-  };
-
-  const checkAuthResult = (platform: string) => {
-    // In a real implementation, this would check for the OAuth callback result
-    // For now, we'll simulate a successful connection
-    const mockUsernames = {
-      twitter: '@productivity_hero',
-      linkedin: 'productivity-champion',
-      facebook: 'productivity.master'
-    };
-
-    const mockUrls = {
-      twitter: 'https://twitter.com/productivity_hero',
-      linkedin: 'https://linkedin.com/in/productivity-champion',
-      facebook: 'https://facebook.com/productivity.master'
-    };
-
-    const updatedAccounts = accounts.map(account => 
-      account.platform === platform 
-        ? { 
-            ...account, 
-            connected: true, 
-            username: mockUsernames[platform as keyof typeof mockUsernames],
-            profileUrl: mockUrls[platform as keyof typeof mockUrls],
-            accessToken: 'simulated-token-' + Math.random().toString(36).substring(2)
-          }
-        : account
-    );
-
-    saveAccounts(updatedAccounts);
   };
 
   const disconnectAccount = (platform: 'twitter' | 'linkedin' | 'facebook' | 'devto') => {
@@ -298,6 +216,25 @@ const SocialMediaSettings: React.FC = () => {
         <p className="text-gray-600 dark:text-gray-400 mb-6">
           Connect your social media accounts to easily share your productivity achievements
         </p>
+      </div>
+
+      {/* API Configuration Notice */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
+        <div className="flex items-start space-x-3">
+          <Settings className="h-5 w-5 text-blue-500 mt-0.5" />
+          <div>
+            <h4 className="font-medium text-blue-700 dark:text-blue-400 mb-2">
+              API Configuration
+            </h4>
+            <p className="text-sm text-blue-600 dark:text-blue-300 mb-2">
+              Social media connections are powered by secure Firebase backend functions. 
+              API credentials are managed server-side for security.
+            </p>
+            <p className="text-xs text-blue-500 dark:text-blue-400">
+              If you encounter connection issues, please contact support for API configuration assistance.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Connected Accounts */}
@@ -390,6 +327,32 @@ const SocialMediaSettings: React.FC = () => {
           {copied ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           <span>{copied ? 'Copied!' : 'Copy Text'}</span>
         </button>
+      </div>
+
+      {/* Firebase Functions Info */}
+      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl p-4">
+        <h4 className="font-semibold text-green-700 dark:text-green-400 mb-3 flex items-center space-x-2">
+          <CheckCircle className="h-5 w-5" />
+          <span>Secure Backend Integration</span>
+        </h4>
+        <ul className="space-y-2 text-green-600 dark:text-green-300 text-sm">
+          <li className="flex items-start space-x-2">
+            <span>•</span>
+            <span>All social media connections are handled by secure Firebase Cloud Functions</span>
+          </li>
+          <li className="flex items-start space-x-2">
+            <span>•</span>
+            <span>API keys and bearer tokens are stored securely in Firebase configuration</span>
+          </li>
+          <li className="flex items-start space-x-2">
+            <span>•</span>
+            <span>CORS is properly configured for secure cross-origin requests</span>
+          </li>
+          <li className="flex items-start space-x-2">
+            <span>•</span>
+            <span>No sensitive credentials are exposed to the frontend application</span>
+          </li>
+        </ul>
       </div>
     </div>
   );

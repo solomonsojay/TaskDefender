@@ -2,6 +2,8 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getAnalytics } from 'firebase/analytics';
+import { getFunctions } from 'firebase/functions';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -23,26 +25,36 @@ export const checkFirebaseAvailability = (): boolean => {
   );
 };
 
-// Initialize Firebase conditionally
+// Initialize Firebase
 let app;
 let auth;
 let db;
 let storage;
+let analytics;
+let functions;
 
 try {
   if (checkFirebaseAvailability()) {
-    console.log('🔥 Initializing Firebase');
+    console.log('🔥 Initializing Firebase with Analytics');
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
+    functions = getFunctions(app);
+    
+    // Initialize Analytics only in production
+    if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
+      analytics = getAnalytics(app);
+    }
+    
+    console.log('✅ Firebase initialized successfully');
   } else {
-    console.log('🔧 Firebase disabled - running in local mode');
+    console.log('🔧 Firebase disabled - missing configuration');
   }
 } catch (error) {
-  console.error('Firebase initialization error:', error);
+  console.error('❌ Firebase initialization error:', error);
   console.log('🔧 Firebase disabled due to error - running in local mode');
 }
 
-export { auth, db, storage };
+export { auth, db, storage, analytics, functions };
 export default app;
