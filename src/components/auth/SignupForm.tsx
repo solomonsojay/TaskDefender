@@ -81,7 +81,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode }) => {
         workStyle: null,
         integrityScore: 100,
         streak: 0,
-        emailVerified: true
+        emailVerified: false
       });
       
       setUser(user);

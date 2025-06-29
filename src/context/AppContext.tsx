@@ -5,6 +5,8 @@ import { generateSecureId, validateUserData, validateTaskData } from '../utils/v
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { userActionService } from '../services/UserActionService';
 import { enhancedSchedulerService } from '../services/EnhancedSchedulerService';
+import { FirestoreService } from '../services/firestoreService';
+import { AuthService } from '../services/authService';
 
 interface AppContextType extends AppState {
   dispatch: React.Dispatch<AppAction>;
@@ -182,83 +184,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [state.theme, addError]);
 
-  // Load tasks from localStorage when user changes with validation
+  // Set up Firebase Auth state listener
   useEffect(() => {
-    if (state.user) {
-      try {
-        const savedTasks = localStorage.getItem(`taskdefender_tasks_${state.user.id}`);
-        if (savedTasks) {
-          const tasks = JSON.parse(savedTasks).map((task: any) => ({
-            ...task,
-            createdAt: new Date(task.createdAt),
-            updatedAt: task.updatedAt ? new Date(task.updatedAt) : undefined,
-            dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-            completedAt: task.completedAt ? new Date(task.completedAt) : undefined,
-            expectedCompletionTime: task.expectedCompletionTime ? new Date(task.expectedCompletionTime) : undefined,
-            scheduledTime: task.scheduledTime ? new Date(task.scheduledTime) : undefined
-          }));
-          
-          // Validate tasks before setting
-          const validTasks = tasks.filter((task: Task) => {
-            const validation = validateTaskData(task);
-            if (!validation.isValid) {
-              console.warn('Invalid task data:', validation.errors);
-              return false;
-            }
-            return true;
-          });
-          
-          dispatch({ type: 'SET_TASKS', payload: validTasks });
-        }
-      } catch (error) {
-        console.error('Failed to load tasks from localStorage:', error);
-        addError('storage', 'Failed to load tasks');
-      }
-    } else {
-      dispatch({ type: 'SET_TASKS', payload: [] });
-    }
-  }, [state.user, addError]);
-
-  // Debounced save tasks to localStorage to prevent flickering
-  useEffect(() => {
-    if (state.user && state.tasks.length >= 0) {
-      // Use a timeout to debounce the save operation
-      const timeoutId = setTimeout(() => {
+    const unsubscribe = AuthService.onAuthStateChanged(async (firebaseUser) => {
+      if (firebaseUser) {
         try {
-          localStorage.setItem(`taskdefender_tasks_${state.user.id}`, JSON.stringify(state.tasks));
+          // Get user data from Firestore
+          const userData = await AuthService.getCurrentUser();
+          
+          if (userData) {
+            dispatch({ type: 'SET_USER', payload: userData });
+            
+            // Check if user needs onboarding
+            if (!userData.workStyle) {
+              dispatch({ type: 'START_ONBOARDING' });
+            } else {
+              dispatch({ type: 'COMPLETE_ONBOARDING' });
+            }
+            
+            // Load user tasks from Firestore
+            const tasks = await FirestoreService.getUserTasks(userData.id);
+            dispatch({ type: 'SET_TASKS', payload: tasks });
+            
+            // Load user teams from Firestore
+            const teams = await FirestoreService.getUserTeams(userData.id);
+            dispatch({ type: 'SET_TEAMS', payload: teams });
+          }
         } catch (error) {
-          console.error('Failed to save tasks:', error);
-          addError('storage', 'Failed to save tasks');
+          console.error('Error loading user data:', error);
+          addError('auth', 'Failed to load user data');
         }
-      }, 100); // 100ms debounce
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [state.tasks, state.user, addError]);
-
-  // Load teams with error handling
-  useEffect(() => {
-    if (state.user) {
-      try {
-        const savedTeams = localStorage.getItem(`taskdefender_teams_${state.user.id}`);
-        if (savedTeams) {
-          const teams = JSON.parse(savedTeams).map((team: any) => ({
-            ...team,
-            createdAt: new Date(team.createdAt),
-            updatedAt: team.updatedAt ? new Date(team.updatedAt) : undefined,
-            members: team.members.map((member: any) => ({
-              ...member,
-              joinedAt: new Date(member.joinedAt)
-            }))
-          }));
-          dispatch({ type: 'SET_TEAMS', payload: teams });
+      } else {
+        // No user is signed in, check for local user
+        const localUser = AuthService.getCurrentUser();
+        if (localUser) {
+          dispatch({ type: 'SET_USER', payload: await localUser });
+        } else {
+          dispatch({ type: 'SET_USER', payload: null });
         }
-      } catch (error) {
-        console.error('Failed to load teams:', error);
-        addError('storage', 'Failed to load teams');
       }
-    }
-  }, [state.user, addError]);
+    });
+
+    return () => unsubscribe();
+  }, [addError]);
 
   const addTask = useCallback(async (taskData: Omit<Task, 'id' | 'createdAt' | 'userId'>) => {
     if (!state.user) {
@@ -269,28 +237,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const task: Task = {
+      const task = await FirestoreService.createTask(state.user.id, {
         ...taskData,
-        id: generateSecureId(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        userId: state.user.id,
         isDefenseActive: true,
         defenseLevel: taskData.priority === 'urgent' ? 'critical' : 
                      taskData.priority === 'high' ? 'high' : 'medium',
         procrastinationCount: 0,
         focusSessionsCount: 0,
         totalFocusTime: 0
-      };
+      });
 
-      // Validate task data
-      const validation = validateTaskData(task);
-      if (!validation.isValid) {
-        addError('validation', `Invalid task data: ${validation.errors.join(', ')}`);
-        return;
-      }
-
-      // Add task to state immediately to prevent flickering
+      // Add task to state
       dispatch({ type: 'ADD_TASK', payload: task });
       
       // Log user action asynchronously
@@ -311,13 +268,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
     try {
+      if (!state.user) return;
+      
       const currentTask = state.tasks.find(t => t.id === id);
-      if (!currentTask || !state.user) return;
+      if (!currentTask) return;
 
       const updatedTask = { ...updates, updatedAt: new Date() };
       
-      // Update task in state immediately to prevent flickering
+      // Update task in state immediately
       dispatch({ type: 'UPDATE_TASK', payload: { id, updates: updatedTask } });
+      
+      // Update in Firestore
+      await FirestoreService.updateTask(state.user.id, id, updatedTask);
       
       // Handle completion logic asynchronously
       setTimeout(() => {
@@ -373,12 +335,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           
           dispatch({ type: 'SET_USER', payload: updatedUser });
           
-          // Persist user updates
-          try {
-            localStorage.setItem('taskdefender_current_user', JSON.stringify(updatedUser));
-          } catch (error) {
-            addError('storage', 'Failed to save user updates');
-          }
+          // Update user in Firestore
+          AuthService.updateUser(state.user.id, {
+            integrityScore,
+            streak: streakData.currentStreak,
+            totalTasksCompleted: (state.user.totalTasksCompleted || 0) + 1,
+            lastActiveDate: new Date()
+          });
         }
       }, 0);
     } catch (error) {
@@ -389,13 +352,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteTask = useCallback(async (id: string) => {
     try {
+      if (!state.user) return;
+      
       // Clear any active interventions for this task
       smartInterventionService.clearInterventionForTask(id);
       
       // Clear task reminders
       enhancedSchedulerService.clearTaskReminders(id);
       
-      // Delete task from state immediately
+      // Delete task from Firestore
+      await FirestoreService.deleteTask(state.user.id, id);
+      
+      // Delete task from state
       dispatch({ type: 'DELETE_TASK', payload: id });
       
       // Log user action asynchronously
@@ -464,6 +432,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     dispatch({ type: 'START_FOCUS_SESSION', payload: session });
     
+    // Create focus session in Firestore
+    if (state.user) {
+      FirestoreService.createFocusSession(session).catch(error => {
+        console.error('Failed to save focus session:', error);
+      });
+    }
+    
     // Log user action asynchronously
     setTimeout(() => {
       userActionService.logAction(state.user!.id, 'focus_started', taskId, {
@@ -505,7 +480,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
         
         dispatch({ type: 'SET_USER', payload: updatedUser });
-        localStorage.setItem('taskdefender_current_user', JSON.stringify(updatedUser));
+        
+        // Update user in Firestore
+        AuthService.updateUser(state.user!.id, {
+          totalFocusTime: (state.user!.totalFocusTime || 0) + durationMinutes,
+          lastActiveDate: new Date()
+        });
       }, 0);
     }
 
@@ -521,27 +501,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const team: Team = {
+      const team = await FirestoreService.createTeam({
         ...teamData,
-        id: generateSecureId(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        inviteCode: generateSecureId().substring(0, 8).toUpperCase(),
-      };
+        inviteCode: generateSecureId().substring(0, 8).toUpperCase()
+      });
       
       dispatch({ type: 'CREATE_TEAM', payload: team });
-      
-      // Save to localStorage
-      const currentTeams = state.teams;
-      const updatedTeams = [...currentTeams, team];
-      localStorage.setItem(`taskdefender_teams_${state.user.id}`, JSON.stringify(updatedTeams));
     } catch (error) {
       console.error('Failed to create team:', error);
       addError('unknown', 'Failed to create team');
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [state.user, state.teams, addError]);
+  }, [state.user, addError]);
 
   const joinTeam = useCallback(async (inviteCode: string) => {
     if (!state.user) {
@@ -578,18 +550,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
       
       dispatch({ type: 'JOIN_TEAM', payload: updatedTeam });
-      
-      // Save to localStorage
-      const currentTeams = state.teams;
-      const updatedTeams = [...currentTeams, updatedTeam];
-      localStorage.setItem(`taskdefender_teams_${state.user.id}`, JSON.stringify(updatedTeams));
     } catch (error) {
       console.error('Failed to join team:', error);
       addError('unknown', 'Failed to join team');
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [state.user, state.teams, addError]);
+  }, [state.user, addError]);
 
   const updateProfile = useCallback(async (updates: Partial<User>) => {
     if (!state.user) {
@@ -600,25 +567,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      // Only validate if workStyle is being set (not null)
-      if (updates.workStyle !== null && updates.workStyle !== undefined) {
-        const validation = validateUserData({ ...state.user, ...updates });
-        if (!validation.isValid) {
-          addError('validation', `Invalid profile data: ${validation.errors.join(', ')}`);
-          return;
-        }
-      }
-      
-      const updatedUser = { 
-        ...state.user, 
-        ...updates, 
-        updatedAt: new Date() 
-      };
+      // Update user in Firestore and localStorage
+      const updatedUser = await AuthService.updateUser(state.user.id, updates);
       
       dispatch({ type: 'SET_USER', payload: updatedUser });
-      
-      // Persist to localStorage
-      localStorage.setItem('taskdefender_current_user', JSON.stringify(updatedUser));
       
       console.log('✅ Profile updated successfully');
     } catch (error) {
@@ -637,8 +589,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      // Import AuthService dynamically to avoid circular dependencies
-      const { AuthService } = await import('../services/authService');
       await AuthService.signOut();
       dispatch({ type: 'SET_USER', payload: null });
       dispatch({ type: 'SET_TASKS', payload: [] });
