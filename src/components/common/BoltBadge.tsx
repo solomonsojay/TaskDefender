@@ -11,7 +11,7 @@ const BoltBadge: React.FC = () => {
         title="Powered by Bolt.new - AI-powered full-stack development"
       >
         <img
-          src="/black_circle_360x360.png"
+          src="/white_circle_360x360.png"
           alt="Powered by Bolt.new"
           className="w-16 h-16 rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200"
         />
