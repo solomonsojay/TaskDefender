@@ -1,12 +1,12 @@
 # TaskDefender - Your Last Line of Defense Against Procrastination
 
-A comprehensive productivity application with AI-powered motivation and Firebase integration. User data is securely stored in Firestore and synchronized across devices.
+A comprehensive productivity application with local storage for data persistence. User data is securely stored in your browser's localStorage and available across sessions.
 
 ## 🎯 Core Mission
 
 **"Your Last Line of Defense Against Procrastination"**
 
-TaskDefender stands as your ultimate productivity guardian, helping you overcome procrastination and achieve your goals with AI-powered motivation, smart interventions, and secure cloud storage.
+TaskDefender stands as your ultimate productivity guardian, helping you overcome procrastination and achieve your goals with AI-powered motivation, smart interventions, and secure local storage.
 
 ## ✨ Features
 
@@ -53,10 +53,10 @@ TaskDefender stands as your ultimate productivity guardian, helping you overcome
 - Collaborative goal tracking
 - Team productivity analytics
 
-### 🔒 **Security & Cloud Storage**
+### 🔒 **Security & Local Storage**
 - User authentication with email verification
-- Secure data storage in Firebase Firestore
-- Cross-device synchronization
+- Secure data storage in browser's localStorage
+- Cross-session persistence
 - Complete data export and deletion capabilities
 
 ### 🧠 **Advanced AI Features**
@@ -78,24 +78,12 @@ TaskDefender stands as your ultimate productivity guardian, helping you overcome
    npm install
    ```
 
-3. **Set up environment variables**
-   Create a `.env` file in the root directory with your Firebase configuration:
-   ```
-   VITE_FIREBASE_API_KEY=your-api-key
-   VITE_FIREBASE_AUTH_DOMAIN=your-auth-domain
-   VITE_FIREBASE_PROJECT_ID=your-project-id
-   VITE_FIREBASE_STORAGE_BUCKET=your-storage-bucket
-   VITE_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
-   VITE_FIREBASE_APP_ID=your-app-id
-   VITE_FIREBASE_MEASUREMENT_ID=your-measurement-id
-   ```
-
-4. **Start development server**
+3. **Start development server**
    ```bash
    npm run dev
    ```
 
-5. **Open in browser**
+4. **Open in browser**
    Navigate to `http://localhost:5173`
 
 ## 🎮 How to Use
@@ -148,10 +136,7 @@ TaskDefender stands as your ultimate productivity guardian, helping you overcome
 - **Icons**: Lucide React
 - **Build Tool**: Vite
 - **Testing**: Vitest + Testing Library
-- **Database**: Firebase Firestore
-- **Authentication**: Firebase Auth
-- **Storage**: Firebase Storage
-- **Functions**: Firebase Cloud Functions
+- **Storage**: Browser localStorage
 - **Voice**: Web Speech API
 
 ## 📁 Project Structure
@@ -184,7 +169,7 @@ TaskDefender operates on the principle that **productivity is a battle against p
 
 1. **Honest Accountability**: Integrity checkpoints ensure you're truthful about task completion
 2. **Smart Motivation**: AI analyzes your patterns and provides contextual motivation
-3. **Cloud Synchronization**: Your data is securely stored and available across devices
+3. **Local Storage**: Your data is securely stored in your browser and available across sessions
 4. **Gamified Progress**: Achievements and streaks make productivity engaging
 5. **Flexible Approach**: Multiple personas and customization options
 
@@ -194,48 +179,6 @@ TaskDefender operates on the principle that **productivity is a battle against p
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run clean` - Clean build directory
-
-## 🚀 Deployment
-
-### Firebase Deployment
-
-1. **Install Firebase CLI**
-   ```bash
-   npm install -g firebase-tools
-   ```
-
-2. **Login to Firebase**
-   ```bash
-   firebase login
-   ```
-
-3. **Initialize Firebase project**
-   ```bash
-   firebase init
-   ```
-
-4. **Build the project**
-   ```bash
-   npm run build
-   ```
-
-5. **Deploy to Firebase**
-   ```bash
-   firebase deploy
-   ```
-
-### Environment Variables
-Set up the following environment variables in your Firebase project:
-
-```
-FIREBASE_API_KEY=your-api-key
-FIREBASE_AUTH_DOMAIN=your-auth-domain
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_STORAGE_BUCKET=your-storage-bucket
-FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
-FIREBASE_APP_ID=your-app-id
-FIREBASE_MEASUREMENT_ID=your-measurement-id
-```
 
 ## 🎭 Personality System
 
@@ -263,10 +206,9 @@ Earn badges for various productivity milestones:
 
 ## 🔒 Security & Privacy
 
-- **Firebase Authentication**: Secure user authentication with email verification
-- **Firestore Security Rules**: Proper data access controls
-- **Cloud Storage**: Secure file storage with appropriate permissions
-- **Data Ownership**: Users have full control over their data
+- **Local Storage**: All data is stored securely in your browser's localStorage
+- **No Server Communication**: Your data never leaves your device
+- **Data Ownership**: You have full control over your data
 - **Export/Import**: Complete data portability
 - **Secure by Design**: Privacy-first architecture
 
