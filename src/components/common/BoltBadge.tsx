@@ -10,9 +10,11 @@ const BoltBadge: React.FC = () => {
         className="block transition-transform duration-200 hover:scale-110 hover:shadow-lg"
         title="Powered by Bolt.new - AI-powered full-stack development"
       >
-        <div className="w-16 h-16 rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 bg-black flex items-center justify-center text-white font-bold text-xl">
-          ⚡
-        </div>
+        <img
+          src="/black_circle_360x360.png"
+          alt="Powered by Bolt.new"
+          className="w-16 h-16 rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200"
+        />
       </a>
     </div>
   );
