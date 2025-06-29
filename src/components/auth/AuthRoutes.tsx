@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation, Navigate } from 'react-router-dom';
+import { useLocation, Navigate, Routes, Route } from 'react-router-dom';
 import PasswordResetForm from './PasswordResetForm';
 import EmailVerificationConfirmation from './EmailVerificationConfirmation';
 
