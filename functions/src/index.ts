@@ -11,6 +11,8 @@ const corsHandler = cors({ origin: true });
 // Social Media API Configuration
 interface SocialMediaConfig {
   twitter: {
+    apiKey: string;
+    apiSecret: string;
     bearerToken: string;
   };
   linkedin: {
@@ -29,6 +31,8 @@ const getSocialMediaConfig = (): SocialMediaConfig => {
   const config = functions.config();
   return {
     twitter: {
+      apiKey: config.social?.twitter?.api_key || '',
+      apiSecret: config.social?.twitter?.api_secret || '',
       bearerToken: config.social?.twitter?.bearer_token || ''
     },
     linkedin: {
@@ -116,7 +120,7 @@ export const connectLinkedIn = functions.https.onRequest((request, response) => 
       }
 
       // Get user info from LinkedIn API
-      const linkedinResponse = await fetch('https://api.linkedin.com/v2/people/~', {
+      const linkedinResponse = await fetch('https://api.linkedin.com/v2/me', {
         headers: {
           'Authorization': `Bearer ${bearerToken}`,
           'Content-Type': 'application/json'
