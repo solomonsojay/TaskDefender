@@ -54,7 +54,7 @@ const SocialMediaSettings: React.FC = () => {
       color: 'text-blue-500 bg-blue-50 dark:bg-blue-900/20',
       authUrl: 'https://twitter.com/i/oauth2/authorize',
       scope: 'tweet.read tweet.write users.read',
-      clientId: import.meta.env.VITE_TWITTER_API_KEY || '',
+      clientId: '', // Removed from code - use environment variable
       redirectUri: `${window.location.origin}/auth/twitter/callback`
     },
     {
@@ -141,11 +141,12 @@ const SocialMediaSettings: React.FC = () => {
 
       // For Twitter, use the API key from environment variables
       if (platform === 'twitter') {
-        if (!config.clientId) {
+        const twitterApiKey = import.meta.env.VITE_TWITTER_API_KEY;
+        if (!twitterApiKey) {
           throw new Error('Twitter API key not found in environment variables');
         }
         
-        console.log('Connecting to Twitter with API key:', config.clientId);
+        console.log('Connecting to Twitter with API key from environment');
         
         // Simulate successful Twitter connection using the provided API key
         const updatedAccounts = accounts.map(account => 
