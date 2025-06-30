@@ -8,6 +8,27 @@ A comprehensive productivity application with local storage for data persistence
 
 TaskDefender stands as your ultimate productivity guardian, helping you overcome procrastination and achieve your goals with AI-powered motivation, smart interventions, and secure local storage.
 
+\### Core Functionality
+
+\- \*\*Smart Task Management\*\* - Create, organize, and track tasks with intelligent scheduling
+
+\- \*\*Focus Mode\*\* - Pomodoro-style focus sessions with distraction tracking
+
+\- \*\*Work Pattern Analysis\*\* - AI-powered insights into productivity patterns
+
+\- \*\*Sarcastic AI Engine\*\* - Motivational prompts with multiple personality types
+
+\- \*\*Gamification System\*\* - Badges, achievements, and integrity scoring
+
+\- \*\*Team Management\*\* - Collaborative features for team productivity
+
+\- \*\*Voice Call Interventions\*\* - Simulated motivational calls from different characters
+
+\- \*\*Smart Notifications\*\* - Contextual reminders and deadline alerts
+
+
+
+
 ## ✨ Features
 
 ### 🎯 **Task Management**
