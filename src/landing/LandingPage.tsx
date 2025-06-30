@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, ArrowRight, MessageCircle, X, Send, User, Bot } from 'lucide-react';
+import { Shield, ArrowRight, MessageCircle, X, Send, User, Bot, Zap, Target, Brain, DollarSign, Eye, Mic } from 'lucide-react';
 import ReactTypingEffect from 'react-typing-effect';
 import Logo from '../components/common/Logo';
 
@@ -78,6 +78,18 @@ const LandingPage: React.FC = () => {
     
     if (lowerMessage.includes('start') || lowerMessage.includes('begin') || lowerMessage.includes('how to')) {
       return "Getting started with TaskDefender is easy:\n\n1. Click the big 'Go to App' button on this page\n2. Create an account with your email\n3. Complete the quick onboarding to set your work style\n4. Add your first task using the Quick Task Capture\n5. Start a focus session by clicking the play button\n6. Track your progress in the Analytics section\n\nThe app will guide you through each step with helpful tips!";
+    }
+    
+    if (lowerMessage.includes('escalation') || lowerMessage.includes('phase') || lowerMessage.includes('consequence')) {
+      return "TaskDefender's 4-Phase Escalation System (Coming Soon):\n\n1. 🎭 Sarcastic Nudges: Humorous but cutting notifications\n2. 🗣️ AI Voice Intervention: 'Future You' calls with warnings\n3. 📱 Public Accountability: Social media exposure of procrastination\n4. 💰 Financial Consequences: Automatic donations to causes you hate\n\nThis escalating system ensures you can't ignore your responsibilities!";
+    }
+    
+    if (lowerMessage.includes('behavioral') || lowerMessage.includes('psychology') || lowerMessage.includes('pattern')) {
+      return "TaskDefender uses advanced behavioral psychology:\n\n• Behavioral Science Backed: Proven negative reinforcement techniques\n• Personalized Shame: Learns your specific procrastination patterns\n• No Easy Opt-Out: Consequences are locked in when you set tasks\n• Dark Humor: Makes productivity fun through savage honesty\n\nIt's designed by procrastinators, for procrastinators!";
+    }
+    
+    if (lowerMessage.includes('premium') || lowerMessage.includes('payment') || lowerMessage.includes('blockchain')) {
+      return "Upcoming Premium Features:\n\n• 🎙️ ElevenLabs AI for personalized voice shaming\n• 💰 Algorand blockchain for enforceable financial stakes\n• 👁️ Smart activity monitoring to detect real procrastination\n• 🔒 Premium team management features\n• 📊 Advanced analytics and insights\n\nThese features will take TaskDefender to the next level!";
     }
     
     return "Thanks for your message! TaskDefender is your last line of defense against procrastination, featuring task management, focus sessions, voice interventions, and more. How can I help you learn more about a specific feature?";
@@ -165,11 +177,52 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Our Inspiration Section */}
       <section className="py-16 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-12">
-            Key Features
+            Our Inspiration
+          </h2>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            {/* The Problem */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
+              <h3 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">
+                The Problem No One Wants to Admit
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                We all know that feeling: staring at a blank document while guiltily scrolling through social media, 
+                promising ourselves we'll start "in just 5 more minutes."
+              </p>
+              <p className="text-gray-600 dark:text-gray-400">
+                Traditional productivity apps fail because they're very passive and designed for people who are already motivated. 
+                But what about the rest of us - the chronic procrastinators who need more than gentle reminders and pretty interfaces?
+              </p>
+            </div>
+
+            {/* The Solution */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
+              <h3 className="text-2xl font-bold text-green-600 dark:text-green-400 mb-4">
+                A Radical New Approach
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                TaskDefender is the accountability partner that fights fire with fire and shame with more shame. 
+                Designed by procrastinators for procrastinators, it uses behavioral psychology and escalating consequences 
+                to shock users into action.
+              </p>
+              <p className="text-gray-600 dark:text-gray-400">
+                This isn't another to-do list app - it's a smart intervention app to help you be more productive.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-16 bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-12">
+            Current Features
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -215,6 +268,143 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* What's Next Section */}
+      <section className="py-16 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-12">
+            What's Next for TaskDefender
+          </h2>
+          
+          {/* 4-Phase Escalation System */}
+          <div className="mb-16">
+            <h3 className="text-2xl font-bold text-center text-orange-600 dark:text-orange-400 mb-8">
+              4-Phase Escalation System
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                {
+                  phase: "Phase 1",
+                  title: "Sarcastic Nudges",
+                  description: "Humorous but cutting notifications call out your avoidance.",
+                  icon: <Zap className="h-8 w-8" />,
+                  color: "bg-yellow-500"
+                },
+                {
+                  phase: "Phase 2",
+                  title: "AI Voice Intervention",
+                  description: "'Future You' calls to warn about impending consequences.",
+                  icon: <Mic className="h-8 w-8" />,
+                  color: "bg-orange-500"
+                },
+                {
+                  phase: "Phase 3",
+                  title: "Public Accountability",
+                  description: "Auto-posts to social media exposing your procrastination.",
+                  icon: <Eye className="h-8 w-8" />,
+                  color: "bg-red-500"
+                },
+                {
+                  phase: "Phase 4",
+                  title: "Financial Consequences",
+                  description: "Automatic donations to causes you hate when you slack.",
+                  icon: <DollarSign className="h-8 w-8" />,
+                  color: "bg-red-700"
+                }
+              ].map((phase, index) => (
+                <div key={index} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 text-center">
+                  <div className={`${phase.color} text-white p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center`}>
+                    {phase.icon}
+                  </div>
+                  <h4 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    {phase.phase}
+                  </h4>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                    {phase.title}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {phase.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Behavioral Pattern Analysis */}
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl text-white p-8 mb-16">
+            <h3 className="text-2xl font-bold text-center mb-8">
+              Behavioral Pattern Analysis
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                {
+                  title: "Behavioral Science Backed",
+                  description: "Uses proven negative reinforcement techniques."
+                },
+                {
+                  title: "Personalized Shame",
+                  description: "Learns your specific procrastination patterns."
+                },
+                {
+                  title: "No Easy Opt-Out",
+                  description: "Consequences are locked in when you set tasks."
+                },
+                {
+                  title: "Dark Humor",
+                  description: "Makes productivity fun through savage honesty."
+                }
+              ].map((item, index) => (
+                <div key={index} className="text-center">
+                  <div className="bg-white/20 p-3 rounded-lg mb-3">
+                    <Brain className="h-6 w-6 mx-auto" />
+                  </div>
+                  <h4 className="font-bold mb-2">{item.title}</h4>
+                  <p className="text-sm text-purple-100">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Coming Features */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+              <div className="bg-blue-500 text-white p-3 rounded-full w-12 h-12 mb-4 flex items-center justify-center">
+                <Mic className="h-6 w-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                More Personalized Voice System
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                ElevenLabs AI for personalized voice shaming with custom voice cloning and advanced speech synthesis.
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+              <div className="bg-green-500 text-white p-3 rounded-full w-12 h-12 mb-4 flex items-center justify-center">
+                <DollarSign className="h-6 w-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                Payment System for Premium Users
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Algorand blockchain for enforceable financial stakes for premium users who opt-in to financial consequences.
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+              <div className="bg-purple-500 text-white p-3 rounded-full w-12 h-12 mb-4 flex items-center justify-center">
+                <Eye className="h-6 w-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                Real-Time System Activity Monitoring
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Smart activity monitoring to detect real procrastination patterns and trigger appropriate interventions.
+              </p>
+            </div>
           </div>
         </div>
       </section>

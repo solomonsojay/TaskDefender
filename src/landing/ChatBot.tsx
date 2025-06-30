@@ -93,6 +93,18 @@ const ChatBot: React.FC = () => {
       return "Getting started with TaskDefender is easy:\n\n1. Click the big 'Go to App' button on this page\n2. Create an account with your email\n3. Complete the quick onboarding to set your work style\n4. Add your first task using the Quick Task Capture\n5. Start a focus session by clicking the play button\n6. Track your progress in the Analytics section\n\nThe app will guide you through each step with helpful tips!";
     }
     
+    if (lowerMessage.includes('escalation') || lowerMessage.includes('phase') || lowerMessage.includes('consequence')) {
+      return "TaskDefender's 4-Phase Escalation System (Coming Soon):\n\n1. 🎭 Sarcastic Nudges: Humorous but cutting notifications\n2. 🗣️ AI Voice Intervention: 'Future You' calls with warnings\n3. 📱 Public Accountability: Social media exposure of procrastination\n4. 💰 Financial Consequences: Automatic donations to causes you hate\n\nThis escalating system ensures you can't ignore your responsibilities!";
+    }
+    
+    if (lowerMessage.includes('behavioral') || lowerMessage.includes('psychology') || lowerMessage.includes('pattern')) {
+      return "TaskDefender uses advanced behavioral psychology:\n\n• Behavioral Science Backed: Proven negative reinforcement techniques\n• Personalized Shame: Learns your specific procrastination patterns\n• No Easy Opt-Out: Consequences are locked in when you set tasks\n• Dark Humor: Makes productivity fun through savage honesty\n\nIt's designed by procrastinators, for procrastinators!";
+    }
+    
+    if (lowerMessage.includes('premium') || lowerMessage.includes('payment') || lowerMessage.includes('blockchain')) {
+      return "Upcoming Premium Features:\n\n• 🎙️ ElevenLabs AI for personalized voice shaming\n• 💰 Algorand blockchain for enforceable financial stakes\n• 👁️ Smart activity monitoring to detect real procrastination\n• 🔒 Premium team management features\n• 📊 Advanced analytics and insights\n\nThese features will take TaskDefender to the next level!";
+    }
+    
     return "Thanks for your message! TaskDefender is your last line of defense against procrastination, featuring task management, focus sessions, voice interventions, and more. How can I help you learn more about a specific feature?";
   };
 
@@ -107,7 +119,7 @@ const ChatBot: React.FC = () => {
     <>
       <button
         onClick={() => setIsChatOpen(true)}
-        className={`fixed bottom-6 right-6 bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-full shadow-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 z-50 ${isChatOpen ? 'hidden' : 'flex'}`}
+        className={`fixed bottom-6 right-6 bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-full shadow-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 z-50 animate-bounce ${isChatOpen ? 'hidden' : 'flex'}`}
         title="Chat with Ninja"
       >
         <MessageCircle className="h-6 w-6" />
