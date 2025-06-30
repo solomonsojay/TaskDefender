@@ -72,14 +72,6 @@ const LandingPage: React.FC = () => {
       return "TaskDefender's Analytics provide insights into your productivity:\n\n• Daily, weekly, and monthly views\n• Task completion rates and trends\n• Focus session statistics\n• Integrity score tracking\n• Procrastination patterns\n• Streak monitoring\n• Social media sharing of achievements\n\nThese insights help you understand your productivity patterns and improve over time.";
     }
     
-    if (lowerMessage.includes('help') || lowerMessage.includes('support') || lowerMessage.includes('ticket')) {
-      return "Need help with TaskDefender? I'm here to assist!\n\nFor technical support, please provide:\n1. What issue you're experiencing\n2. Which browser you're using\n3. Any error messages you see\n\nFor feature requests or feedback, please describe what you'd like to see improved.\n\nYou can also email support@taskdefender.online for direct assistance.";
-    }
-    
-    if (lowerMessage.includes('start') || lowerMessage.includes('begin') || lowerMessage.includes('how to')) {
-      return "Getting started with TaskDefender is easy:\n\n1. Click the big 'Go to App' button on this page\n2. Create an account with your email\n3. Complete the quick onboarding to set your work style\n4. Add your first task using the Quick Task Capture\n5. Start a focus session by clicking the play button\n6. Track your progress in the Analytics section\n\nThe app will guide you through each step with helpful tips!";
-    }
-    
     if (lowerMessage.includes('escalation') || lowerMessage.includes('phase') || lowerMessage.includes('consequence')) {
       return "TaskDefender's 4-Phase Escalation System (Coming Soon):\n\n1. 🎭 Sarcastic Nudges: Humorous but cutting notifications\n2. 🗣️ AI Voice Intervention: 'Future You' calls with warnings\n3. 📱 Public Accountability: Social media exposure of procrastination\n4. 💰 Financial Consequences: Automatic donations to causes you hate\n\nThis escalating system ensures you can't ignore your responsibilities!";
     }
@@ -90,6 +82,14 @@ const LandingPage: React.FC = () => {
     
     if (lowerMessage.includes('premium') || lowerMessage.includes('payment') || lowerMessage.includes('blockchain')) {
       return "Upcoming Premium Features:\n\n• 🎙️ ElevenLabs AI for personalized voice shaming\n• 💰 Algorand blockchain for enforceable financial stakes\n• 👁️ Smart activity monitoring to detect real procrastination\n• 🔒 Premium team management features\n• 📊 Advanced analytics and insights\n\nThese features will take TaskDefender to the next level!";
+    }
+    
+    if (lowerMessage.includes('help') || lowerMessage.includes('support') || lowerMessage.includes('ticket')) {
+      return "Need help with TaskDefender? I'm here to assist!\n\nFor technical support, please provide:\n1. What issue you're experiencing\n2. Which browser you're using\n3. Any error messages you see\n\nFor feature requests or feedback, please describe what you'd like to see improved.\n\nYou can also email support@taskdefender.online for direct assistance.";
+    }
+    
+    if (lowerMessage.includes('start') || lowerMessage.includes('begin') || lowerMessage.includes('how to')) {
+      return "Getting started with TaskDefender is easy:\n\n1. Click the big 'Go to App' button on this page\n2. Create an account with your email\n3. Complete the quick onboarding to set your work style\n4. Add your first task using the Quick Task Capture\n5. Start a focus session by clicking the play button\n6. Track your progress in the Analytics section\n\nThe app will guide you through each step with helpful tips!";
     }
     
     return "Thanks for your message! TaskDefender is your last line of defense against procrastination, featuring task management, focus sessions, voice interventions, and more. How can I help you learn more about a specific feature?";
@@ -431,12 +431,26 @@ const LandingPage: React.FC = () => {
       {/* Team Section */}
       <section id="team" className="py-16 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-4">
-            Our Team
-          </h2>
-          <p className="text-center text-gray-600 dark:text-gray-400 mb-12 max-w-3xl mx-auto">
-            NOCODE NINJAS SOLUTIONS - Crafting productivity tools with expertise and passion
-          </p>
+          {/* Company Logo */}
+          <div className="text-center mb-12">
+            <div className="flex justify-center mb-6">
+              <img 
+                src="/openart-image_r8J6dat0_1748532422291_raw.png" 
+                alt="NoCode Ninjas Solutions" 
+                className="h-32 w-auto object-contain"
+              />
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+              Our Team
+            </h2>
+            <p className="text-center text-gray-600 dark:text-gray-400 mb-8 max-w-3xl mx-auto">
+              <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                NOCODE NINJAS SOLUTIONS
+              </span>
+              <br />
+              Crafting productivity tools with expertise and passion
+            </p>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Team member placeholders - will be updated later */}
@@ -517,7 +531,7 @@ const LandingPage: React.FC = () => {
       {/* Chat Bot */}
       <button
         onClick={() => setIsChatOpen(true)}
-        className={`fixed bottom-6 right-6 bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-full shadow-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 z-50 ${isChatOpen ? 'hidden' : 'flex'}`}
+        className={`fixed bottom-6 right-6 bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-full shadow-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 z-50 animate-bounce ${isChatOpen ? 'hidden' : 'flex'}`}
         title="Chat with Ninja"
       >
         <MessageCircle className="h-6 w-6" />
