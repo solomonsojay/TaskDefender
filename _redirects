@@ -1,0 +1,10 @@
+# Netlify redirects file (backup configuration)
+
+# Landing page routes (web.taskdefender.online)
+/*    /index.html   200   Host=web.taskdefender.online
+
+# App routes (app.taskdefender.online)  
+/*    /app.html     200   Host=app.taskdefender.online
+
+# Default fallback
+/*    /index.html   200
