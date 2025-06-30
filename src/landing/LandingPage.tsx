@@ -453,8 +453,27 @@ const LandingPage: React.FC = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Team member placeholders - will be updated later */}
-            {[1, 2, 3].map((_, index) => (
+            {/* Solomon Burutu - CTO and Co-founder */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 text-center">
+              <div className="w-24 h-24 rounded-full mx-auto mb-4 overflow-hidden">
+                <img 
+                  src="/a 9.png" 
+                  alt="Solomon Burutu" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                Solomon Burutu
+              </h3>
+              <p className="text-orange-600 dark:text-orange-400 mb-3">CTO and Co-founder</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
+                Visionary technology leader driving innovation at NoCode Ninjas Solutions. 
+                Expert in building scalable productivity solutions and leading technical strategy.
+              </p>
+            </div>
+
+            {/* Placeholder team members */}
+            {[1, 2].map((_, index) => (
               <div key={index} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 text-center">
                 <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-4"></div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
